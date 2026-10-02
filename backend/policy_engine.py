@@ -310,6 +310,165 @@ def render_reason(templates, profile):
     return rendered
 
 
+# ---------------------------------------------------------------- 证据链
+# 目标：让每一条推荐都能回答三个问题——
+#   1. 依据用户的哪一句话 / 哪一个生活事件？（来源：画像）
+#   2. 对应政策的哪一条结构化条件？（来源：conditions）
+#   3. 这条结论的可信度来自哪个部门的哪份文件？（来源：source）
+# 三段全部取自数据库已有字段，不新增字段、不改写政策表述。
+
+# 生活事件 -> 该事件在数据库里的口语化说明（用于让用户看懂 AI 认出了什么）
+SCENE_PLAIN = {
+    "年龄增长": "已到相关政策的年龄门槛附近",
+    "独居": "描述中提到独自居住",
+    "行动不便": "描述中提到行动、走路方面的困难",
+    "吃饭困难": "描述中提到做饭、吃饭方面的困难",
+    "需要照护": "描述中提到需要他人照顾、照护",
+    "长期卧床": "描述中提到长期卧床、下不了床",
+    "医疗护理压力": "描述中提到就医、护理费用方面的压力",
+    "记忆下降": "描述中提到记忆、认知方面的变化",
+    "跌倒风险": "描述中提到摔倒、跌倒风险",
+    "子女无法陪伴": "描述中提到子女不在身边、无法陪伴",
+    "经济压力": "描述中提到费用、经济方面的压力",
+    "不了解政策": "描述中提到此前不了解相关政策",
+    "身体能力下降": "描述中提到整体身体能力下降",
+    "居家环境不安全": "描述中提到居家环境存在安全隐患",
+    "长期健康问题": "描述中提到长期健康问题",
+    "需要健康检查": "描述中提到需要健康检查",
+    "慢性病管理": "描述中提到慢性病管理需求",
+    "疑似认知问题": "描述中提到疑似认知方面问题",
+    "家属担心老人状态": "描述中提到家属对老人状态的担心",
+    "无人照顾": "描述中提到身边无人照顾",
+    "护理费用压力": "描述中提到护理费用方面的压力",
+    "家庭照护困难": "描述中提到家庭照护方面的困难",
+    "需要社区帮助": "描述中提到需要社区层面的帮助",
+    "不愿入住养老机构": "描述中提到不愿入住养老机构",
+}
+
+# 三值条件的中文标签，用于证据链里逐条列出
+_COND_LABEL = {
+    "hukou": ("户籍条件", "具有广州市户籍", "不具有广州市户籍"),
+    "insurance": ("医保条件", "已参加广州市社会医疗保险", "未参加广州市社会医疗保险"),
+    "disability": ("失能条件", "属于失能或部分失能", "不属于失能或部分失能"),
+}
+
+
+def _quote_source(policy):
+    """从 source 里拼一句可读的依据表述；缺字段就只返回已有的部分，绝不补写。"""
+    src = policy.get("source", {}) or {}
+    parts = []
+    if src.get("document") and src["document"] != "to_verify":
+        parts.append(str(src["document"]))
+    if src.get("document_no"):
+        parts.append(str(src["document_no"]))
+    if not parts:
+        return ""
+    text = "、".join(parts)
+    if src.get("publish_date"):
+        text += "（%s）" % src["publish_date"]
+    return text
+
+
+def build_evidence_chain(policy, profile, hit_scenes, missing):
+    """
+    为单条政策生成「证据链」：画像依据 → 政策条件 → 官方依据。
+    每一段都只引用数据库已有内容；查不到就留空，不做任何推断性表述。
+    """
+    # ---- 第1 段：画像依据（用户提供了什么）
+    basis = []
+    for s in hit_scenes:
+        basis.append({
+            "kind": "scene",
+            "label": s,
+            "text": SCENE_PLAIN.get(s, "描述中提到的相关生活情况"),
+        })
+    if profile.get("age") is not None:
+        basis.append({
+            "kind": "age",
+            "label": "年龄 %s 岁" % profile["age"],
+            "text": "由您在描述中提供",
+        })
+    if profile.get("region"):
+        basis.append({
+            "kind": "region",
+            "label": profile["region"],
+            "text": "由您在描述中提供",
+        })
+
+    # ---- 第2 段：政策条件（这条权益要求什么，哪些还没确认）
+    cond = policy.get("conditions", {}) or {}
+    conds = []
+    if cond.get("age_min"):
+        met = profile.get("age") is not None and profile["age"] >= cond["age_min"]
+        conds.append({
+            "label": "年龄门槛",
+            "requirement": "年满 %s 周岁" % cond["age_min"],
+            "state": "met" if met else "unknown",
+            "evidence": ("您描述为 %s 岁" % profile["age"]) if profile.get("age") is not None
+                        else "尚未提供年龄",
+        })
+    for key in ("hukou", "insurance", "disability"):
+        req = cond.get(key + "_required")
+        if req is not True:
+            continue
+        label, yes_text, no_text = _COND_LABEL[key]
+        val = profile.get(key)
+        if val is True:
+            state, ev = "met", "您已确认：%s" % yes_text
+        elif val is False:
+            state, ev = "failed", "您已确认：%s" % no_text
+        else:
+            state, ev = "unknown", "尚未确认，需要您或受理单位核实"
+        conds.append({
+            "label": label,
+            "requirement": "需符合：%s" % yes_text,
+            "state": state,
+            "evidence": ev,
+        })
+    for item in cond.get("other", []) or []:
+        conds.append({
+            "label": "其他条件",
+            "requirement": str(item),
+            "state": "unknown",
+            "evidence": "需向受理单位确认适用口径",
+        })
+
+    # ---- 第3 段：官方依据
+    src = policy.get("source", {}) or {}
+    ver = policy.get("verification", {}) or {}
+    pending = ver.get("status") == "to_verify"
+    citation = {
+        "department": src.get("department", ""),
+        "document": "" if src.get("document") == "to_verify" else src.get("document", ""),
+        "document_no": src.get("document_no", ""),
+        "publish_date": src.get("publish_date", ""),
+        "quote": _quote_source(policy),
+        "verified": not pending,
+        "checked_at": ver.get("checked_at", ""),
+    }
+
+    return {
+        "profile_basis": basis,
+        "policy_conditions": conds,
+        "citation": citation,
+        "pending_count": len([c for c in conds if c["state"] == "unknown"]),
+    }
+
+
+def assign_tier(result):
+    """
+    结果分层：只做展示分组，不改变推荐与否。
+    强相关：有场景命中且无关键条件缺口
+    可能相关：有场景命中，但存在待确认项
+    待确认：仅年龄门槛命中、缺少生活事件支撑
+    """
+    if result.get("matched_scenes"):
+        if result.get("status") == "待确认":
+            return "可能相关"
+        return "强相关"
+    return "待确认"
+
+
 def score_policy(policy, profile):
     """
     计算一条政策与画像的匹配情况。
@@ -377,6 +536,9 @@ def score_policy(policy, profile):
         "source_publish_date": policy_source.get("publish_date", ""),
         "source_checked_at": policy_verification.get("checked_at", ""),
         "service_note": policy.get("service_note", ""),
+        # 证据链与分层：纯展示派生，不参与任何判断，也不改变上面任何既有字段
+        "evidence": build_evidence_chain(policy, profile, hit, missing),
+        "tier": assign_tier({"status": status, "matched_scenes": hit}),
     }
 
 
@@ -396,3 +558,62 @@ def find_policy(db, policy_id):
         if policy["policy_id"] == policy_id:
             return policy
     return None
+
+
+# ---------------------------------------------------------------- 生活事件库
+# 作用：把「生活事件」变成用户可见、可确认、可修正的一等公民，
+# 而不是只藏在 AI 的中间结果里。用户可以据此判断 AI 有没有认错自己的情况。
+
+def build_scene_library(db, profile=None):
+    """
+    构造生活事件库：每个事件标注「AI 是否已从描述中识别」+「可能关联哪些权益方向」。
+    事件清单取自数据库的 scene_tag_library 与各政策的 life_scenes 并集，不新增事件定义。
+    profile 为空时只返回清单，用于发现页的确认台。
+    """
+    events = []
+    seen = set()
+
+    # 以数据库里真实出现的事件为准：scene_tag_library + 各政策 life_scenes + match 信号
+    for name in db.get("scene_tag_library", []) or []:
+        if name not in seen:
+            seen.add(name)
+            events.append(name)
+    for p in db.get("policies", []):
+        for name in (p.get("life_scenes") or []) + ((p.get("match") or {}).get("scene_signals") or []):
+            if name and name not in seen:
+                seen.add(name)
+                events.append(name)
+
+    detected = set((profile or {}).get("scenes") or [])
+
+    items = []
+    for name in events:
+        related = []
+        for p in db.get("policies", []):
+            signals = (p.get("match") or {}).get("scene_signals") or []
+            if name in signals or name in (p.get("life_scenes") or []):
+                related.append(p["policy_id"])
+        items.append({
+            "name": name,
+            "plain": SCENE_PLAIN.get(name, "与您描述的情况相关"),
+            "detected": name in detected,
+            "related_count": len(related),
+        })
+
+    # 已识别的排前面，方便用户第一眼看到 AI 认出了什么
+    items.sort(key=lambda x: (not x["detected"], -x["related_count"], x["name"]))
+    return items
+
+
+def toggle_scene(profile, scene, on):
+    """
+    用户手动增删生活事件。返回新的 scenes 列表。
+    这是人机协同的关键动作：AI 给建议，用户可以纠正。
+    """
+    scenes = list(profile.get("scenes") or [])
+    if on:
+        if scene not in scenes:
+            scenes.append(scene)
+    else:
+        scenes = [s for s in scenes if s != scene]
+    return sorted(set(scenes))

@@ -59,6 +59,17 @@ def _brief(policy):
     }
 
 
+def _tier_summary(results):
+    """按分层统计条数，供前端展示分组标题。顺序即展示顺序。"""
+    order = ["强相关", "可能相关", "待确认"]
+    counts = {k: 0 for k in order}
+    for r in results:
+        t = r.get("tier")
+        if t in counts:
+            counts[t] += 1
+    return [{"tier": k, "count": counts[k]} for k in order if counts[k]]
+
+
 def _detail(policy, profile=None):
     data = dict(policy)
     data["rag_text"] = engine.build_rag_text(policy)
@@ -88,6 +99,34 @@ class Handler(SimpleHTTPRequestHandler):
             return _json(self, {
                 "total": len(DB.get("policies", [])),
                 "policies": [_brief(p) for p in DB.get("policies", [])],
+            })
+
+        if path == "/api/scenes":
+            # 生活事件库：前端「情况确认台」的数据源。
+            # 可选传入 profile（URL 编码的 JSON），用于标注哪些事件已被 AI 识别。
+            profile = None
+            qs = urlparse(self.path).query
+            if qs:
+                from urllib.parse import parse_qs
+                raw = (parse_qs(qs).get("profile") or [None])[0]
+                if raw:
+                    try:
+                        profile = json.loads(raw)
+                    except Exception:
+                        profile = None
+            return _json(self, {
+                "scenes": engine.build_scene_library(DB, profile),
+                "disclaimer": DISCLAIMER,
+            })
+
+        if path == "/api/tiers":
+            # 分层口径说明：让前端不必硬编码解释文案
+            return _json(self, {
+                "tiers": [
+                    {"key": "强相关", "desc": "AI 从您的描述中识别到了对应的生活事件，且没有关键条件缺口"},
+                    {"key": "可能相关", "desc": "识别到了对应生活事件，但仍有户籍、医保、失能等待确认的条件"},
+                    {"key": "待确认", "desc": "目前仅依据年龄等基础信息提示，是否有对应需求还需要您确认"},
+                ],
             })
 
         if path.startswith("/api/policy/"):
@@ -142,6 +181,10 @@ class Handler(SimpleHTTPRequestHandler):
                     profile[key] = base[key]
             if base.get("scenes"):
                 profile["scenes"] = sorted(set(profile["scenes"]) | set(base["scenes"]))
+            # 用户在「情况确认台」手动增删生活事件后，重新解析的 scenes
+            # 可以作为最终结果（replace 语义），用于人机协同纠正 AI 的识别。
+            if isinstance(base.get("confirmed_scenes"), list):
+                profile["scenes"] = sorted(set(base["confirmed_scenes"]))
 
             profile["missing_fields"] = engine.profile_missing_fields(profile)
             results = engine.match_policies(DB, profile)
@@ -149,6 +192,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "profile": profile,
                 "results": results,
                 "total": len(results),
+                "tier_summary": _tier_summary(results),
+                "scene_library": engine.build_scene_library(DB, profile),
                 "disclaimer": DISCLAIMER,
                 "notice": "以下为初步匹配结果，均需进一步确认，不作为资格认定。",
             })
