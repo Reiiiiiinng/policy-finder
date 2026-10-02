@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>政策找人 · 政策详情</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div id="content">
+    <div class="loading">正在加载政策详情…</div>
+  </div>
+
+  <div class="section">
+    <div class="btn-row">
+      <button class="btn ghost" onclick="location.href='discover.html'">← 返回发现结果</button>
+      <button class="btn ghost" onclick="location.href='index.html'">重新选择</button>
+    </div>
+  </div>
+
+  <div class="footnote">
+    政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('政策详情', 'discover.html', '五问结构');
+  mountDemoBanner();
+  mountDemoProgress(4);
+
+  const id = query('id');
+  const content = document.getElementById('content');
+
+  // 后端在字段缺失时写的是字符串 to_verify，展示层统一当作「没有」
+  function clean(v) {
+    const s = String(v == null ? '' : v).trim();
+    return (!s || s === 'to_verify') ? '' : s;
+  }
+
+  // 五问结构的统一分块
+  function qBlock(n, title, inner, cls) {
+    return `<div class="detail-block ${cls || ''}">
+      <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
+      ${inner}
+    </div>`;
+  }
+
+  async function load() {
+    if (!id) {
+      content.innerHTML = '<div class="notice warn">缺少政策编号，请返回发现页重新选择。</div>';
+      return;
+    }
+
+    let detail, explained = null;
+    try {
+      detail = await API.policy(id);
+    } catch (e) {
+      content.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动。</div>';
+      return;
+    }
+    if (detail.error) {
+      content.innerHTML = '<div class="notice warn">未找到该政策。</div>';
+      return;
+    }
+
+    // 家庭协助模式存 profile，本人模式存 selfProfile
+    const session = store.read();
+    const savedProfile = session.profile || session.selfProfile;
+    if (savedProfile) {
+      try {
+        const r = await API.explain(id, savedProfile);
+        explained = r.policy || null;
+      } catch (e) { /* 说明渲染失败不影响详情展示 */ }
+    }
+
+    const p = explained || detail;
+    const pending = (p.verification || {}).status === 'to_verify';
+    const selfMode = savedProfile && savedProfile.mode === 'self';
+    // 本人模式下所有展示文案统一用「您」；家庭模式保持原称谓
+    const say = (t) => personalize(t, savedProfile || {});
+
+    // ① 这是什么？
+    // 面向人群用的是政策原文表述，保持原样不做称谓替换
+    const targets = (p.target_people || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const scenes = (p.life_scenes || []).map((x) => `<span class="chip">${escapeHtml(x)}</span>`).join('');
+    const what = `
+      <p>${escapeHtml(p.description || '')}</p>
+      <p class="q-lead">面向人群</p>
+      <ul>${targets || '<li>待核实</li>'}</ul>
+      ${scenes ? `<div class="chips">${scenes}</div>` : ''}`;
+
+    // ② 为什么推荐给您？
+    const reasons = (p.ai_reason_rendered || []).map((x) => say(x));
+    const noReasonTip = selfMode
+      ? '本条为通用权益提示。返回上一步补充您的具体情况后，这里会显示针对您本人的推荐原因。'
+      : '本条为通用权益提示。返回上一步补充老人的具体情况后，这里会显示针对这位老人的推荐原因。';
+    const why = reasons.length
+      ? `<ul class="reason-list">${reasons.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
+      : `<p style="color:var(--muted)">${escapeHtml(noReasonTip)}</p>`;
+
+    // ③ 需要确认什么？
+    const missingRaw = filterAnsweredMissing(p.missing_information, savedProfile);
+    const missing = missingRaw.map((x) => say(x));
+    const needConfirm = missing.length
+      ? `
+        <p class="q-lead">这些信息 AI 无法替您判断，需要您或受理单位确认后才成立。</p>
+        <ul class="missing-list">
+          ${missing.map((x) => {
+            const why_ = explainMissing(x);
+            return `<li>
+              <div class="mi-q">${escapeHtml(x)}</div>
+              <div class="mi-why">${escapeHtml(why_)}</div>
+            </li>`;
+          }).join('')}
+        </ul>
+        <p class="q-lead" style="margin:10px 0 0">以上不影响本条出现在您的可能相关列表中，
+          但会影响最终能否适用。</p>`
+      : '<p>暂无必须补充的信息，但仍建议向受理单位核实适用口径后再办理。</p>';
+
+    // ④ 怎么办理？
+    const steps = (p.application_process || []);
+    const allUnverified = !steps.length || steps.every((s) => s.to_verify);
+    const processHtml = steps.map((s) => {
+      const flag = s.to_verify ? ' <span class="badge pending">待核实</span>' : '';
+      return `<li>${escapeHtml(s.step)}${flag}</li>`;
+    }).join('');
+    const processWarn = allUnverified
+      ? `<p class="q-lead" style="margin:0 0 8px;color:var(--warn)">
+           办理流程尚未核到一手文件原文，本页不代为列出具体步骤。
+           请向${escapeHtml(clean((p.source || {}).department) || '主管部门')}或所在街镇、
+           社区养老服务窗口咨询实际入口。
+         </p>` : '';
+    const needProcess = `
+      ${processWarn}
+      ${steps.length
+        ? `<ol>${processHtml}</ol>`
+        : '<p style="color:var(--muted)">本页未收录办理流程，请以受理单位现场或线上指引为准。</p>'}
+      <p style="margin-top:8px;color:var(--muted);font-size:12.5px">
+        所需材料以受理单位现场或线上告知为准，本页不代为列明，避免给您错误信息。
+      </p>`;
+
+    // ⑤ 政策来源（独立浅蓝信任卡）
+    const src = p.source || {};
+    const ver = p.verification || {};
+    const rows = [];
+    rows.push(['责任部门', clean(src.department), '']);
+    rows.push(['政策文件', clean(src.document), '尚未核到一手文件，此处不代为填写']);
+    if (clean(src.document_no)) rows.push(['文号', clean(src.document_no), '']);
+    if (clean(src.publish_date)) rows.push(['发布时间', clean(src.publish_date), '']);
+    if (clean(src.related_document)) rows.push(['相关依据', clean(src.related_document), '']);
+    rows.push(['核验状态', pending ? '来源待核验' : '已核验', '']);
+    rows.push(['核验时间', clean(ver.checked_at) || '未提供', '']);
+
+    const rowsHtml = rows.map((r) => {
+      const val = r[1] || r[2];
+      return `<div class="tc-row">
+        <span class="k">${escapeHtml(r[0])}</span>
+        <span class="v${r[1] ? '' : ' muted'}">${escapeHtml(val)}</span>
+      </div>`;
+    }).join('');
+
+    const url = clean(src.official_url);
+    const linkHtml = url
+      ? `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+           <span>🔗</span><span>${escapeHtml(url)}</span></a>`
+      : `<div class="tc-none"><span>⚠</span>
+           <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
+
+    const verBadge = pending
+      ? '<span class="badge pending">来源待核验</span>'
+      : '<span class="badge verified">✓ 已核验</span>';
+    const tcStatus = `
+      <div class="tc-status">
+        ${verBadge}
+        <span>${pending
+          ? '这条政策的一手文件尚未核到，以下内容仅供参考，请以主管部门发布的正式信息为准。'
+          : '政策名称、对象、服务内容与依据文件已核对。'}</span>
+      </div>`;
+
+    const verNote = clean(ver.note)
+      ? `<p class="tc-note">核验说明：${escapeHtml(ver.note)}</p>` : '';
+
+    const sourceCard = `
+      <div class="trust-card">
+        <h3><span class="q-num">5</span><span class="q-title">政策来源</span></h3>
+        ${tcStatus}
+        <div class="tc-rows">${rowsHtml}</div>
+        ${linkHtml}
+        ${verNote}
+      </div>`;
+
+    content.innerHTML = `
+      <div class="section">
+        <div class="card">
+          <h2 style="margin:0 0 6px;font-size:17px">${escapeHtml(p.policy_name)}</h2>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span class="chip">${escapeHtml(p.category)}</span>
+            <span class="chip plain">${escapeHtml(p.service_type || '')}</span>
+            <span class="chip plain">${escapeHtml((p.region || {}).scope || '')}</span>
+          </div>
+          <div style="margin-top:8px">${statusBadge('可能相关', pending)}</div>
+          ${p.service_note ? `<p class="hint">${escapeHtml(p.service_note)}</p>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        ${qBlock(1, '这是什么？', what)}
+        ${qBlock(2, '为什么推荐给您？', why)}
+        ${qBlock(3, '需要确认什么？', needConfirm, 'is-warm')}
+        ${qBlock(4, '怎么办理？', needProcess)}
+        ${sourceCard}
+        <div class="notice warn">${escapeHtml(p.risk_notice || 'AI仅进行初步匹配，不代表符合资格。')}</div>
+      </div>`;
+  }
+
+  load();
+</script>
+</body>
+</html>

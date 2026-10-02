@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="政策找人：说出家人的生活变化，AI 帮您发现可能遗漏的公共服务权益。">
+  <meta name="theme-color" content="#faf7f1">
+  <title>政策找人 · 让可能被忽略的权益主动找到需要它的人</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- 顶部品牌条：温暖浅色 + 绿色标识 -->
+  <div class="topbar">
+    <div class="brand-row">
+      <div class="brand-mark">
+        <span class="mark-dot" aria-hidden="true"></span>
+        <div>
+          <div class="brand-name">AI 赋能公共服务权益发现</div>
+          <div class="sub">广州市 · 老年人公共服务试点数据</div>
+        </div>
+      </div>
+      <span class="theme-tag">绿智共生</span>
+    </div>
+  </div>
+
+  <!-- 产品理念首屏 -->
+  <header class="hero animate-in">
+    <span class="hero-eyebrow">AI 赋能公共服务</span>
+    <h1 class="hero-title">政策找人</h1>
+    <p class="hero-sub">让可能被忽略的公共服务权益，<br>主动找到需要它的人。</p>
+    <p class="desc">
+      很多公共服务权益一直存在，只是没人告诉我们它可能适用。
+      不用记住政策名称，也不用翻文件，说清楚家里发生了什么就好。
+    </p>
+  </header>
+
+  <!-- 核心理念：以前 vs 现在 -->
+  <section class="idea-card animate-in d1" aria-label="核心理念：从人找政策到政策找人">
+    <div class="idea-head">
+      <span class="idea-eyebrow">核心理念</span>
+      <h2 class="idea-title">政策找人</h2>
+    </div>
+    <p class="idea-sub">
+      让可能被忽略的公共服务权益，主动找到需要它的人——
+      AI 根据生活变化，初步发现可能相关的公共服务。
+    </p>
+
+    <div class="idea-row idea-row-tail">
+      <span class="idea-tag">以前</span>
+      <div class="idea-name">人找政策</div>
+      <ul class="idea-list">
+        <li>需要知道政策名称</li>
+        <li>需要主动搜索</li>
+        <li>容易错过</li>
+      </ul>
+    </div>
+
+    <div class="idea-shift">↓ 方向变了</div>
+
+    <div class="idea-row is-now">
+      <span class="idea-tag">现在</span>
+      <div class="idea-name">政策找人</div>
+      <ul class="idea-list">
+        <li>描述生活变化即可</li>
+        <li>AI 辅助发现</li>
+        <li>提醒可能相关服务</li>
+      </ul>
+    </div>
+
+    <p class="idea-foot">
+      结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。
+    </p>
+  </section>
+
+  <!-- 数据可信度条：数字全部来自 /api/policies，不写死；接口失败则整条隐藏 -->
+  <div class="trust-strip animate-in d1" id="trustStrip" hidden>
+    <div class="trust-item">
+      <span class="trust-num" id="statTotal">—</span>
+      <span class="trust-label">政策条目</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num" id="statVerified">—</span>
+      <span class="trust-label">已核官方来源</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num" id="statScenes">—</span>
+      <span class="trust-label">覆盖生活场景</span>
+    </div>
+  </div>
+  <p class="trust-note animate-in d2" id="trustNote" hidden>
+    每一条权益都标注来源部门与核验状态；尚未核到一手文件的条目，会明确显示「来源待核验」。
+  </p>
+
+  <!-- 入口选择 -->
+  <div class="section animate-in d2">
+    <h2 class="section-title">我想帮谁发现可能相关的权益？</h2>
+
+    <button type="button" class="choice entry" data-target="parents" aria-label="为我的父母查询可能相关的公共服务权益">
+      <span class="entry-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="7.5" r="3.1"></circle>
+          <path d="M3.4 19.6a5.6 5.6 0 0 1 11.2 0"></path>
+          <circle cx="17.8" cy="9.2" r="2.3"></circle>
+          <path d="M15.3 19.6a4.5 4.5 0 0 1 5.3-4.4"></path>
+        </svg>
+      </span>
+      <span class="entry-body">
+        <span class="entry-title">我的父母</span>
+        <span class="entry-desc">替爸爸、妈妈看看他们可能有哪些还没用上的权益</span>
+      </span>
+      <span class="entry-arrow" aria-hidden="true">›</span>
+    </button>
+
+    <button type="button" class="choice entry" data-target="family" aria-label="为我的长辈查询可能相关的公共服务权益">
+      <span class="entry-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9.6" cy="7" r="3.1"></circle>
+          <path d="M4 19.6a5.6 5.6 0 0 1 11.2 0"></path>
+          <path d="M18.8 4.2v15"></path>
+          <path d="M18.8 4.2c0 1.7-1.3 3-3 3"></path>
+        </svg>
+      </span>
+      <span class="entry-body">
+        <span class="entry-title">我的长辈</span>
+        <span class="entry-desc">为祖辈、配偶或其他亲属查询可能相关的权益</span>
+      </span>
+      <span class="entry-arrow" aria-hidden="true">›</span>
+    </button>
+
+    <button type="button" class="choice entry" data-target="self" aria-label="为我自己查询可能相关的公共服务权益">
+      <span class="entry-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="7.4" r="3.6"></circle>
+          <path d="M5 19.8a7 7 0 0 1 14 0"></path>
+        </svg>
+      </span>
+      <span class="entry-body">
+        <span class="entry-title">我自己</span>
+        <span class="entry-desc">直接进入本人模式，为自己发现可能相关的权益</span>
+      </span>
+      <span class="entry-arrow" aria-hidden="true">›</span>
+    </button>
+
+    <!-- 比赛演示模式入口：预设虚拟案例，走完整流程但不自动提交 -->
+    <button type="button" class="demo-entry" id="demoEntry"
+            aria-label="进入比赛演示模式，使用预设虚拟案例">
+      <span class="demo-entry-body">
+        <span class="demo-entry-title">🎬 演示体验</span>
+        <span class="demo-entry-desc">推荐答辩案例 · 72岁广州老人，独居，行动不便</span>
+      </span>
+      <span class="demo-entry-arrow" aria-hidden="true">›</span>
+    </button>
+  </div>
+
+  <!-- 核心差异：操作者 ≠ 受益人 -->
+  <div class="section animate-in d3">
+    <h2 class="section-title">这一步，谁在为谁查询</h2>
+    <div class="role-diff">
+      <div class="role-side">
+        <span class="role-side-label">查询的人</span>
+        <span class="role-side-name">你（家属 / 本人）</span>
+        <span class="role-side-note">描述情况、补充信息、代为操作</span>
+      </div>
+      <span class="role-diff-arrow" aria-hidden="true">→</span>
+      <div class="role-side by-beneficiary">
+        <span class="role-side-label">受益人</span>
+        <span class="role-side-name">实际享受权益的长辈</span>
+        <span class="role-side-note">关键信息应由其本人确认</span>
+      </div>
+    </div>
+    <p class="hint">
+      由家人代为查询 ≠ 本人已认可。户籍、参保、失能等级这类关键信息，
+      仍建议取得老人本人的确认；最终是否具备资格，由主管部门核定。
+    </p>
+  </div>
+
+  <div class="notice animate-in d4">
+    本页面由 AI 根据您描述的生活情况进行初步匹配，仅用于提示「可能相关」的公共服务权益，
+    不代表已符合政策资格。最终资格由主管部门核定。
+  </div>
+
+  <div class="footnote">
+    第一批数据范围：广州市 · 老年人公共服务<br>
+    政策来源：广州市民政局、广州市医疗保障部门等官方公开文件
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程
+  const DEMO_TEXT = '我父亲72岁，一个人在广州生活，最近行动不方便。';
+  document.getElementById('demoEntry').addEventListener('click', () => {
+    showDemoConfirm();
+  });
+
+  function showDemoConfirm() {
+    if (document.getElementById('demoOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'demoOverlay';
+    overlay.className = 'demo-overlay';
+    overlay.innerHTML = `
+      <div class="demo-confirm-card">
+        <div class="demo-confirm-head">
+          <span class="demo-confirm-badge">演示案例</span>
+          <span class="demo-confirm-title">虚拟案例信息</span>
+        </div>
+        <div class="demo-confirm-rows">
+          <div class="dc-row"><span class="k">年龄</span><span class="v">72 岁</span></div>
+          <div class="dc-row"><span class="k">地区</span><span class="v">广州</span></div>
+          <div class="dc-row"><span class="k">家庭关系</span><span class="v">女儿帮助父亲查询</span></div>
+          <div class="dc-row"><span class="k">居住情况</span><span class="v">独居</span></div>
+          <div class="dc-row"><span class="k">身体情况</span><span class="v">行动不便</span></div>
+        </div>
+        <p class="demo-confirm-note">以下为虚拟案例，不代表真实个人情况。</p>
+        <p class="demo-confirm-desc">确认后将进入家庭协助页，每一步都由您手动操作体验。</p>
+        <div class="demo-confirm-actions">
+          <button type="button" class="btn ghost" id="demoCancelBtn">取消</button>
+          <button type="button" class="btn" id="demoConfirmBtn">确认案例并开始体验</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('demoCancelBtn').addEventListener('click', () => overlay.remove());
+    document.getElementById('demoConfirmBtn').addEventListener('click', () => {
+      store.write({
+        target: 'parents',
+        operator: '女儿',
+        beneficiary: '父亲',
+        confirmed: true,
+        demo: true,
+        demoBanner: true,
+        profile: {},
+        text: DEMO_TEXT,
+      });
+      location.href = 'family.html';
+    });
+  }
+
+  // 入口分流：帮他人（父母/长辈）走家庭协助模式，为自己走本人模式
+  // 正常入口清除演示标记，避免正常使用时误显示演示提示
+  document.querySelectorAll('.choice.entry').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.choice.entry').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const target = btn.dataset.target;
+      store.write({ target: target, demo: false, demoBanner: false });
+      const next = (target === 'self') ? 'self.html' : 'family.html';
+      setTimeout(() => { location.href = next; }, 180);
+    });
+  });
+
+  // 数据可信度：实时拉取。失败时整块隐藏，绝不用写死的数字糊弄用户
+  (async function loadTrustStrip() {
+    const strip = document.getElementById('trustStrip');
+    const note = document.getElementById('trustNote');
+    try {
+      const d = await API.get('/api/policies');
+      const list = d.policies || [];
+      const total = d.total || list.length;
+      if (!total) return;
+
+      const verified = list.filter((p) => p.verification_status === 'verified').length;
+      const scenes = new Set();
+      list.forEach((p) => (p.life_scenes || []).forEach((s) => scenes.add(s)));
+
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statVerified').textContent = verified;
+      document.getElementById('statScenes').textContent = scenes.size;
+
+      strip.hidden = false;
+      note.hidden = false;
+      strip.classList.add('animate-in', 'd1');
+      note.classList.add('animate-in', 'd2');
+    } catch (e) {
+      // 接口不可用：保持隐藏
+    }
+  })();
+</script>
+</body>
+</html>

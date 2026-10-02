@@ -1,0 +1,472 @@
+{
+  "database_name": "广州养老政策数据库",
+  "version": "V1.0",
+  "region": "广州市",
+  "target_group": "老年人",
+  "purpose": "AI公共服务权益发现",
+  "last_verified_at": "2026-09-29",
+  "disclaimer": "AI仅进行初步匹配，用于提示可能相关的公共服务权益，不代表符合资格。最终资格由主管部门核定。",
+  "verification_note": "verification.status = verified 表示政策名称、责任部门、核心条件已对照官方来源核对；= to_verify 表示尚未找到一手文件，展示时必须标注待核验，不得作为确定结论。",
+
+  "policies": [
+    {
+      "policy_id": "gz_elderly_001",
+      "policy_name": "老年人照护需求综合评估",
+      "category": "养老服务",
+      "service_type": "照护服务",
+      "target_people": [
+        "60周岁及以上老年人",
+        "具有照护需求的老年人"
+      ],
+      "trigger_scenes": [
+        "老人行动不便",
+        "老人需要照护",
+        "子女不知道父母养老需求",
+        "老人身体能力下降"
+      ],
+      "conditions": {
+        "age_min": 60,
+        "region": "广州",
+        "needs_assessment": true
+      },
+      "ai_match_reason": [
+        "用户描述存在照护需求",
+        "老人年龄达到服务范围"
+      ],
+      "need_confirm": [
+        "老人具体健康情况",
+        "是否需要照护评估"
+      ],
+      "service_content": [
+        "评估老人能力程度",
+        "评估健康状况",
+        "评估社会支持情况"
+      ],
+      "why_it_matters": "评估结论是享受长期护理保险待遇和养老服务补贴的重要依据",
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市基本养老服务清单（2024年版）",
+        "document_no": "穗民〔2024〕76号",
+        "publish_date": "2024-07-17",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/9/9770/post_9770240.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_002",
+      "policy_name": "社区养老服务",
+      "category": "养老服务",
+      "service_type": "社区照护",
+      "target_people": [
+        "60周岁及以上老年人"
+      ],
+      "trigger_scenes": [
+        "老人独居",
+        "子女无法长期陪伴",
+        "老人需要社区帮助"
+      ],
+      "conditions": {
+        "age_min": 60,
+        "region": "广州"
+      },
+      "possible_services": [
+        "养老服务向导",
+        "日间托管",
+        "临时托养",
+        "康复护理",
+        "辅具租赁",
+        "平安通服务",
+        "文体教育"
+      ],
+      "need_confirm": [
+        "老人具体需求",
+        "所在社区服务覆盖情况"
+      ],
+      "ai_match_reason": [
+        "用户存在家庭照护需求",
+        "社区养老可能提供辅助服务"
+      ],
+      "service_note": "广州已建成颐康中心（街道/镇层面）与颐康服务站（村居层面）组成的“1+N”社区养老服务网络",
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市基本养老服务清单（2024年版）",
+        "document_no": "穗民〔2024〕76号",
+        "related_document": "广州市居家社区养老服务管理办法（穗府办规〔2022〕13号）",
+        "publish_date": "2024-07-17",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/9/9770/post_9770240.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_003",
+      "policy_name": "老年人助餐配餐服务",
+      "category": "养老服务",
+      "service_type": "生活支持",
+      "target_people": [
+        "60周岁及以上居家老年人"
+      ],
+      "trigger_scenes": [
+        "老人做饭困难",
+        "老人独居",
+        "行动不方便无法买菜"
+      ],
+      "conditions": {
+        "age_min": 60,
+        "region": "广州",
+        "residence_note": "在本市行政区域内居住的居家老年人"
+      },
+      "service_content": [
+        "制餐",
+        "配餐",
+        "分餐",
+        "就餐",
+        "送餐"
+      ],
+      "need_confirm": [
+        "所在街道长者饭堂点位",
+        "是否符合就餐、送餐补贴条件"
+      ],
+      "ai_match_reason": [
+        "用户描述老人吃饭困难或买菜不便",
+        "长者饭堂以街道/镇为单位设置，多数社区可及"
+      ],
+      "service_note": "服务依托“长者饭堂”提供，工作日提供午餐，有条件的可提供早晚餐及周末服务",
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市老年人助餐配餐服务管理办法",
+        "publish_date": "2024",
+        "official_url": "https://mzj.gz.gov.cn/gk/wgkzl/jcgk/content/post_7146126.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29",
+        "note": "补贴标准由区民政部门或镇街确定，各区可能不同，展示时不给具体金额"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_004",
+      "policy_name": "居家上门服务",
+      "category": "养老服务",
+      "service_type": "居家照护",
+      "target_people": [
+        "60周岁及以上老年人",
+        "需要生活照料的老年人"
+      ],
+      "trigger_scenes": [
+        "老人行动不便",
+        "无人照顾老人",
+        "子女无法长期陪护"
+      ],
+      "conditions": {
+        "age_min": 60,
+        "region": "广州"
+      },
+      "service_content": [
+        "助洁",
+        "助浴",
+        "洗涤",
+        "生活护理",
+        "协助进餐",
+        "陪伴就医",
+        "代办服务"
+      ],
+      "need_confirm": [
+        "老人身体情况",
+        "是否符合当地服务条件"
+      ],
+      "ai_match_reason": [
+        "用户描述老人无人照料或行动不便"
+      ],
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市基本养老服务清单（2024年版）",
+        "document_no": "穗民〔2024〕76号",
+        "related_document": "广州市居家社区养老服务管理办法（穗府办规〔2022〕13号）",
+        "publish_date": "2024-07-17",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/9/9770/post_9770240.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_005",
+      "policy_name": "家庭养老床位服务",
+      "category": "养老服务",
+      "service_type": "居家照护",
+      "target_people": [
+        "失能或部分失能老年人"
+      ],
+      "trigger_scenes": [
+        "老人长期卧床",
+        "家庭照护压力大",
+        "老人不愿入住养老机构"
+      ],
+      "conditions": {
+        "region": "广州",
+        "disability_status": "失能或部分失能"
+      },
+      "service_content": [
+        "家庭环境适老化改造",
+        "智能化、适老化改造",
+        "专业照护服务上门"
+      ],
+      "need_confirm": [
+        "老人失能程度（是否经评估）",
+        "家庭环境条件"
+      ],
+      "ai_match_reason": [
+        "用户描述老人长期卧床或不愿入住养老机构"
+      ],
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市基本养老服务清单（2024年版）",
+        "document_no": "穗民〔2024〕76号",
+        "related_document": "广州市民政局 广州市财政局关于全面开展家庭养老床位建设和服务工作的通知（穗民规字〔2024〕4号）",
+        "publish_date": "2024-07-17",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/9/9770/post_9770240.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_006",
+      "policy_name": "居家适老化改造",
+      "category": "养老服务",
+      "service_type": "居住环境改善",
+      "target_people": [
+        "有居家安全需求的老年人"
+      ],
+      "trigger_scenes": [
+        "老人容易跌倒",
+        "家庭环境不适合老人",
+        "行动能力下降"
+      ],
+      "conditions": {
+        "region": "广州"
+      },
+      "service_content": [
+        "改造咨询",
+        "方案设计",
+        "施工改造",
+        "设施配备",
+        "适老用品配置"
+      ],
+      "need_confirm": [
+        "家庭住房情况",
+        "老人实际需求",
+        "是否属于补贴对象范围"
+      ],
+      "ai_match_reason": [
+        "用户描述老人跌倒风险或居家环境不便"
+      ],
+      "source": {
+        "department": "广州市民政局",
+        "document": "广州市老年人居家适老化改造工作实施方案",
+        "document_no": "穗民规字〔2021〕8号",
+        "related_document": "广州市基本养老服务清单（2024年版）（穗民〔2024〕76号）",
+        "publish_date": "2021",
+        "official_url": "https://mzj.gz.gov.cn/"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29",
+        "note": "清单条目已核对；具体补贴对象与标准需以现行实施方案原文为准，展示时不给金额"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_007",
+      "policy_name": "老年人健康管理",
+      "category": "健康服务",
+      "service_type": "公共卫生服务",
+      "target_people": [
+        "65周岁及以上老年人"
+      ],
+      "trigger_scenes": [
+        "老人长期健康问题",
+        "需要健康检查",
+        "慢性病管理"
+      ],
+      "conditions": {
+        "age_min": 65,
+        "region": "广州"
+      },
+      "service_content": [
+        "健康评估",
+        "体检",
+        "健康指导"
+      ],
+      "need_confirm": [
+        "是否属于服务覆盖范围",
+        "所属社区卫生服务机构（就近建档）"
+      ],
+      "ai_match_reason": [
+        "用户描述老人有长期健康问题或需要体检"
+      ],
+      "source": {
+        "department": "广州市卫生健康部门",
+        "document": "广州市基本养老服务清单（2024年版）",
+        "document_no": "穗民〔2024〕76号",
+        "publish_date": "2024-07-17",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/9/9770/post_9770240.html"
+      },
+      "verification": {
+        "status": "to_verify",
+        "checked_at": "2026-09-29",
+        "note": "65周岁及以上老年人健康管理服务属国家基本公共卫生服务项目，广州由基层医疗卫生机构提供；广州市级具体文件名与服务频次尚未核到一手文件，展示时标注待核验"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格"
+    },
+
+    {
+      "policy_id": "gz_elderly_008",
+      "policy_name": "认知功能筛查",
+      "category": "健康服务",
+      "service_type": "健康管理",
+      "target_people": [
+        "65周岁及以上老年人"
+      ],
+      "trigger_scenes": [
+        "老人记忆下降",
+        "疑似认知问题",
+        "家属担心老人状态"
+      ],
+      "conditions": {
+        "age_min": 65,
+        "region": "广州"
+      },
+      "need_confirm": [
+        "是否存在相关症状",
+        "所在区是否开展免费筛查"
+      ],
+      "ai_match_reason": [
+        "用户描述老人记忆力下降或疑似认知问题"
+      ],
+      "source": {
+        "department": "广州市卫生健康部门",
+        "document": "待核验",
+        "official_url": ""
+      },
+      "verification": {
+        "status": "to_verify",
+        "checked_at": "2026-09-29",
+        "note": "广州有认知障碍照护支持中心建设安排，但是否面向全部65岁以上老年人提供统一免费筛查，未找到一手文件；不得编造文件名、频次或免费范围"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格；本条来源待核验"
+    },
+
+    {
+      "policy_id": "gz_elderly_009",
+      "policy_name": "长期护理保险服务",
+      "category": "医疗保障",
+      "service_type": "长期照护",
+      "target_people": [
+        "广州市职工医保参保人",
+        "年满18周岁的城乡居民医保参保人",
+        "长期失能人员"
+      ],
+      "trigger_scenes": [
+        "老人长期卧床",
+        "护理费用压力大",
+        "家庭照护困难"
+      ],
+      "conditions": {
+        "region": "广州",
+        "insurance_required": "参加广州市社会医疗保险（职工医保或城乡居民医保）并建立长护险参保关系",
+        "disability_duration": "经医疗机构或康复机构规范诊疗，失能状态持续6个月以上",
+        "needs_assessment": "需经本市老年人照护需求综合评估或长护险失能评估"
+      },
+      "service_content": [
+        "机构护理",
+        "居家护理",
+        "医疗护理",
+        "设备使用"
+      ],
+      "need_confirm": [
+        "是否参加广州市医保",
+        "是否完成失能评估及评估等级",
+        "是否满足待遇享受条件"
+      ],
+      "ai_match_reason": [
+        "用户描述老人长期卧床且照护费用压力大"
+      ],
+      "service_note": "待遇按失能等级1-3级分类，与险种身份、服务类型挂钩；具体支付比例与限额以医保部门现行文件为准，展示时不给具体金额",
+      "source": {
+        "department": "广州市医疗保障部门",
+        "document": "广州市长期护理保险服务管理规定",
+        "document_no": "穗医保规字〔2023〕1号",
+        "related_document": "广州市基本养老服务清单（2024年版）（穗民〔2024〕76号）",
+        "official_url": "https://www.gz.gov.cn/gzybj/gkmlpt/content/9/9425/post_9425447.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29",
+        "note": "参保对象、失能持续时间、评估要求已核对；具体待遇金额未写入数据"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格；待遇需经评估后由医保部门核定"
+    },
+
+    {
+      "policy_id": "gz_elderly_010",
+      "policy_name": "长者长寿保健金",
+      "category": "养老保障",
+      "service_type": "经济支持",
+      "target_people": [
+        "具有广州市户籍且年满70周岁及以上的老年人"
+      ],
+      "trigger_scenes": [
+        "老人年龄较高",
+        "家庭希望了解老人权益",
+        "不知道老人有没有高龄津贴"
+      ],
+      "conditions": {
+        "age_min": 70,
+        "region": "广州",
+        "hukou_required": "广州市户籍"
+      },
+      "need_confirm": [
+        "老人是否具有广州市户籍",
+        "老人身份与年龄信息",
+        "是否已完成个人信息确认（穗好办App或村居委）"
+      ],
+      "ai_match_reason": [
+        "用户提到老人年满70周岁及以上"
+      ],
+      "service_note": "原则上通过数据交互获取信息、经确认后发放，无需申请；需在年满70周岁前完成信息确认。各区标准可能与市级标准不一致，黄埔区标准更高",
+      "source": {
+        "department": "广州市民政局、广州市财政局",
+        "document": "广州市长者长寿保健金发放管理办法",
+        "document_no": "穗民规字〔2026〕6号",
+        "publish_date": "2026-09",
+        "official_url": "https://mzj.gz.gov.cn/gkmlpt/content/10/10985/post_10985774.html"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-09-29",
+        "note": "新版办法自2026年9月起实施（原穗民规字〔2021〕6号有效期至2026年8月底届满）。发放标准按年龄段分档，各区可能有差异，展示时引导用户向户籍地街镇核实本人档次"
+      },
+      "risk_notice": "AI仅进行初步匹配，不代表符合资格；具体金额以户籍所在区执行标准为准"
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <title>政策找人 · 家庭协助</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <!-- 三步流程：当前步骤高亮 -->
+  <div class="steps-bar" id="stepsBar" aria-label="查询流程进度">
+    <div class="step" data-step="1"><span class="n">1</span><span class="t">选择帮助对象</span></div>
+    <span class="step-line" aria-hidden="true"></span>
+    <div class="step" data-step="2"><span class="n">2</span><span class="t">确认家庭关系</span></div>
+    <span class="step-line" aria-hidden="true"></span>
+    <div class="step" data-step="3"><span class="n">3</span><span class="t">描述生活变化</span></div>
+  </div>
+
+  <div class="notice">
+    这个页面专为「帮别人查」设计：权益的受益人是老人本人，家属可以代为描述和查询，
+    但关键信息仍应取得老人本人的确认。
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">谁在帮忙查询？（操作者）</h2>
+    <div class="choice-grid" id="operatorGrid">
+      <button type="button" class="choice" data-role="女儿"><span class="title">女儿</span></button>
+      <button type="button" class="choice" data-role="儿子"><span class="title">儿子</span></button>
+      <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
+      <button type="button" class="choice" data-role="其他家属"><span class="title">其他家属</span></button>
+      <button type="button" class="choice" data-role="社区工作人员"><span class="title">社区工作人员</span></button>
+      <button type="button" class="choice" data-role="本人"><span class="title">本人</span></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">你要帮助谁？（受益人）</h2>
+    <div class="choice-grid" id="beneficiaryGrid">
+      <button type="button" class="choice" data-role="父亲"><span class="title">父亲</span></button>
+      <button type="button" class="choice" data-role="母亲"><span class="title">母亲</span></button>
+      <button type="button" class="choice" data-role="爷爷"><span class="title">爷爷</span></button>
+      <button type="button" class="choice" data-role="奶奶"><span class="title">奶奶</span></button>
+      <button type="button" class="choice" data-role="外公"><span class="title">外公</span></button>
+      <button type="button" class="choice" data-role="外婆"><span class="title">外婆</span></button>
+      <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
+      <button type="button" class="choice" data-role="其他"><span class="title">其他长辈</span></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">谁在帮谁查 · 信息状态</h2>
+    <div class="card">
+      <!-- 查询关系：一眼看出「谁在帮谁」 -->
+      <div class="pair-relation">
+        <div class="role-side">
+          <span class="role-side-label">查询的人</span>
+          <span class="role-side-name" id="operatorVal">未选择</span>
+          <span class="role-side-note">由 TA 描述情况、补充信息</span>
+        </div>
+        <span class="pair-arrow" aria-hidden="true">→</span>
+        <div class="role-side by-beneficiary">
+          <span class="role-side-label">受益人</span>
+          <span class="role-side-name" id="beneficiaryVal">未选择</span>
+          <span class="role-side-note">权益的归属人</span>
+        </div>
+      </div>
+
+      <!-- 逐项信息状态：✓ 已确认 / ○ 待确认 -->
+      <div class="fact-list" id="factList"></div>
+
+      <p class="hint">
+        操作者填写 ≠ 受益人确认。下面勾选后，查询关系才会变为「已确认」；
+        户籍、医保、失能等级等事实信息，会在下一步由 AI 逐项提问。
+      </p>
+      <label class="confirm-line">
+        <input type="checkbox" id="confirmCheck">
+        <span>以上关系与信息我已经向老人本人核实（或已取得老人同意代为查询）</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="section">
+    <button type="button" class="btn" id="nextBtn" disabled>下一步：描述生活变化</button>
+    <p class="hint" id="nextHint">请先选择操作者与帮助对象。</p>
+  </div>
+
+  <div class="footnote">
+    第一步 选择帮助对象 → 第二步 确认家庭关系 → 第三步 描述生活变化
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('家庭协助', 'index.html', '操作者 ≠ 受益人');
+  mountDemoBanner();
+  mountDemoProgress(1);
+
+  const session = store.read();
+  let operator = session.operator || null;
+  let beneficiary = session.beneficiary || null;
+
+  function bindGrid(gridId, onPick) {
+    document.querySelectorAll('#' + gridId + ' .choice').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#' + gridId + ' .choice').forEach((b) => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        onPick(btn.dataset.role);
+      });
+    });
+  }
+
+  /** 逐项信息状态行：ok 时绿色 ✓，否则中性 ○ */
+  function factRow(ok, label, value) {
+    return `<div class="fact-row ${ok ? 'ok' : 'todo'}">
+      <span class="fact-mark" aria-hidden="true">${ok ? '✓' : '○'}</span>
+      <span class="fact-label">${escapeHtml(label)}</span>
+      <span class="fact-val">${escapeHtml(value)}</span>
+    </div>`;
+  }
+
+  /** 三值事实的展示：true/false 都是「已确认」（答案不同而已），null/undefined 才是待确认 */
+  function factState(v, yesText, noText) {
+    if (v === true) return { ok: true, text: yesText };
+    if (v === false) return { ok: true, text: noText };
+    return { ok: false, text: '待确认' };
+  }
+
+  function updateSteps(confirmed) {
+    const hasPair = !!operator && !!beneficiary;
+    const current = !hasPair ? 1 : (!confirmed ? 2 : 3);
+    document.querySelectorAll('#stepsBar .step').forEach((el) => {
+      const n = Number(el.dataset.step);
+      el.classList.toggle('done', n < current || (n === 2 && confirmed));
+      el.classList.toggle('active', n === current);
+    });
+  }
+
+  function refresh() {
+    const checked = document.getElementById('confirmCheck').checked;
+    // 受益人本人操作时，信息默认为其本人提供
+    const selfOperated = operator === '本人';
+    const confirmed = checked || selfOperated;
+
+    document.getElementById('operatorVal').textContent = operator || '未选择';
+    document.getElementById('beneficiaryVal').textContent = beneficiary || '未选择';
+
+    // 信息状态清单：查询关系来自本页选择，事实项来自已有画像（从发现页返回时能反映真实进度）
+    const savedProfile = session.profile || {};
+    const age = savedProfile.age;
+    const rows = [];
+    rows.push(factRow(!!(operator && beneficiary), '查询关系',
+      (operator || '—') + ' → ' + (beneficiary || '—')));
+    rows.push(factRow(!!age, '年龄', age ? age + ' 岁' : '待确认'));
+    const h = factState(savedProfile.hukou, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(h.ok, '广州市户籍', h.text));
+    const i = factState(savedProfile.insurance, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(i.ok, '医保参保情况', i.text));
+    const d = factState(savedProfile.disability, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(d.ok, '失能等级评估', d.text));
+    document.getElementById('factList').innerHTML = rows.join('');
+
+    const ready = !!operator && !!beneficiary;
+    document.getElementById('nextBtn').disabled = !ready;
+    document.getElementById('nextHint').textContent = ready
+      ? '下一步只需要用一句话描述老人最近的生活变化。'
+      : '请先选择操作者与帮助对象。';
+
+    updateSteps(confirmed);
+    store.write({ operator, beneficiary, confirmed });
+  }
+
+  bindGrid('operatorGrid', (role) => { operator = role; refresh(); });
+  bindGrid('beneficiaryGrid', (role) => { beneficiary = role; refresh(); });
+  document.getElementById('confirmCheck').addEventListener('change', refresh);
+
+  // 回填已选
+  if (operator) {
+    const el = document.querySelector('#operatorGrid .choice[data-role="' + operator + '"]');
+    if (el) el.classList.add('selected');
+  }
+  if (beneficiary) {
+    const el = document.querySelector('#beneficiaryGrid .choice[data-role="' + beneficiary + '"]');
+    if (el) el.classList.add('selected');
+  }
+  if (session.confirmed) document.getElementById('confirmCheck').checked = true;
+  refresh();
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    location.href = 'discover.html';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>政策找人 · 本人权益发现</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <div class="notice">
+    本人模式：您正在为自己查找可能相关的公共服务权益。
+    信息由您本人提供，结果仍需向主管部门核实。
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">说出您自己的生活变化</h2>
+    <div class="card">
+      <div class="field">
+        <label for="situation">用一句话描述就好，不用写政策名称</label>
+        <textarea id="situation" placeholder="例如：我72岁，一个人在广州生活，最近行动不方便。"></textarea>
+      </div>
+      <button class="btn ghost" id="fillExample" style="margin-bottom:10px">填入示例</button>
+      <button class="btn" id="discoverBtn">开始发现</button>
+      <p class="hint">
+        可以写得口语一些：年纪、住哪里、和谁住、身体变化、就医情况、照护压力，都会帮助匹配。
+      </p>
+    </div>
+
+    <!-- 固定演示案例：只填入文本框，仍由您点击「开始发现」 -->
+    <div class="case-card">
+      <div class="case-head">
+        <span class="case-badge">推荐演示案例</span>
+        <span class="case-title">72 岁 · 广州 · 独居 · 行动不便</span>
+      </div>
+      <div class="case-tags">
+        <span class="case-tag">72岁广州老人</span>
+        <span class="case-tag">独居</span>
+        <span class="case-tag">行动不便</span>
+      </div>
+      <p class="case-desc">
+        点击后自动填入下面这句话，仍需您点「开始发现」：<br>「<span id="casePreview"></span>」
+      </p>
+      <button type="button" class="case-btn" id="caseBtn">体验案例：72岁广州老人</button>
+    </div>
+  </div>
+
+  <div id="resultArea"></div>
+
+  <div class="section">
+    <div class="btn-row">
+      <button class="btn ghost" onclick="location.href='index.html'">← 返回首页</button>
+      <button class="btn ghost" onclick="location.href='family.html'">改为帮家人查询</button>
+    </div>
+  </div>
+
+  <div class="footnote">
+    匹配结果仅为初步提示，均需进一步确认，不作为资格认定。
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('本人权益发现', 'index.html', '本人模式');
+  mountDemoBanner();
+
+  const session = store.read();
+  const EXAMPLE = '我72岁，一个人在广州生活，最近行动不方便。';
+
+  const input = document.getElementById('situation');
+  const area = document.getElementById('resultArea');
+
+  // 本人模式的固定演示案例：称谓用「我」，与被查询对象无关
+  const CASE_TEXT = '我72岁，一个人在广州生活，最近行动不方便。';
+  document.getElementById('casePreview').textContent = CASE_TEXT;
+  document.getElementById('caseBtn').addEventListener('click', () => {
+    input.value = CASE_TEXT;
+    input.focus();
+    // 演示案例是一次全新场景：清掉上一轮留存的事实答案，避免沿用旧画像里的地区等字段
+    store.write({ selfProfile: {} });
+  });
+
+  document.getElementById('fillExample').addEventListener('click', () => {
+    input.value = EXAMPLE;
+    input.focus();
+  });
+
+  if (session.selfText) input.value = session.selfText;
+
+  function renderLoading() {
+    area.innerHTML = '<div class="loading">正在根据您描述的情况进行初步匹配…</div>';
+  }
+
+  /**
+   * 匹配并渲染。与 discover.html 相同的规则：
+   * opts.restore        {key, value, viewportY} 重渲染后把被点击的按钮放回原来的视口位置
+   * opts.scrollToResult true 时渲染后滚动到结果区
+   */
+  async function runMatch(opts) {
+    opts = opts || {};
+    const text = input.value.trim();
+    if (!text) {
+      area.innerHTML = '<div class="notice warn">请先用一句话描述您最近的生活变化。</div>';
+      return;
+    }
+    const isRefresh = !!opts.restore;   // true = 由「补充信息」触发的局部刷新
+    // 局部刷新同样不重建结果区（会塌陷高度导致跳顶），只给浮层提示
+    if (isRefresh) showToast('已更新，正在重新匹配…');
+    // 不能用 renderLoading()：它会把结果区换成一行文字，文档高度骤降，
+    // 浏览器立刻把 scrollTop 夹到顶部，用户就会看到「先跳顶、再弹回」。
+    if (!isRefresh) area.innerHTML = renderAiFlow(0);
+
+    const saved = store.read();
+    let data;
+    try {
+      if (!isRefresh) {
+        // 第 1 步：真实调用画像接口，返回后才打勾前两步
+        await API.post('/api/profile', { text: text, mode: 'self' });
+        updateAiFlow(2);
+      }
+      // 第 2 步：真实调用匹配接口，返回后才打勾后两步
+      data = await API.match({
+        text: text,
+        mode: 'self',
+        profile: saved.selfProfile || {},
+      });
+      if (!isRefresh) updateAiFlow(4);
+    } catch (e) {
+      area.style.minHeight = '';
+      area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      return;
+    }
+
+    store.write({ selfText: text, selfProfile: data.profile });
+
+    // 局部刷新时锁定容器当前高度，保证 innerHTML 替换前后文档总高度不变
+    if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
+
+    // 复用公共渲染函数，仅文案改为第一人称
+    area.innerHTML =
+      renderProfileCard(data.profile, {
+        selfMode: true,
+        title: 'AI 分析依据',
+      }) +
+      renderResultCards(data, {
+        heading: 'AI发现：根据您提供的信息，发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
+      }) +
+      renderConfirmCard(data.profile);
+
+    bindCards();
+    bindConfirm(data);
+    bindEmptyActions();
+
+    if (isRefresh) showToast('已根据您的回答重新匹配');
+
+    if (opts.restore) {
+      restorePosition(opts.restore);
+    } else if (opts.scrollToResult) {
+      const anchor = document.getElementById('resultAnchor');
+      if (anchor) {
+        window.scrollTo({
+          top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12),
+          behavior: 'smooth',
+        });
+      }
+    }
+
+    if (isRefresh) {
+      requestAnimationFrame(() => {
+        area.style.minHeight = '';
+        if (opts.restore) restorePosition(opts.restore);
+      });
+    }
+  }
+
+  /** 把某个「是/否/不确定」按钮放回它点击前所在的视口位置 */
+  function restorePosition(restore) {
+    const sel = '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]';
+    const el = document.querySelector(sel);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
+    window.scrollTo(0, Math.max(0, top));
+  }
+
+  function bindCards() {
+    document.querySelectorAll('.result-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
+      });
+    });
+  }
+
+  /** 空状态里的两个出口：回去补充描述 / 直接用演示案例 */
+  function bindEmptyActions() {
+    document.querySelectorAll('[data-empty-act]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.emptyAct === 'edit') {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          input.focus();
+        } else {
+          document.getElementById('caseBtn').click();
+        }
+      });
+    });
+  }
+
+  function bindConfirm(current) {
+    document.querySelectorAll('[data-confirm]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.confirm;
+        const raw = btn.dataset.value;
+        const value = raw === 'true' ? true : (raw === 'false' ? false : null);
+        const viewportY = btn.getBoundingClientRect().top;
+        // 即时反馈：请求处理期间禁用该按钮，避免重复点击
+        btn.disabled = true;
+        btn.style.opacity = '0.55';
+        const profile = Object.assign({}, current.profile, { [key]: value });
+        store.write({ selfProfile: profile });
+        runMatch({ restore: { key: key, value: raw, viewportY: viewportY } });
+      });
+    });
+  }
+
+  document.getElementById('discoverBtn').addEventListener('click', () => runMatch({ scrollToResult: true }));
+
+  // 已有输入则自动跑一次，方便从详情页返回
+  if (session.selfText) runMatch();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# 运行环境
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 依赖
+node_modules/
+
+# 日志与临时产物
+*.log
+.tools/server.log
+.DS_Store
+Thumbs.db
+
+# WorkBuddy 会话数据（不入库）
+.workbuddy/
+*.genie
+
+# 误落盘的废弃文件
+/60
