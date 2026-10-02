@@ -22,6 +22,8 @@ const API = {
   match: (payload) => API.post('/api/match', payload),
   policy: (id) => API.get('/api/policy/' + encodeURIComponent(id)),
   explain: (policyId, profile) => API.post('/api/explain', { policy_id: policyId, profile }),
+  scenes: (profile) => API.get('/api/scenes'
+    + (profile ? '?profile=' + encodeURIComponent(JSON.stringify(profile)) : '')),
 };
 
 const store = {
@@ -491,70 +493,6 @@ function renderEmptyState(data, opts) {
     </div>`;
 }
 
-/** AI发现结果区：政策卡片列表 */
-function renderResultCards(data, opts) {
-  opts = opts || {};
-  const list = data.results || [];
-  if (!list.length) {
-    return renderEmptyState(data, opts);
-  }
-
-  const profile = data.profile || {};
-  const cards = list.map((r) => {
-    const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
-    const reasons = (r.ai_reason || [])
-      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`).join('');
-
-    const missing = filterAnsweredMissing(r.missing_information, profile);
-    const shown = missing.slice(0, 3);
-    const rest = missing.length - shown.length;
-    const missingHtml = missing.length ? `
-      <div class="rc-block is-warm">
-        <div class="rc-label">还需确认</div>
-        <ul class="missing-list">
-          ${shown.map((x) => {
-            const t = personalize(x, profile);
-            return `<li>
-              <div class="mi-q">${escapeHtml(t)}</div>
-              <div class="mi-why">${escapeHtml(explainMissing(t))}</div>
-            </li>`;
-          }).join('')}
-          ${rest > 0 ? `<li class="mi-more">另有 ${rest} 项待确认内容，进入详情查看</li>` : ''}
-        </ul>
-      </div>` : '';
-
-    return `
-      <div class="result-card" data-id="${escapeHtml(r.policy_id)}">
-        <div class="result-head">
-          <div class="result-head-main">
-            <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
-            <p class="result-meta">${meta}</p>
-          </div>
-          <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
-        </div>
-        <div class="rc-block">
-          <div class="rc-label">为什么推荐</div>
-          <ul class="reason-list">${reasons || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>'}</ul>
-        </div>
-        ${missingHtml}
-        ${sourceBlock(r)}
-        <div class="result-foot">查看详情与办理方式 <span class="arrow">→</span></div>
-      </div>`;
-  }).join('');
-
-  return `
-    <div class="section">
-      <h2 class="section-title" id="resultAnchor">${escapeHtml(opts.heading
-        || ('AI发现：根据您提供的信息，发现 ' + list.length + ' 项可能相关的公共服务权益'))}</h2>
-      ${renderAiFlowDone()}
-      <p class="hint" style="margin:-4px 0 10px">
-        以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
-      </p>
-      <div class="notice">${escapeHtml(data.notice || '')}</div>
-      ${renderSceneSummary(list)}
-      <div style="margin-top:12px">${cards}</div>
-    </div>`;
-}
 
 /** 补充信息卡：户籍 / 医保 / 失能 三值确认，点击后重新匹配并恢复滚动位置 */
 function renderConfirmCard(profile) {
@@ -603,6 +541,494 @@ function renderConfirmCard(profile) {
       </p>
       <div class="card">${rows}</div>
     </div>`;
+}
+
+/**
+ * 查询关系条：「家庭协助」这条轴在流程中持续可见。
+ * 只要是家人代查，顶部就一直挂着这条，让用户不会忘记
+ * 「填信息的人 ≠ 享受权益的人」。本人模式下不显示。
+ */
+function renderRelationStrip() {
+  const s = store.read();
+  const p = s.profile || s.selfProfile;
+  if (p && p.mode === 'self') return '';
+  if (!s.operator && !s.beneficiary) return '';
+
+  const op = s.operator || '未选择';
+  const ben = s.beneficiary || '未选择';
+  const confirmed = s.confirmed;
+  const who = (p && p.who) || '';
+
+  return `
+    <div class="rel-strip ${confirmed ? 'is-ok' : ''}">
+      <span class="rs-op">
+        <span class="rs-k">${escapeHtml(op)}</span>
+        <span class="rs-r">代为查询</span>
+      </span>
+      <span class="rs-arrow" aria-hidden="true">→</span>
+      <span class="rs-ben">
+        <span class="rs-k">${escapeHtml(ben)}${who ? '（' + escapeHtml(who) + '）' : ''}</span>
+        <span class="rs-r">权益受益人</span>
+      </span>
+      <span class="rs-flag">${confirmed ? '✓ 已向本人核实' : '待本人确认'}</span>
+    </div>`;
+}
+
+function mountRelationStrip() {
+  const app = document.querySelector('.app');
+  if (!app) return;
+  let el = app.querySelector('.rel-strip');
+  if (el) el.remove();
+  const anchor = app.querySelector('.flow')
+    || app.querySelector('.demo-progress')
+    || app.querySelector('.demo-banner')
+    || app.querySelector('.topbar');
+  if (!anchor) return;
+  const html = renderRelationStrip();
+  if (!html) return;
+  anchor.insertAdjacentHTML('afterend', html);
+}
+
+/**
+ * 全局流程指示器：四阶段，让用户始终知道自己在哪一步、下一步是什么。
+ *
+ * 1 确认情况 —— 描述发生了什么，并核对 AI 的理解
+ * 2 发现可能相关政策 —— AI 给出「可能相关」的权益清单
+ * 3 查看政策依据 —— 条件、来源、办理方式
+ * 4 进一步确认 —— 补信息、核实、决定是否去办
+ *
+ * 与 demo 模式的 mountDemoProgress 不同：这个在正常使用时也始终显示，
+ * 是产品的骨架流程，不是演示装饰。
+ */
+const FLOW_STAGES = [
+  { n: 1, key: 'confirm', label: '确认情况', hint: '描述并核对' },
+  { n: 2, key: 'discover', label: '发现权益', hint: 'AI 初步匹配' },
+  { n: 3, key: 'basis', label: '查看依据', hint: '条件与来源' },
+  { n: 4, key: 'verify', label: '进一步确认', hint: '核实与决定' },
+];
+
+function renderFlow(current) {
+  const steps = FLOW_STAGES.map((s) => {
+    const cls = s.n < current ? 'is-done' : (s.n === current ? 'is-active' : '');
+    const mark = s.n < current ? '✓' : String(s.n);
+    return `<li class="flow-step ${cls}">
+      <span class="flow-dot" aria-hidden="true">${mark}</span>
+      <span class="flow-text">
+        <span class="flow-label">${escapeHtml(s.label)}</span>
+        <span class="flow-hint">${escapeHtml(s.hint)}</span>
+      </span>
+    </li>`;
+  }).join('');
+
+  return `
+    <nav class="flow" aria-label="使用流程">
+      <ol class="flow-steps">${steps}</ol>
+    </nav>`;
+}
+
+/** 挂载流程指示器。current: 1..4 */
+function mountFlow(current) {
+  const app = document.querySelector('.app');
+  if (!app) return;
+  let el = app.querySelector('.flow');
+  if (el) el.remove();
+  const anchor = app.querySelector('.demo-progress')
+    || app.querySelector('.demo-banner')
+    || app.querySelector('.topbar');
+  if (!anchor) return;
+  anchor.insertAdjacentHTML('afterend', renderFlow(current));
+}
+
+/**
+ * 情况确认台（本轮核心交互）
+ * ---------------------------------------------------------------
+ * 把「AI 到底认出了什么」变成用户可见、可点击、可纠正的东西。
+ * 这是人机协同的关键动作：AI 给建议，用户确认或纠正，重新匹配。
+ *
+ * 三段结构：
+ *   1. 基础事实（年龄 / 地区）—— 直接来自用户描述，只读展示
+ *   2. 生活事件 —— 可增删的 chip，用户纠正 AI 的场景识别
+ *   3. 关键条件（户籍 / 医保 / 失能）—— 三值确认，沿用原有 data-confirm 协议
+ *
+ * 铁律：chip 的选中态完全由 profile.scenes 决定；
+ *      未识别的事件只显示「可能相关 N 项权益方向」，不暗示用户一定有该需求。
+ */
+function renderSituationBoard(profile, sceneLibrary, opts) {
+  opts = opts || {};
+  profile = profile || {};
+  const self = profile.mode === 'self';
+  const who = self ? '您' : (profile.beneficiary_label ? '这位长辈' : '老人');
+  const lib = sceneLibrary || [];
+  const scenes = profile.scenes || [];
+  const detected = lib.filter((x) => x.detected || scenes.indexOf(x.name) >= 0);
+  const optional = lib.filter((x) => !detected.some((d) => d.name === x.name));
+
+  // ---- 1. 基础事实
+  const facts = [
+    { k: '年龄', v: profile.age ? profile.age + ' 岁' : '', ok: !!profile.age },
+    { k: '所在地区', v: profile.region || '', ok: !!profile.region },
+    {
+      k: '查询关系',
+      v: self ? '本人为自己查询' : (profile.who || '家人代为查询'),
+      ok: true,
+    },
+  ];
+  const factsHtml = facts.map((f) => `
+    <div class="board-fact ${f.ok ? 'ok' : 'todo'}">
+      <span class="bf-mark" aria-hidden="true">${f.ok ? '✓' : '—'}</span>
+      <span class="bf-k">${escapeHtml(f.k)}</span>
+      <span class="bf-v">${escapeHtml(f.v || '未提供')}</span>
+    </div>`).join('');
+
+  // ---- 2. 生活事件
+  const chips = (list, kind) => list.map((x) => `
+    <button type="button" class="scene-chip ${kind === 'on' ? 'is-on' : ''}"
+            data-scene="${escapeHtml(x.name)}" data-on="${kind === 'on' ? '1' : '0'}"
+            aria-pressed="${kind === 'on' ? 'true' : 'false'}">
+      <span class="sc-name">${escapeHtml(x.name)}</span>
+      <span class="sc-plain">${escapeHtml(x.plain)}</span>
+      ${x.related_count ? `<span class="sc-rel">关联 ${x.related_count} 项权益方向</span>` : ''}
+    </button>`).join('');
+
+  const sceneBlock = lib.length ? `
+    <div class="board-sec">
+      <div class="board-sec-head">
+        <span class="board-sec-t">AI 识别到的生活变化</span>
+        <span class="board-sec-n">${detected.length} 项</span>
+      </div>
+      <p class="board-sec-tip">
+        这些是 AI 从您的描述里读到的。请核对一下：认错了就点掉，漏了就在下面补上——
+        您的确认会直接改变匹配结果。
+      </p>
+      <div class="scene-chips is-on">${chips(detected, 'on')}</div>
+      ${optional.length ? `
+        <div class="board-sub">可能还有这些情况，如果符合请点一下</div>
+        <div class="scene-chips">${chips(optional.slice(0, 10), 'off')}</div>` : ''}
+    </div>` : '';
+
+  // ---- 3. 关键条件（三值，沿用 data-confirm 协议）
+  const items = [
+    {
+      key: 'hukou',
+      label: self ? '您是否具有广州市户籍' : '老人是否具有广州市户籍',
+      why: '部分养老服务政策以户籍为准，未确认前无法判断是否适用。',
+    },
+    {
+      key: 'insurance',
+      label: self ? '您是否参加广州市社会医疗保险' : '老人是否参加广州市社会医疗保险',
+      why: '长期护理保险等待遇以是否参保为前提。',
+    },
+    {
+      key: 'disability',
+      label: self ? '您是否属于失能 / 部分失能' : '老人是否属于失能 / 部分失能',
+      why: '家庭养老床位、长护险等服务需要先做照护需求或失能等级评估。',
+    },
+  ];
+  const condHtml = items.map((it) => {
+    const cur = profile[it.key];
+    const answered = cur !== null && cur !== undefined;
+    const val = cur === true ? '是' : (cur === false ? '否' : '不确定');
+    return `
+      <div class="board-cond">
+        <div class="bc-top">
+          <span class="bc-label">${escapeHtml(it.label)}</span>
+          <span class="bc-state ${answered ? 'is-ok' : 'is-todo'}">${escapeHtml(val)}</span>
+        </div>
+        <div class="bc-why">${escapeHtml(it.why)}</div>
+        <div class="btn-row bc-btns">
+          <button type="button" class="btn ghost sm ${cur === true ? 'is-picked' : ''}"
+                  data-confirm="${it.key}" data-value="true">是</button>
+          <button type="button" class="btn ghost sm ${cur === false ? 'is-picked' : ''}"
+                  data-confirm="${it.key}" data-value="false">否</button>
+          <button type="button" class="btn ghost sm ${cur === null || cur === undefined ? 'is-picked' : ''}"
+                  data-confirm="${it.key}" data-value="null">不确定</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const noneHint = !profile.age && !scenes.length
+    ? '<p class="board-warn">还没有识别到具体信息。请回到上一步，用一句话描述年龄、地区和最近的变化。</p>'
+    : '';
+
+  return `
+    <div class="section">
+      <h2 class="section-title">${escapeHtml(opts.title || '第一步：确认情况')}</h2>
+      <p class="hint" style="margin:-4px 0 10px">
+        这一步是整件事的地基。AI 先读一遍您描述的情况，再由您核对——
+        家属代为填写也不等于${escapeHtml(who)}本人已确认。
+      </p>
+      ${noneHint}
+      <div class="card board">
+        <div class="board-sec">
+          <div class="board-sec-head">
+            <span class="board-sec-t">基础事实</span>
+            <span class="board-sec-n">来自您的描述</span>
+          </div>
+          <div class="board-facts">${factsHtml}</div>
+        </div>
+        ${sceneBlock}
+        <div class="board-sec">
+          <div class="board-sec-head">
+            <span class="board-sec-t">需要您确认的关键条件</span>
+            <span class="board-sec-n">选「不确定」也可以</span>
+          </div>
+          <p class="board-sec-tip">
+            这些 AI 无法替您判断。不确定不会被当成「不符合」，只会继续标为待确认。
+          </p>
+          <div class="board-conds">${condHtml}</div>
+        </div>
+      </div>
+      ${opts.footer || ''}
+    </div>`;
+}
+
+/**
+ * 证据链渲染：三段式，回答「凭什么推荐这条」。
+ *   ① 依据什么  —— 用户提供的年龄/地区 + 命中的生活事件
+ *   ② 要求什么  —— 该政策��结构化条件，逐条标注 met / unknown / failed
+ *   ③ 出自哪里  —— 责任部门 + 文件名 + 文号 + 发布日期 + 核验状态
+ *
+ * 数据全部来自后端 evidence 字段（由 policy_engine 从数据库原字段派生），
+ * 本函数只做展示，不新增任何判断，也不改写政策表述。
+ */
+function renderEvidenceChain(ev, opts) {
+  opts = opts || {};
+  if (!ev) return '';
+  const self = opts.selfMode;
+
+  // ① 画像依据
+  const basis = (ev.profile_basis || []).map((b) => `
+    <li class="ev-item">
+      <span class="ev-tag">${escapeHtml(b.label)}</span>
+      <span class="ev-txt">${escapeHtml(b.text)}</span>
+    </li>`).join('');
+
+  // ② 政策条件：三值状态各有措辞，绝不出现「符合资格」
+  const STATE_TEXT = {
+    met: { cls: 'met', label: '已确认' },
+    unknown: { cls: 'unknown', label: '待确认' },
+    failed: { cls: 'failed', label: '已确认不符合' },
+  };
+  const conds = (ev.policy_conditions || []).map((c) => {
+    const st = STATE_TEXT[c.state] || STATE_TEXT.unknown;
+    return `<li class="ev-cond ${st.cls}">
+      <div class="ec-top">
+        <span class="ec-req">${escapeHtml(c.label)}：${escapeHtml(c.requirement)}</span>
+        <span class="ec-state">${escapeHtml(st.label)}</span>
+      </div>
+      <div class="ec-ev">${escapeHtml(c.evidence)}</div>
+    </li>`;
+  }).join('');
+
+  // ③ 官方依据
+  const cit = ev.citation || {};
+  const citRows = [];
+  if (cit.department) citRows.push(['责任部门', cit.department]);
+  if (cit.document) citRows.push(['政策文件', cit.document]);
+  if (cit.document_no) citRows.push(['文号', cit.document_no]);
+  if (cit.publish_date) citRows.push(['发布时间', cit.publish_date]);
+  const citHtml = citRows.length
+    ? `<div class="ev-cite-rows">${citRows.map((r) => `
+        <div class="ecr"><span class="k">${escapeHtml(r[0])}</span><span class="v">${escapeHtml(r[1])}</span></div>`).join('')}</div>`
+    : '<p class="ev-none">尚未核到一手文件，暂不列出来源信息，避免指向错误出处。</p>';
+  const citBadge = cit.verified
+    ? '<span class="badge verified">✓ 已核验</span>'
+    : '<span class="badge pending">来源待核验</span>';
+
+  const pending = ev.pending_count || 0;
+
+  return `
+    <div class="evidence">
+      <div class="ev-head">
+        <span class="ev-title">为什么是这一条 · 证据链</span>
+        ${pending ? `<span class="ev-pending">${pending} 项条件待确认</span>` : ''}
+      </div>
+
+      <div class="ev-step">
+        <div class="ev-step-t"><span class="ev-num">1</span>依据什么（来自您的描述）</div>
+        ${basis ? `<ul class="ev-list">${basis}</ul>`
+                : '<p class="ev-none">本次没有从描述中提取到可用事实。</p>'}
+      </div>
+
+      <div class="ev-step">
+        <div class="ev-step-t"><span class="ev-num">2</span>这条权益要求什么</div>
+        ${conds ? `<ul class="ev-conds">${conds}</ul>`
+                : '<p class="ev-none">该条目未设置结构化条件，请在详情页查看政策原文表述。</p>'}
+      </div>
+
+      <div class="ev-step is-trust">
+        <div class="ev-step-t"><span class="ev-num">3</span>出自哪里（官方依据）</div>
+        <div class="ev-cite">
+          <div class="ev-cite-top">${citBadge}</div>
+          ${citHtml}
+        </div>
+      </div>
+    </div>`;
+}
+
+/**
+ * 结果卡：在原有四段结构（推荐/待确认+原因/来源/查看详情）之上，
+ * 新增分层标识与可展开的证据链。既有的类名与数据属性全部保留，
+ * 详情页跳转仍依赖 .result-card 的 click 与 data-id。
+ */
+function renderResultCards(data, opts) {
+  opts = opts || {};
+  const list = data.results || [];
+  if (!list.length) {
+    return renderEmptyState(data, opts);
+  }
+
+  const profile = data.profile || {};
+  const selfMode = profile.mode === 'self';
+
+  const TIER_META = {
+    '强相关': { cls: 'tier-strong', desc: 'AI 识别到了对应的生活变化' },
+    '可能相关': { cls: 'tier-mid', desc: '有对应生活变化，但有关键条件待确认' },
+    '待确认': { cls: 'tier-low', desc: '目前仅依据年龄等基础信息提示' },
+  };
+
+  const oneCard = (r) => {
+    const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
+    const reasons = (r.ai_reason || [])
+      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`).join('');
+
+    const missing = filterAnsweredMissing(r.missing_information, profile);
+    const shown = missing.slice(0, 2);
+    const rest = missing.length - shown.length;
+    const missingHtml = missing.length ? `
+      <div class="rc-block is-warm">
+        <div class="rc-label">还需确认</div>
+        <ul class="missing-list">
+          ${shown.map((x) => {
+            const t = personalize(x, profile);
+            return `<li>
+              <div class="mi-q">${escapeHtml(t)}</div>
+              <div class="mi-why">${escapeHtml(explainMissing(t))}</div>
+            </li>`;
+          }).join('')}
+          ${rest > 0 ? `<li class="mi-more">另有 ${rest} 项待确认内容，进入详情查看</li>` : ''}
+        </ul>
+      </div>` : '';
+
+    // 证据链默认收起，用户点「看证据」再展开——保持卡片首屏清爽
+    const tier = r.tier || '';
+    const tm = TIER_META[tier];
+
+    return `
+      <article class="result-card" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
+        <div class="result-head">
+          <div class="result-head-main">
+            <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
+            <p class="result-meta">${meta}</p>
+          </div>
+          <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
+        </div>
+
+        ${tm ? `<div class="tier-strip ${tm.cls}">
+          <span class="ts-name">${escapeHtml(tier)}</span>
+          <span class="ts-desc">${escapeHtml(tm.desc)}</span>
+        </div>` : ''}
+
+        <div class="rc-block">
+          <div class="rc-label">为什么推荐</div>
+          <ul class="reason-list">${reasons || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>'}</ul>
+        </div>
+
+        ${missingHtml}
+        ${sourceBlock(r)}
+
+        <button type="button" class="ev-toggle" data-ev-toggle="${escapeHtml(r.policy_id)}"
+                aria-expanded="false">看证据链（依据什么 · 要求什么 · 出自哪里）</button>
+        <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
+
+        <div class="result-foot">查看详情与办理方式 <span class="arrow">→</span></div>
+      </article>`;
+  };
+
+  // 按分层分组：强相关在前，弱提示在后，避免用户被长列表淹没
+  const order = ['强相关', '可能相关', '待确认'];
+  const groups = order
+    .map((k) => ({ tier: k, items: list.filter((r) => r.tier === k) }))
+    .filter((g) => g.items.length);
+  // 有未分层的兜底（旧数据兼容）
+  const orphan = list.filter((r) => order.indexOf(r.tier) < 0);
+  if (orphan.length) groups.push({ tier: '', items: orphan });
+
+  const cardsHtml = groups.map((g) => {
+    const tm = TIER_META[g.tier];
+    const head = g.tier
+      ? `<div class="tier-head ${tm.cls}">
+           <span class="th-name">${escapeHtml(g.tier)}</span>
+           <span class="th-count">${g.items.length} 项</span>
+           <span class="th-desc">${escapeHtml(tm.desc)}</span>
+         </div>`
+      : '';
+    return head + `<div class="tier-items">${g.items.map(oneCard).join('')}</div>`;
+  }).join('');
+
+  return `
+    <div class="section">
+      <h2 class="section-title" id="resultAnchor">${escapeHtml(opts.heading
+        || ('AI发现：根据您提供的信息，发现 ' + list.length + ' 项可能相关的公共服务权益'))}</h2>
+      ${renderAiFlowDone()}
+      <p class="hint" style="margin:-4px 0 10px">
+        以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
+      </p>
+      <div class="notice">${escapeHtml(data.notice || '')}</div>
+      ${renderSceneSummary(list)}
+      <div class="tier-groups">${cardsHtml}</div>
+    </div>`;
+}
+
+/**
+ * 绑定「情况确认台」上的生活事件 chip。
+ * 每次点击都把最新的 scenes 以 confirmed_scenes 提交，由后端 replace 语义覆盖，
+ * 实现「用户纠正 AI」—— 这是本轮人机协同的核心闭环。
+ */
+function bindSceneChips(currentData, onChange) {
+  const base = (currentData && currentData.profile) || {};
+  document.querySelectorAll('[data-scene]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.scene;
+      const on = btn.dataset.on === '1';
+      const next = on
+        ? (base.scenes || []).filter((s) => s !== name)
+        : (base.scenes || []).concat([name]);
+      const unique = Array.from(new Set(next));
+      if (onChange) onChange(unique);
+    });
+  });
+}
+
+/**
+ * 绑定结果卡上的「看证据链」展开按钮。
+ * 展开时按需渲染（懒渲染），避免一次性渲染 10 张卡的证据链拖慢首屏。
+ */
+function bindEvidenceToggles(resultsById) {
+  document.querySelectorAll('[data-ev-toggle]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();       // 展开不等于跳详情
+      const id = btn.dataset.evToggle;
+      const slot = document.querySelector('[data-ev-slot="' + CSS.escape(id) + '"]');
+      if (!slot) return;
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      if (isOpen) {
+        slot.hidden = true;
+        slot.innerHTML = '';
+        btn.setAttribute('aria-expanded', 'false');
+        btn.textContent = '看证据链（依据什么 · 要求什么 · 出自哪里）';
+        return;
+      }
+      const r = (resultsById || {})[id];
+      if (!r) return;
+      slot.innerHTML = renderEvidenceChain(r.evidence, {
+        selfMode: r.__selfMode,
+      });
+      slot.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+      btn.textContent = '收起证据链';
+    });
+  });
 }
 
 /** 顶部返回条 */

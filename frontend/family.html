@@ -22,7 +22,8 @@
 
   <div class="notice">
     这个页面专为「帮别人查」设计：权益的受益人是老人本人，家属可以代为描述和查询，
-    但关键信息仍应取得老人本人的确认。
+    但关键信息仍应取得老人本人的确认。本平台只做「可能相关」的初步提示，
+    不代办任何事项，最终资格由主管部门核定。
   </div>
 
   <div class="section">
@@ -98,6 +99,8 @@
   renderTopbar('家庭协助', 'index.html', '操作者 ≠ 受益人');
   mountDemoBanner();
   mountDemoProgress(1);
+  mountFlow(1);
+  mountRelationStrip();
 
   const session = store.read();
   let operator = session.operator || null;

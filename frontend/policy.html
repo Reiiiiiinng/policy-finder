@@ -2,24 +2,18 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>政策找人 · 政策详情</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <meta name="description" content="查看政策依据、适用条件、官方来源与办理方式，并决定下一步怎么核实。">
+  <title>政策找人 · 政策依据</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
   <div id="content">
-    <div class="loading">正在加载政策详情…</div>
+    <div class="loading">正在加载政策依据…</div>
   </div>
-
-  <div class="section">
-    <div class="btn-row">
-      <button class="btn ghost" onclick="location.href='discover.html'">← 返回发现结果</button>
-      <button class="btn ghost" onclick="location.href='index.html'">重新选择</button>
-    </div>
-  </div>
-
   <div class="footnote">
     政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。
   </div>
@@ -27,9 +21,11 @@
 
 <script src="assets/app.js"></script>
 <script>
-  renderTopbar('政策详情', 'discover.html', '五问结构');
+  renderTopbar('政策依据', 'index.html', '第 3 步');
   mountDemoBanner();
   mountDemoProgress(4);
+  mountFlow(3);
+  mountRelationStrip();
 
   const id = query('id');
   const content = document.getElementById('content');
@@ -40,9 +36,9 @@
     return (!s || s === 'to_verify') ? '' : s;
   }
 
-  // 五问结构的统一分块
+  // 详情页统一分块
   function qBlock(n, title, inner, cls) {
-    return `<div class="detail-block ${cls || ''}">
+    return `<div class="detail-block ${cls || ''}" id="q${n}">
       <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
       ${inner}
     </div>`;
@@ -54,7 +50,7 @@
       return;
     }
 
-    let detail, explained = null;
+    let detail;
     try {
       detail = await API.policy(id);
     } catch (e) {
@@ -68,22 +64,32 @@
 
     // 家庭协助模式存 profile，本人模式存 selfProfile
     const session = store.read();
-    const savedProfile = session.profile || session.selfProfile;
-    if (savedProfile) {
-      try {
-        const r = await API.explain(id, savedProfile);
-        explained = r.policy || null;
-      } catch (e) { /* 说明渲染失败不影响详情展示 */ }
-    }
-
-    const p = explained || detail;
-    const pending = (p.verification || {}).status === 'to_verify';
-    const selfMode = savedProfile && savedProfile.mode === 'self';
-    // 本人模式下所有展示文案统一用「您」；家庭模式保持原称谓
+    const savedProfile = session.profile || session.selfProfile || null;
+    const p = detail;
+    const ver = p.verification || {};
+    const pending = ver.status === 'to_verify';
+    const selfMode = !!(savedProfile && savedProfile.mode === 'self');
+    // 本人模式下展示文案统一用「您」；家庭模式保持原称谓
     const say = (t) => personalize(t, savedProfile || {});
 
+    // 真实匹配状态：本次访问是从匹配结果点进来的，session 里存着当时的画像。
+    // 用同样的输入重跑一次匹配，只为取回 tier / status，绝不在前端自己判断资格。
+    let matchRow = null;
+    try {
+      if (savedProfile) {
+        const key = selfMode ? 'selfProfile' : 'profile';
+        const m = await API.match({
+          text: savedProfile.raw_text || session.text || session.selfText || '',
+          mode: savedProfile.mode || (selfMode ? 'self' : undefined),
+          relation: selfMode ? undefined : session.beneficiary,
+          operator: selfMode ? undefined : session.operator,
+          profile: savedProfile,
+        });
+        matchRow = (m.results || []).find((r) => r.policy_id === id) || null;
+      }
+    } catch (e) { /* 取不到匹配状态不影响详情展示 */ }
+
     // ① 这是什么？
-    // 面向人群用的是政策原文表述，保持原样不做称谓替换
     const targets = (p.target_people || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
     const scenes = (p.life_scenes || []).map((x) => `<span class="chip">${escapeHtml(x)}</span>`).join('');
     const what = `
@@ -92,35 +98,53 @@
       <ul>${targets || '<li>待核实</li>'}</ul>
       ${scenes ? `<div class="chips">${scenes}</div>` : ''}`;
 
-    // ② 为什么推荐给您？
-    const reasons = (p.ai_reason_rendered || []).map((x) => say(x));
-    const noReasonTip = selfMode
-      ? '本条为通用权益提示。返回上一步补充您的具体情况后，这里会显示针对您本人的推荐原因。'
-      : '本条为通用权益提示。返回上一步补充老人的具体情况后，这里会显示针对这位老人的推荐原因。';
-    const why = reasons.length
-      ? `<ul class="reason-list">${reasons.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
-      : `<p style="color:var(--muted)">${escapeHtml(noReasonTip)}</p>`;
+    // ② 为什么推荐给您 —— 有匹配上下文时展示证据链，没有则给出通用提示
+    const noCtx = selfMode
+      ? '本条为通用权益提示。返回上一步补充您的具体情况后，这里会显示针对您本人的证据链。'
+      : '本条为通用权益提示。返回上一步补充老人的具体情况后，这里会显示针对这位老人的证据链。';
+    const why = matchRow && matchRow.evidence
+      ? renderEvidenceChain(matchRow.evidence, { selfMode: selfMode })
+      : `<p style="color:var(--muted)">${escapeHtml(noCtx)}</p>`;
 
-    // ③ 需要确认什么？
+    // ③ 还需要确认什么
     const missingRaw = filterAnsweredMissing(p.missing_information, savedProfile);
     const missing = missingRaw.map((x) => say(x));
     const needConfirm = missing.length
       ? `
         <p class="q-lead">这些信息 AI 无法替您判断，需要您或受理单位确认后才成立。</p>
         <ul class="missing-list">
-          ${missing.map((x) => {
-            const why_ = explainMissing(x);
-            return `<li>
+          ${missing.map((x) => `
+            <li>
               <div class="mi-q">${escapeHtml(x)}</div>
-              <div class="mi-why">${escapeHtml(why_)}</div>
-            </li>`;
-          }).join('')}
+              <div class="mi-why">${escapeHtml(explainMissing(x))}</div>
+            </li>`).join('')}
         </ul>
         <p class="q-lead" style="margin:10px 0 0">以上不影响本条出现在您的可能相关列表中，
           但会影响最终能否适用。</p>`
       : '<p>暂无必须补充的信息，但仍建议向受理单位核实适用口径后再办理。</p>';
 
-    // ④ 怎么办理？
+    // ④ 去哪里核实（不是「怎么办理」——本平台不代办，只告诉用户去哪问）
+    const srcDept = clean((p.source || {}).department);
+    const verifyWhere = `
+      <div class="where-list">
+        <div class="where-row">
+          <span class="wr-k">建议咨询</span>
+          <span class="wr-v">${escapeHtml(srcDept || '当地主管部门')}</span>
+        </div>
+        <div class="where-row">
+          <span class="wr-k">建议携带</span>
+          <span class="wr-v">${selfMode ? '您本人' : '这位长辈'}的身份证件与医保凭证；涉及失能等级的，先完成照护需求或失能等级评估</span>
+        </div>
+        <div class="where-row">
+          <span class="wr-k">建议问清</span>
+          <span class="wr-v">本人是否在服务覆盖范围内、申请入口在哪、需要哪些材料、本人适用的具体标准</span>
+        </div>
+      </div>
+      <p class="q-lead" style="margin:12px 0 0;font-size:13px;color:var(--muted)">
+        属地街道、镇与社区的服务覆盖范围和申请入口会有差异，最终以受理单位现场或线上告知为准。
+      </p>`;
+
+    // ⑤ 办理方式：只展示数据库中已核验的步骤，未核到的不代为编写
     const steps = (p.application_process || []);
     const allUnverified = !steps.length || steps.every((s) => s.to_verify);
     const processHtml = steps.map((s) => {
@@ -130,8 +154,7 @@
     const processWarn = allUnverified
       ? `<p class="q-lead" style="margin:0 0 8px;color:var(--warn)">
            办理流程尚未核到一手文件原文，本页不代为列出具体步骤。
-           请向${escapeHtml(clean((p.source || {}).department) || '主管部门')}或所在街镇、
-           社区养老服务窗口咨询实际入口。
+           请向${escapeHtml(srcDept || '主管部门')}或所在街镇、社区养老服务窗口咨询实际入口。
          </p>` : '';
     const needProcess = `
       ${processWarn}
@@ -142,9 +165,8 @@
         所需材料以受理单位现场或线上告知为准，本页不代为列明，避免给您错误信息。
       </p>`;
 
-    // ⑤ 政策来源（独立浅蓝信任卡）
+    // ⑥ 政策来源（浅蓝信任卡）
     const src = p.source || {};
-    const ver = p.verification || {};
     const rows = [];
     rows.push(['责任部门', clean(src.department), '']);
     rows.push(['政策文件', clean(src.document), '尚未核到一手文件，此处不代为填写']);
@@ -185,12 +207,27 @@
 
     const sourceCard = `
       <div class="trust-card">
-        <h3><span class="q-num">5</span><span class="q-title">政策来源</span></h3>
+        <h3><span class="q-num">6</span><span class="q-title">政策来源</span></h3>
         ${tcStatus}
         <div class="tc-rows">${rowsHtml}</div>
         ${linkHtml}
         ${verNote}
       </div>`;
+
+    // 顶部概要：状态徽章用真实匹配结果，不再一律写「可能相关」
+    const statusLine = matchRow
+      ? statusBadge(matchRow.status, pending)
+      : statusBadge('可能相关', pending);
+    const tierLine = matchRow && matchRow.tier
+      ? `<div class="tier-strip ${matchRow.tier === '强相关' ? 'tier-strong'
+          : (matchRow.tier === '可能相关' ? 'tier-mid' : 'tier-low')}" style="margin-top:10px">
+           <span class="ts-name">${escapeHtml(matchRow.tier)}</span>
+           <span class="ts-desc">结合您已确认的信息得出</span>
+         </div>`
+      : '';
+
+    const backHref = selfMode ? 'self.html' : 'discover.html';
+    const backLabel = selfMode ? '← 返回我的发现结果' : '← 返回发现结果';
 
     content.innerHTML = `
       <div class="section">
@@ -201,7 +238,8 @@
             <span class="chip plain">${escapeHtml(p.service_type || '')}</span>
             <span class="chip plain">${escapeHtml((p.region || {}).scope || '')}</span>
           </div>
-          <div style="margin-top:8px">${statusBadge('可能相关', pending)}</div>
+          <div style="margin-top:8px">${statusLine}</div>
+          ${tierLine}
           ${p.service_note ? `<p class="hint">${escapeHtml(p.service_note)}</p>` : ''}
         </div>
       </div>
@@ -209,11 +247,157 @@
       <div class="section">
         ${qBlock(1, '这是什么？', what)}
         ${qBlock(2, '为什么推荐给您？', why)}
-        ${qBlock(3, '需要确认什么？', needConfirm, 'is-warm')}
-        ${qBlock(4, '怎么办理？', needProcess)}
+        ${qBlock(3, '还需要确认什么？', needConfirm, 'is-warm')}
+        ${qBlock(4, '去哪里核实？', verifyWhere)}
+        ${qBlock(5, '怎么办理？', needProcess)}
         ${sourceCard}
         <div class="notice warn">${escapeHtml(p.risk_notice || 'AI仅进行初步匹配，不代表符合资格。')}</div>
+      </div>
+
+      <!-- 第 4 步：进一步确认。让流程形成闭环，而不是停在「读完就走」 -->
+      <div class="section">
+        ${renderFinalStep(p, matchRow, selfMode, backHref, backLabel)}
+      </div>
+
+      <div class="section">
+        <div class="btn-row">
+          <button type="button" class="btn ghost" onclick="location.href='${backHref}'">${backLabel}</button>
+          <button type="button" class="btn ghost" onclick="location.href='index.html'">重新选择帮助对象</button>
+        </div>
       </div>`;
+
+    bindFinalStep(id, selfMode, backHref);
+    mountFlow(4);
+    mountRelationStrip();
+  }
+
+  /**
+   * 第四步「进一步确认」：用户对这条权益做出明确表态。
+   * 表单只存在于本地 sessionStorage，不提交任何数据、不代办任何事项。
+   */
+  function renderFinalStep(p, matchRow, selfMode, backHref, backLabel) {
+    const dept = clean((p.source || {}).department) || '当地主管部门';
+    const pending = (p.verification || {}).status === 'to_verify';
+    const tid = (p.policy_id || '').slice(-3);
+
+    return `
+      <div class="final-step">
+        <div class="fs-head">
+          <span class="fs-n">4</span>
+          <div>
+            <div class="fs-t">看完依据，接下来怎么做？</div>
+            <div class="fs-s">这一步只帮您把思路理清楚，本平台不代办、不代填，也不会替您做决定。</div>
+          </div>
+        </div>
+
+        <div class="fs-opts" id="fsOpts">
+          <button type="button" class="fs-opt" data-fs="verify">
+            <span class="fo-t">打算去核实</span>
+            <span class="fo-d">已知晓依据，接下来向${escapeHtml(dept)}或所在街镇咨询本人适用情况</span>
+          </button>
+          <button type="button" class="fs-opt" data-fs="later">
+            <span class="fo-t">先记下来</span>
+            <span class="fo-d">暂时不办，但先知道还有这项权益存在</span>
+          </button>
+          <button type="button" class="fs-opt" data-fs="notmatch">
+            <span class="fo-t">情况不符，不适用</span>
+            <span class="fo-d">我已核实过，这项与当前情况无关</span>
+          </button>
+        </div>
+
+        <div class="fs-note" id="fsNote" hidden></div>
+
+        <div class="fs-again">
+          <p class="fs-again-t">如果发现 AI 理解的情况和实际不符，可以补充或更正后重新匹配：</p>
+          <div class="btn-row">
+            <button type="button" class="btn ghost" id="fsFixScene">回去调整生活变化</button>
+            <button type="button" class="btn ghost" id="fsFixInfo">回去补充关键条件</button>
+          </div>
+        </div>
+
+        <div class="fs-tail">
+          已核实过「${escapeHtml(p.policy_name)}」：<span id="fsMark" class="fs-mark">尚未表态</span>
+          <button type="button" class="fs-clear" id="fsClear" hidden>清除</button>
+        </div>
+        ${pending ? `<p class="fs-pending">提示：这条权益的一手文件尚未核到，建议先向${escapeHtml(dept)}确认是否确有此项服务。</p>` : ''}
+      </div>`;
+  }
+
+  const FS_TEXT = {
+    verify: '好的。带齐证件去咨询时，可以直接报政策名称与文号，请对方确认本人是否在服务覆盖范围内。',
+    later: '已记下。这条会一直在这里，等您需要的时候再回来核实，不用现在决定。',
+    notmatch: '已记录为不适用。若之后情况有变化，可以随时重新匹配。',
+  };
+
+  function fsKey(pid) { return 'pf_fs_' + pid; }
+
+  function bindFinalStep(pid, selfMode, backHref) {
+    const KEY = fsKey(pid);
+    const opts = document.getElementById('fsOpts');
+    const note = document.getElementById('fsNote');
+    const mark = document.getElementById('fsMark');
+    const clear = document.getElementById('fsClear');
+    if (!opts) return;
+
+    function paint(val) {
+      opts.querySelectorAll('.fs-opt').forEach((b) => {
+        const on = b.dataset.fs === val;
+        b.classList.toggle('is-picked', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      if (val) {
+        note.hidden = false;
+        note.textContent = FS_TEXT[val];
+        mark.textContent = { verify: '打算去核实', later: '先记下来', notmatch: '不适用' }[val];
+        mark.className = 'fs-mark is-' + val;
+        clear.hidden = false;
+      } else {
+        note.hidden = true;
+        mark.textContent = '尚未表态';
+        mark.className = 'fs-mark';
+        clear.hidden = true;
+      }
+    }
+
+    let cur = '';
+    try { cur = sessionStorage.getItem(KEY) || ''; } catch (e) { cur = ''; }
+    paint(cur);
+
+    opts.querySelectorAll('.fs-opt').forEach((b) => {
+      b.addEventListener('click', () => {
+        const v = b.dataset.fs;
+        cur = (cur === v) ? '' : v;
+        try {
+          if (cur) sessionStorage.setItem(KEY, cur);
+          else sessionStorage.removeItem(KEY);
+        } catch (e) { /* 隐私模式下忽略 */ }
+        paint(cur);
+        showToast(cur ? '已记录您的选择' : '已取消');
+      });
+    });
+
+    if (clear) {
+      clear.addEventListener('click', () => {
+        cur = '';
+        try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+        paint(cur);
+        showToast('已清除');
+      });
+    }
+
+    const fixScene = document.getElementById('fsFixScene');
+    if (fixScene) {
+      fixScene.addEventListener('click', () => {
+        // 带上定位参数，返回后自动滚到生活事件区
+        location.href = backHref + '?focus=scene';
+      });
+    }
+    const fixInfo = document.getElementById('fsFixInfo');
+    if (fixInfo) {
+      fixInfo.addEventListener('click', () => {
+        location.href = backHref + '?focus=cond';
+      });
+    }
   }
 
   load();

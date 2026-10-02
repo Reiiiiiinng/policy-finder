@@ -2,58 +2,61 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>政策找人 · AI发现</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <meta name="description" content="用一句话描述家人的生活变化，核对 AI 的理解，发现可能遗漏的公共服务权益。">
+  <title>政策找人 · 确认情况</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
 
+  <!-- 第 1 步：描述发生了什么 -->
   <div class="section">
-    <h2 class="section-title">说出家人的生活变化</h2>
+    <div class="step-lead">
+      <span class="step-lead-n">1</span>
+      <div>
+        <div class="step-lead-t">发生了什么？</div>
+        <div class="step-lead-s">用日常的话描述就行，不用记政策名称，也不用填表。</div>
+      </div>
+    </div>
     <div class="card">
       <div class="field">
-        <label for="situation">用一句话描述就好，不用写政策名称</label>
+        <label for="situation">说一说这位长辈最近的生活变化</label>
         <textarea id="situation" placeholder="例如：我父亲72岁，一个人在广州生活，最近行动不方便。"></textarea>
       </div>
-      <button class="btn ghost" id="fillExample" style="margin-bottom:10px">填入示例</button>
-      <button class="btn" id="discoverBtn">开始发现</button>
+      <div class="btn-row">
+        <button type="button" class="btn ghost" id="fillExample">填入示例</button>
+        <button type="button" class="btn" id="discoverBtn">让 AI 读一遍</button>
+      </div>
       <p class="hint">
-        可以写得口语一些：年纪、住哪里、和谁住、身体变化、就医情况、照护压力，都会帮助匹配。
+        写得口语一些反而更准：年纪、住哪里、和谁住、身体变化、就医、照护压力，都会影响匹配。
       </p>
-    </div>
-
-    <!-- 固定演示案例：只填入文本框，仍由您点击「开始发现」，方便答辩展示输入过程 -->
-    <div class="case-card">
-      <div class="case-head">
-        <span class="case-badge">推荐演示案例</span>
-        <span class="case-title">72 岁 · 广州 · 独居 · 行动不便</span>
-      </div>
-      <div class="case-tags">
-        <span class="case-tag">72岁广州老人</span>
-        <span class="case-tag">独居</span>
-        <span class="case-tag">行动不便</span>
-      </div>
-      <p class="case-desc">
-        点击后自动填入下面这句话，仍需您点「开始发现」：<br>「<span id="casePreview"></span>」
-      </p>
-      <button type="button" class="case-btn" id="caseBtn">体验案例：72岁广州老人</button>
     </div>
   </div>
 
+  <!-- 情况确认台 + 结果区：AI 读完由 JS 渲染 -->
   <div id="resultArea"></div>
 
+  <div class="section">
+    <div class="btn-row">
+      <button type="button" class="btn ghost" onclick="location.href='family.html'">← 重新确认查询关系</button>
+    </div>
+  </div>
+
   <div class="footnote">
-    匹配结果仅为初步提示，均需进一步确认，不作为资格认定。
+    全程只做「可能相关」的初步提示，不代表已符合资格；任何结论都需要向主管部门核实。
   </div>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
-  renderTopbar('AI发现', 'family.html', '初步匹配');
+  renderTopbar('确认情况', 'family.html', '第 1 步');
   mountDemoBanner();
-  mountDemoProgress(2);
+  mountDemoProgress(1);
+  mountFlow(1);
+  mountRelationStrip();
 
   const session = store.read();
   const EXAMPLE = '我父亲72岁，一个人在广州生活，最近行动不方便。';
@@ -65,59 +68,68 @@
   const CALL = { '配偶': '老伴' };
   const CASE_WHO = CALL[session.beneficiary] || session.beneficiary || '父亲';
   const CASE_TEXT = '我' + CASE_WHO + '72岁，一个人在广州生活，最近行动不方便。';
-  document.getElementById('casePreview').textContent = CASE_TEXT;
-  document.getElementById('caseBtn').addEventListener('click', () => {
-    input.value = CASE_TEXT;
-    input.focus();
+
+  function clearOldAnswers() {
     // 演示案例是一次全新场景：清掉上一轮留存的事实答案，
     // 否则后端会沿用旧画像里的地区等字段，导致换城市后仍然匹配不到。
-    store.write({ profile: {} });
-  });
+    store.write({ profile: {}, text: '' });
+  }
 
   document.getElementById('fillExample').addEventListener('click', () => {
     input.value = EXAMPLE;
     input.focus();
   });
 
+  // 顶部「说一说」区的示例与主按钮
+  document.getElementById('discoverBtn').addEventListener('click', () => {
+    runMatch({ scrollToResult: true });
+  });
+
+  // 推荐演示案例（保留原有入口，仍需手动点击开始）
+  const caseBox = document.createElement('div');
+  caseBox.className = 'case-card';
+  caseBox.innerHTML = `
+    <div class="case-head">
+      <span class="case-badge">推荐演示案例</span>
+      <span class="case-title">72 岁 · 广州 · 独居 · 行动不便</span>
+    </div>
+    <p class="case-desc">点击后填入这句话，仍需您点「让 AI 读一遍」：<br>「<span class="case-preview"></span>」</p>
+    <button type="button" class="case-btn" id="caseBtn">体验案例：72岁广州老人</button>`;
+  input.closest('.card').insertAdjacentElement('afterend', caseBox);
+  caseBox.querySelector('.case-preview').textContent = CASE_TEXT;
+  caseBox.querySelector('#caseBtn').addEventListener('click', () => {
+    input.value = CASE_TEXT;
+    clearOldAnswers();
+    showToast('已填入案例，点「让 AI 读一遍」继续');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
   if (session.text) input.value = session.text;
 
-  // 演示模式首次进入：文本已由 session.text 自动填入，但不自动跑匹配，
-  // 保留评委手动点「开始发现」以展示输入→分析→结果的过程。
-  // 首次进入后清除 demo 标记，之后从详情页返回时照常自动跑。
-  if (session.demo) {
-    store.write({ demo: false });
-  }
-
-  function renderLoading() {
-    area.innerHTML = '<div class="loading">正在根据您描述的情况进行初步匹配…</div>';
-  }
+  // 演示模式首次进入：文本已自动填入，但不自动跑，保留手动点击展示输入→分析→结果
+  if (session.demo) store.write({ demo: false });
 
   /**
    * 匹配并渲染。
-   * opts.restore        {key, value, viewportY} 重渲染后把被点击的按钮放回原来的视口位置
-   * opts.scrollToResult true 时渲染后滚动到结果区（首次点击「开始发现」用）
+   * opts.restore        {key, value, viewportY} 重渲染后把被点击的按钮放回原视口位置
+   * opts.scrollToResult true 时渲染后滚动到确认台
+   * opts.keepHeight     true 时锁定结果区高度（局部刷新，避免跳顶）
    */
   async function runMatch(opts) {
     opts = opts || {};
     const text = input.value.trim();
     if (!text) {
-      area.innerHTML = '<div class="notice warn">请先用一句话描述老人最近的生活变化。</div>';
+      area.innerHTML = '<div class="notice warn">请先用一句话描述这位长辈最近的生活变化。</div>';
       return;
     }
-    const isRefresh = !!opts.restore;   // true = 由「补充信息」触发的局部刷新
+    const isRefresh = !!opts.keepHeight;
 
-    // 局部刷新时不能重建结果区（会把几千 px 的内容换成一行字 → 文档高度骤降 → 跳顶），
-    // 只给一个浮层提示「正在处理」。
     if (isRefresh) showToast('已更新，正在重新匹配…');
-
-    // 注意：首次匹配才走 AI 流程展示；局部刷新不重建 DOM，保证滚动位置稳定。
-    // renderLoading 会把整个结果区替换成一行文字，文档高度从几千 px 骤降到几十 px，
-    // 浏览器会立刻把 scrollTop 夹到新的最大值（≈0），用户就会看到「先跳到顶部、再弹回来」。
-    if (!isRefresh) area.innerHTML = renderAiFlow(0);
+    else area.innerHTML = renderAiFlow(0);
 
     const saved = store.read();
     const payload = {
-      text,
+      text: text,
       relation: saved.beneficiary,
       operator: saved.operator,
       profile: saved.profile || {},
@@ -126,7 +138,7 @@
     let data;
     try {
       if (!isRefresh) {
-        // 第 1 步：真实调用画像接口。返回后才是真正「已完成」的那两步。
+        // 第 1 步：真实调用画像接口，返回后才打勾前两步
         await API.post('/api/profile', {
           text: text,
           relation: saved.beneficiary,
@@ -134,7 +146,6 @@
         });
         updateAiFlow(2);
       }
-      // 第 2 步：真实调用匹配接口。返回后另外两步才真正完成。
       data = await API.match(payload);
       if (!isRefresh) updateAiFlow(4);
     } catch (e) {
@@ -143,30 +154,27 @@
       return;
     }
 
-    store.write({ text, profile: data.profile });
+    store.write({ text: text, profile: data.profile });
+    mountFlow(2);
+    mountRelationStrip();
 
-    // 局部刷新时先锁定容器当前高度：这样 innerHTML 替换前后的文档总高度保持一致，
-    // 浏览器不会把 scrollTop 往上夹，替换瞬间也就不会出现任何可视位移。
     if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
 
-    // 渲染函数已抽到 assets/app.js，本人模式页 self.html 复用同一套
     area.innerHTML =
-      renderProfileCard(data.profile, { title: 'AI 分析依据' }) +
-      renderResultCards(data) +
-      renderConfirmCard(data.profile);
+      renderSituationBoard(data.profile, data.scene_library, {
+        title: '第二步：确认 AI 的理解对不对',
+      }) +
+      renderResultCards(data, {
+        heading: '第三步：AI 发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
+      });
 
-    bindCards();
-    bindConfirm(data);
-    bindEmptyActions();
-    // 结果出来后，演示进度推进到第 3 步（AI发现可能权益）
-    mountDemoProgress(3);
+    bindAll(data);
 
-    if (isRefresh) showToast('已根据您的回答重新匹配');
+    if (isRefresh) showToast('已根据您的确认重新匹配');
 
-    if (opts.restore) {
-      restorePosition(opts.restore);
-    } else if (opts.scrollToResult) {
-      const anchor = document.getElementById('resultAnchor');
+    if (opts.restore) restorePosition(opts.restore);
+    else if (opts.scrollToResult) {
+      const anchor = area.firstElementChild;
       if (anchor) {
         window.scrollTo({
           top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12),
@@ -176,7 +184,6 @@
     }
 
     if (isRefresh) {
-      // 下一帧布局稳定后再释放高度锁，并做一次位置校正
       requestAnimationFrame(() => {
         area.style.minHeight = '';
         if (opts.restore) restorePosition(opts.restore);
@@ -184,9 +191,11 @@
     }
   }
 
-  /** 把某个「是/否/不确定」按钮放回它点击前所在的视口位置 */
+  /** 把某个按钮放回它点击前所在的视口位置（局部刷新不跳顶） */
   function restorePosition(restore) {
-    const sel = '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]';
+    const sel = restore.key
+      ? '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]'
+      : '[data-scene="' + restore.scene + '"]';
     const el = document.querySelector(sel);
     if (!el) return;
     const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
@@ -195,48 +204,81 @@
 
   function bindCards() {
     document.querySelectorAll('.result-card').forEach((card) => {
-      card.addEventListener('click', () => {
+      const go = () => {
         location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
+      };
+      card.addEventListener('click', go);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
       });
     });
   }
 
+  /** 硬条件三值确认：沿用原有 data-confirm 协议，改画像后重新匹配 */
   function bindConfirm(current) {
     document.querySelectorAll('[data-confirm]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const key = btn.dataset.confirm;
         const raw = btn.dataset.value;
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
-        // 记下按钮当前的视口位置，重绘后原样恢复
         const viewportY = btn.getBoundingClientRect().top;
-        // 即时反馈：请求处理期间禁用该按钮，避免重复点击
         btn.disabled = true;
-        btn.style.opacity = '0.55';
         const profile = Object.assign({}, current.profile, { [key]: value });
-        store.write({ profile });
-        runMatch({ restore: { key: key, value: raw, viewportY: viewportY } });
+        store.write({ profile: profile });
+        runMatch({ restore: { key: key, value: raw, viewportY: viewportY }, keepHeight: true });
       });
     });
   }
 
-  /** 空状态里的两个出口：回去补充描述 / 直接用演示案例 */
-  function bindEmptyActions() {
-    document.querySelectorAll('[data-empty-act]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.emptyAct === 'edit') {
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          input.focus();
-        } else {
-          document.getElementById('caseBtn').click();
-        }
+  /** 生活事件 chip：用户纠正 AI 的场景识别 */
+  function bindScenes(current) {
+    bindSceneChips(current, function (scenes) {
+      const btn = document.querySelector('[data-scene="' + CSS.escape(
+        (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
+      const viewportY = btn ? btn.getBoundingClientRect().top : 0;
+      const profile = Object.assign({}, current.profile, { confirmed_scenes: scenes });
+      store.write({ profile: profile });
+      runMatch({
+        restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
+        keepHeight: true,
       });
     });
   }
 
-  document.getElementById('discoverBtn').addEventListener('click', () => runMatch({ scrollToResult: true }));
+  /** 证据链懒展开 */
+  function bindEvidence(current) {
+    const map = {};
+    (current.results || []).forEach((r) => {
+      r.__selfMode = current.profile && current.profile.mode === 'self';
+      map[r.policy_id] = r;
+    });
+    bindEvidenceToggles(map);
+  }
 
-  // 已输入过则自动跑一次，方便从详情页返回；演示模式首次进入不跑（session.demo 已在上方清除）
-  if (session.text && !session.demo) runMatch();
+  function bindAll(data) {
+    bindCards();
+    bindConfirm(data);
+    bindScenes(data);
+    bindEvidence(data);
+  }
+
+  // 从详情页「回去调整」带 focus 参数时，滚动到对应区块
+  function applyFocus() {
+    const f = query('focus');
+    if (!f) return;
+    let el = null;
+    if (f === 'scene') el = document.querySelector('.scene-chips');
+    if (f === 'cond') el = document.querySelector('.board-conds');
+    if (!el) return;
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(f === 'scene' ? '在这里增减生活变化' : '在这里补充关键条件');
+    }, 260);
+  }
+
+  // 已输入过则自动跑一次，方便从详情页返回
+  if (session.text && !session.demo) runMatch().then(applyFocus);
 </script>
 </body>
 </html>
