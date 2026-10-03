@@ -151,6 +151,8 @@ python .tools/apitest.py          # 接口冒烟：41 项（含硬条件三值�
 node .tools/render-test.js        # 渲染单测：62 项（vm 里跑 app.js 纯函数）
 node .tools/page-check.js         # 页面接线：103 项（内联脚本语法、函数引用、红线文案）
 python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程，家庭 38 / 本人 37 项
+node .tools/phase6-test.js        # 第六阶段交互修正专项：86 项
+python .tools/phase6-e2e.py       # 第六阶段 390×844 实测：45 项（对应需求里的测试1~6）
 ```
 
 - `baseline.py` 只比对**不应被改动**的部分（结果条数、顺序、status、score、理由文本、待确认项），新增字段不参与比对。
@@ -158,6 +160,10 @@ python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流�
 - `e2e.py` 会把 `.tools/e2e_page.html` 临时复制为 `frontend/_e2e.html`，跑完自动删除。断言结果经 `/__e2e_log` 回传，因此不受无头浏览器截图时机限制。
 - 端到端覆盖：确认台渲染 → 增删生活事件 → 硬条件三值确认 → 结果分层 → 证据链展开 → 详情页 → 进一步确认表态 → 回跳确认台。
 - `agent-browser` 在本机因 Chromium 下载超时不可用，端到端改用系统自带 Edge（`msedge.exe`）无头模式。
+- **无头模式下的两个坑**（写浏览器实测时务必注意）：
+  1. `iframe.src` 不会随页面导航及时刷新，**不能用来判断是否已跳转**。判断跳转请用 iframe 的 `load` 事件。
+  2. `--virtual-time-budget` 用完浏览器立刻退出。页面里 `await sleep(n)` 走的是虚拟时间（瞬间过去），但 `fetch`、页面导航要等真实网络——固定 sleep 之后立刻断言会误判"没跳转"。要么给足预算，要么改成轮询等待。
+- `phase6-e2e.py` 会把 `.tools/phase6_page.html` 临时复制为 `frontend/_phase6.html`，跑完自动删除。
 
 ## 十二、修改记录
 
@@ -198,3 +204,9 @@ python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流�
 | 2026-10-03 | `frontend/index.html`、`frontend/family.html`、`frontend/assets/style.css` | 首页新增「怎么用」四步说明卡；各页挂载流程指示器与关系条；`style.css` 追加流程指示器/确认台/分层/证据链/核实指引/进一步确认等样式（累计约 3258 行） | 仅新增选择器，未修改任何既有规则 |
 | 2026-10-03 | `backend/server.py`、`backend/policy_engine.py`、`frontend/discover.html` | **修复**：用户纠正的生活事件在重新匹配后被丢弃——前端用 `data.profile` 覆盖本地存储，而 profile 不含 `confirmed_scenes`。改为后端回传 `confirmed_scenes`/`scenes_edited`，并在仅收到 `scenes_edited` 时沿用上次结果 | 人机协同恢复有效；匹配逻辑本身未变（baseline 回归一致） |
 | 2026-10-03 | `.tools/*` | 新增 5 个测试脚本：`baseline.py`（引擎基线快照比对）、`apitest.py`（41 项接口冒烟）、`render-test.js`（62 项渲染单测）、`page-check.js`（103 项页面接线与红线扫描）、`e2e.py`+`e2e_page.html`（驱动 Edge 跑完整流程，家庭 38 / 本人 37 项） | 仅开发期使用，不影响运行时；`__e2e_log` 端点只在本地自测时收数据 |
+| 2026-10-03 | `frontend/index.html`、`frontend/assets/style.css` | 第六阶段问题1+3：首页首屏减负——首屏只留「政策找人」+ 一句话定位 + 入口，核心理念压缩为左右对照（`.idea-flow`），使用流程/可信度/关系说明下移；「绿智共生」从topbar 标签降级为页脚弱提示 `.theme-foot` | 首屏顺序变为 标题→定位→入口→其他说明；赛事主题信息未删除；三个入口与跳转逻辑未变 |
+| 2026-10-03 | `frontend/family.html`、`frontend/assets/style.css` | 第六阶段问题2：区分「我的父母」与「我的长辈」——按 `session.target` 把关系分成主区与折叠区，父母入口主区只显示父亲/母亲，长辈入口主区显示祖辈/配偶/其他长辈；提示文案与步骤条文案随之变化 | 两个入口仍进同一页，未新增页面、未改跳转契约；八个关系选项一个不少；本人模式不受影响 |
+| 2026-10-03 | `frontend/assets/app.js` | 第六阶段问题4：新增 `backOrFallback()`，`renderTopbar` 的返回改为 `<a href=兜底>` + 点击优先 `history.back()`；无可用历史（`history.length<=1` 或无 referrer）时才退回兜底 | 各页兜底 href 不变，中键/无 JS 仍可跳转；Demo banner 不受影响 |
+| 2026-10-03 | `frontend/assets/app.js`、`frontend/discover.html`、`frontend/self.html` | 第六阶段问题5：新增列表位置记忆（`saveListPosition`/`restoreListPosition`/`highlightPolicy`），进入详情前记scrollY 与 policy_id，返回后多轮重试直到真正滚到目标高度才清除记录，并给刚查看的政策加 2.4s 高亮 | 与上一阶段的「补充信息局部刷新锁高」互不干扰；`?focus=` 回跳优先于位置恢复；30 分钟以上记录视为陈旧不再恢复 |
+| 2026-10-03 | `frontend/family.html` | 第六阶段顺带修复：关系条在 `refresh()` 里重挂，选择操作者/受益人后顶部「谁在帮谁查」不再停留在旧值 | 家庭协助轴的准确性提升 |
+| 2026-10-03 | `.tools/phase6-*`、`.tools/phase6_page.html` | 第六阶段测试：`phase6-test.js` 86 项结构与逻辑断言；`phase6-e2e.py` 以 390×844 视口跑需求里的测试1~6，共 45 项 | 仅开发期使用；后端 `data/`、`backend/`、`policy.html` 本阶段零改动 |

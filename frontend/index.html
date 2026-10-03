@@ -11,128 +11,28 @@
 <body>
 <div class="app">
 
-  <!-- 顶部品牌条：温暖浅色 + 绿色标识 -->
+  <!-- 顶部品牌条：品牌名弱化，让「政策找人」成为第一视觉层级 -->
   <div class="topbar">
     <div class="brand-row">
       <div class="brand-mark">
         <span class="mark-dot" aria-hidden="true"></span>
         <div>
-          <div class="brand-name">AI 赋能公共服务权益发现</div>
-          <div class="sub">广州市 · 老年人公共服务试点数据</div>
+          <div class="brand-name">政策找人</div>
+          <div class="sub">AI 赋能公共服务权益发现</div>
         </div>
       </div>
-      <span class="theme-tag">绿智共生</span>
     </div>
   </div>
 
-  <!-- 产品理念首屏 -->
+  <!-- 首屏：标题 + 一句话定位 + 直接给入口 -->
   <header class="hero animate-in">
-    <span class="hero-eyebrow">AI 赋能公共服务</span>
     <h1 class="hero-title">政策找人</h1>
-    <p class="hero-sub">让可能被忽略的公共服务权益，<br>主动找到需要它的人。</p>
-    <p class="desc">
-      很多公共服务权益一直存在，只是没人告诉我们它可能适用。
-      不用记住政策名称，也不用翻文件，说清楚家里发生了什么就好。
-    </p>
+    <p class="hero-sub">说出家里发生了什么，<br>AI 帮您发现可能相关、却没用上的公共服务权益。</p>
+    <a class="hero-jump" href="#entry">↓ 我想帮谁查</a>
   </header>
 
-  <!-- 使用流程：先讲清怎么用，降低第一次进入的陌生感 -->
-  <section class="how-card animate-in d1" aria-label="使用流程">
-    <div class="how-head">
-      <span class="how-eyebrow">怎么用</span>
-      <h2 class="how-title">四步，每一步都能看到依据</h2>
-    </div>
-    <ol class="how-list">
-      <li>
-        <span class="hn">1</span>
-        <div>
-          <b>确认情况</b>
-          <span>说清发生了什么，核对 AI 有没有认错，可以随时改</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">2</span>
-        <div>
-          <b>发现可能相关的权益</b>
-          <span>AI 从真实政策库里找出可能相关的一项项，逐条说明理由</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">3</span>
-        <div>
-          <b>查看政策依据</b>
-          <span>这条权益要求什么、出自哪份文件，一并摊开给您看</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">4</span>
-        <div>
-          <b>进一步确认</b>
-          <span>决定要不要去核实。全程只做提示，不代办、不做资格认定</span>
-        </div>
-      </li>
-    </ol>
-  </section>
-
-  <!-- 核心理念：以前 vs 现在 -->
-  <section class="idea-card animate-in d1" aria-label="核心理念：从人找政策到政策找人">
-    <div class="idea-head">
-      <span class="idea-eyebrow">核心理念</span>
-      <h2 class="idea-title">政策找人</h2>
-    </div>
-    <p class="idea-sub">
-      让可能被忽略的公共服务权益，主动找到需要它的人——
-      AI 根据生活变化，初步发现可能相关的公共服务。
-    </p>
-
-    <div class="idea-row idea-row-tail">
-      <span class="idea-tag">以前</span>
-      <div class="idea-name">人找政策</div>
-      <ul class="idea-list">
-        <li>需要知道政策名称</li>
-        <li>需要主动搜索</li>
-        <li>容易错过</li>
-      </ul>
-    </div>
-
-    <div class="idea-shift">↓ 方向变了</div>
-
-    <div class="idea-row is-now">
-      <span class="idea-tag">现在</span>
-      <div class="idea-name">政策找人</div>
-      <ul class="idea-list">
-        <li>描述生活变化即可</li>
-        <li>AI 辅助发现</li>
-        <li>提醒可能相关服务</li>
-      </ul>
-    </div>
-
-    <p class="idea-foot">
-      结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。
-    </p>
-  </section>
-
-  <!-- 数据可信度条：数字全部来自 /api/policies，不写死；接口失败则整条隐藏 -->
-  <div class="trust-strip animate-in d1" id="trustStrip" hidden>
-    <div class="trust-item">
-      <span class="trust-num" id="statTotal">—</span>
-      <span class="trust-label">政策条目</span>
-    </div>
-    <div class="trust-item">
-      <span class="trust-num" id="statVerified">—</span>
-      <span class="trust-label">已核官方来源</span>
-    </div>
-    <div class="trust-item">
-      <span class="trust-num" id="statScenes">—</span>
-      <span class="trust-label">覆盖生活场景</span>
-    </div>
-  </div>
-  <p class="trust-note animate-in d2" id="trustNote" hidden>
-    每一条权益都标注来源部门与核验状态；尚未核到一手文件的条目，会明确显示「来源待核验」。
-  </p>
-
-  <!-- 入口选择 -->
-  <div class="section animate-in d2">
+  <!-- 入口选择：紧跟首屏，是首屏之后的第一件事 -->
+  <div class="section animate-in d1" id="entry">
     <h2 class="section-title">我想帮谁发现可能相关的权益？</h2>
 
     <button type="button" class="choice entry" data-target="parents" aria-label="为我的父母查询可能相关的公共服务权益">
@@ -151,7 +51,7 @@
       <span class="entry-arrow" aria-hidden="true">›</span>
     </button>
 
-    <button type="button" class="choice entry" data-target="family" aria-label="为我的长辈查询可能相关的公共服务权益">
+    <button type="button" class="choice entry" data-target="family" aria-label="为我的祖辈或其他长辈查询可能相关的公共服务权益">
       <span class="entry-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="9.6" cy="7" r="3.1"></circle>
@@ -192,6 +92,89 @@
     </button>
   </div>
 
+  <!-- 以下为说明性内容，排在入口之后：核心理念 / 流程 / 可信度 / 关系说明 -->
+
+  <!-- 核心理念：从人找政策到政策找人（压缩为紧凑表达） -->
+  <section class="idea-card animate-in d2" aria-label="核心理念：从人找政策到政策找人">
+    <div class="idea-head">
+      <span class="idea-eyebrow">核心理念</span>
+      <h2 class="idea-title">从「人找政策」到「政策找人」</h2>
+    </div>
+    <div class="idea-flow">
+      <div class="idea-node">
+        <span class="idea-tag">以前</span>
+        <div class="idea-name">人找政策</div>
+        <div class="idea-pips"><i>要记得政策名称</i><i>要主动搜</i><i>容易错过</i></div>
+      </div>
+      <span class="idea-shift" aria-hidden="true">→</span>
+      <div class="idea-node is-now">
+        <span class="idea-tag">现在</span>
+        <div class="idea-name">政策找人</div>
+        <div class="idea-pips"><i>说清生活变化</i><i>AI 辅助发现</i><i>提示可能相关</i></div>
+      </div>
+    </div>
+    <p class="idea-foot">
+      结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。
+    </p>
+  </section>
+
+  <!-- 使用流程 -->
+  <section class="how-card animate-in d2" aria-label="使用流程">
+    <div class="how-head">
+      <span class="how-eyebrow">怎么用</span>
+      <h2 class="how-title">四步，每一步都能看到依据</h2>
+    </div>
+    <ol class="how-list">
+      <li>
+        <span class="hn">1</span>
+        <div>
+          <b>确认情况</b>
+          <span>说清发生了什么，核对 AI 有没有认错，可以随时改</span>
+        </div>
+      </li>
+      <li>
+        <span class="hn">2</span>
+        <div>
+          <b>发现可能相关的权益</b>
+          <span>AI 从真实政策库里找出可能相关的一项项，逐条说明理由</span>
+        </div>
+      </li>
+      <li>
+        <span class="hn">3</span>
+        <div>
+          <b>查看政策依据</b>
+          <span>这条权益要求什么、出自哪份文件，一并摊开给您看</span>
+        </div>
+      </li>
+      <li>
+        <span class="hn">4</span>
+        <div>
+          <b>进一步确认</b>
+          <span>决定要不要去核实。全程只做提示，不代办、不做资格认定</span>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 数据可信度条：数字全部来自 /api/policies，不写死；接口失败则整条隐藏 -->
+  <div class="trust-strip animate-in d2" id="trustStrip" hidden>
+    <div class="trust-item">
+      <span class="trust-num" id="statTotal">—</span>
+      <span class="trust-label">政策条目</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num" id="statVerified">—</span>
+      <span class="trust-label">已核官方来源</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num" id="statScenes">—</span>
+      <span class="trust-label">覆盖生活场景</span>
+    </div>
+  </div>
+  <p class="trust-note animate-in d3" id="trustNote" hidden>
+    每一条权益都标注来源部门与核验状态；尚未核到一手文件的条目，会明确显示「来源待核验」。
+  </p>
+
   <!-- 核心差异：操作者 ≠ 受益人 -->
   <div class="section animate-in d3">
     <h2 class="section-title">这一步，谁在为谁查询</h2>
@@ -221,7 +204,8 @@
 
   <div class="footnote">
     第一批数据范围：广州市 · 老年人公共服务<br>
-    政策来源：广州市民政局、广州市医疗保障部门等官方公开文件
+    政策来源：广州市民政局、广州市医疗保障部门等官方公开文件<br>
+    <span class="theme-foot">参赛主题 · 绿智共生</span>
   </div>
 </div>
 

@@ -3420,3 +3420,240 @@ input:focus {
   font-weight: 700;
   display: inline-block;
 }
+
+/* ================================================================
+   第六阶段：首页首屏减负
+   优先顺序：政策找人 → 一句话定位 → 入口 → 其他说明
+   ================================================================ */
+
+/* 首屏去掉独立卡片感，让标题直接站在页面顶部 */
+.hero {
+  padding: 18px 20px 14px;
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.hero::before { display: none; }
+
+.hero-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  color: var(--brand-deep);
+}
+
+/* 一句话定位：保留原本「让政策找人」的表达，但压到两行内 */
+.hero-sub {
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* 首屏内的下跳提示：把入口位置明确指出来 */
+.hero-jump {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  text-decoration: none;
+}
+
+/* 入口区紧跟首屏：给足视觉权重 */
+#entry {
+  padding-top: 18px;
+}
+
+#entry .section-title {
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+
+/* 「绿智共生」降级为页脚弱提示 */
+.theme-foot {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  letter-spacing: 0.3px;
+}
+
+/* ---- 核心理念：压缩为左右对照的紧凑表达 ---- */
+.idea-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.idea-node {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--cream-2);
+  border: 1px solid var(--line);
+}
+
+.idea-node.is-now {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+}
+
+.idea-node .idea-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.idea-node.is-now .idea-tag {
+  color: var(--brand-dark);
+}
+
+.idea-node .idea-name {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.idea-node.is-now .idea-name {
+  color: var(--brand-dark);
+}
+
+/* 三个要点压成短标签，不再用长句列表 */
+.idea-pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.idea-pips i {
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+
+.idea-node.is-now .idea-pips i {
+  color: var(--brand-dark);
+}
+
+.idea-flow .idea-shift {
+  align-self: center;
+  flex: none;
+  margin: 0;
+  font-size: 15px;
+  color: var(--brand);
+}
+
+/* 理念标题合并成一句话后不再需要大标题样式 */
+.idea-card .idea-title {
+  font-size: 15.5px;
+  margin-top: 6px;
+}
+
+.idea-card .idea-foot {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* 说明性内容整体降一档字号，减轻首屏外的信息重量 */
+.how-card,
+.idea-card {
+  margin-bottom: 14px;
+}
+
+.how-list span {
+  font-size: 12px;
+}
+
+/* ================================================================
+   第六阶段：受益人「其他关系」折叠区
+   用于区分「我的父母」与「我的长辈」两个入口的语义
+   ================================================================ */
+.alt-group {
+  margin-top: 10px;
+}
+
+.alt-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--brand-line);
+  background: var(--brand-wash);
+  color: var(--brand-dark);
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.alt-toggle:hover { background: var(--brand-soft); }
+.alt-toggle:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.alt-toggle .at-arrow {
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.alt-toggle[aria-expanded="true"] .at-arrow {
+  transform: rotate(180deg);
+}
+
+.alt-body {
+  margin-top: 8px;
+}
+
+/* ================================================================
+   第六阶段：从详情返回时，短暂高亮刚查看过的那条政策
+   ================================================================ */
+.result-card.is-just-viewed {
+  box-shadow: 0 0 0 2px var(--brand-mid), var(--shadow);
+  animation: pf-just-viewed 2.4s ease;
+}
+
+@keyframes pf-just-viewed {
+  0%, 55% {
+    background: var(--brand-wash);
+  }
+  100% {
+    background: var(--card);
+  }
+}
+
+/* 无障碍：尊重系统减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .result-card.is-just-viewed {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--brand-mid);
+  }
+}

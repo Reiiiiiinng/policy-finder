@@ -155,6 +155,10 @@
 
     bindAll(data);
 
+    // 从政策详情返回时，恢复进入详情前的滚动位置并高亮刚看过的政策。
+    // 只在有有效记录时执行，不影响正常的补充信息局部刷新。
+    if (opts.restorePosition) restoreListPosition();
+
     if (isRefresh) showToast('已根据您的确认重新匹配');
 
     if (opts.restore) restorePosition(opts.restore);
@@ -189,6 +193,8 @@
   function bindCards() {
     document.querySelectorAll('.result-card').forEach((card) => {
       const go = () => {
+        // 进入详情前记住当前滚动位置与这条政策 id，返回时恢复
+        saveListPosition(card.dataset.id);
         location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
       };
       card.addEventListener('click', go);
@@ -262,8 +268,14 @@
     }, 260);
   }
 
-  // 已有输入则自动跑一次，方便从详情页返回
-  if (session.selfText) runMatch().then(applyFocus);
+  // 已有输入则自动跑一次，方便从详情页返回。
+  // restorePosition 只在真的有返回记录时才恢复滚动，
+  // 有 ?focus= 参数时（从详情页主动回跳调整）优先按 focus 定位。
+  if (session.selfText) {
+    const opt = { restorePosition: true };
+    if (query('focus')) { opt.restorePosition = false; }
+    runMatch(opt).then(applyFocus);
+  }
 </script>
 </body>
 </html>

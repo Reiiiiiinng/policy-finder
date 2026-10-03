@@ -590,6 +590,118 @@ function mountRelationStrip() {
 }
 
 /**
+ * 真正的「返回上一页」。
+ *
+ * 原来所有页面的返回都是写死的 href（如详情页 → discover.html，
+ * 家庭协助页 → index.html），导致从详情页点返回会跳过发现结果页直接回首页。
+ * 现在改为：优先用浏览历史回上一页；没有可用历史时才退回 href。
+ *
+ * 为什么不能只用 history.back()：
+ *   - 浏览器要求 history.back() 必须由用户手势触发，异步里调用会被拦截；
+ *   - 直接打开页面（如刷新后、新标签页）时没有上一页可回。
+ * 所以做成 <a href="兜底"> + 点击时优先 history.back() 的形式，
+ * 保留 href 既是无JS/无历史时的兜底，也保留了中键新窗口打开等原生行为。
+ */
+function backOrFallback(fallbackHref) {
+  // 没有历史记录，或只有当前这一页 → 直接走兜底
+  if (!history.length || history.length <= 1) {
+    location.href = fallbackHref;
+    return;
+  }
+  // document.referrer 为空说明不是从站内页面点进来的（例如直接粘贴 URL），
+  // 此时回退可能退到外站，先记录来源，避免用户被带回站外。
+  const ref = document.referrer;
+  if (!ref) {
+    location.href = fallbackHref;
+    return;
+  }
+  history.back();
+}
+
+/** 结果位置记忆：进入详情前记下滚动位置与政策 id，返回时恢复 */
+const LIST_POS_KEY = 'pf_list_pos';
+
+/** 记住当前列表滚动位置（在点击某张结果卡进入详情前调用） */
+function saveListPosition(policyId) {
+  try {
+    sessionStorage.setItem(LIST_POS_KEY, JSON.stringify({
+      y: window.scrollY || window.pageYOffset || 0,
+      id: policyId || '',
+      t: Date.now(),
+    }));
+  } catch (e) { /* 隐私模式下忽略 */ }
+}
+
+/**
+ * 读取并恢复列表位置。返回 true 表示已安排恢复。
+ *
+ * 关键点：不能一安排完就清掉记录。返回详情页时页面会重新走一遍
+ * 异步匹配 + 重绘，真正能滚到目标高度要等列表渲染完、内容撑开之后。
+ * 如果第一次 scrollTo 时文档还没那么高，浏览器会把位置夹到当前最大值，
+ * 位置就丢了（实测会停在列表顶部）。所以这里多次重试，
+ * 只有真正滚到目标附近才清除记录。
+ */
+function restoreListPosition() {
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(LIST_POS_KEY) || 'null');
+  } catch (e) { return false; }
+  if (!saved || typeof saved.y !== 'number') return false;
+
+  // 超过 30 分钟视为陈旧数据，不再恢复，避免用户莫名跳到旧位置
+  if (Date.now() - (saved.t || 0) > 30 * 60 * 1000) {
+    clearListPosition();
+    return false;
+  }
+
+  const targetY = saved.y;
+  let done = false;
+
+  const tryScroll = function () {
+    if (done) return;
+    const maxY = document.documentElement.scrollHeight - window.innerHeight;
+    // 列表还没撑开就等下一轮，避免被夹到顶部就以为成功了
+    if (maxY < targetY - 4) return;
+    window.scrollTo(0, targetY);
+    const now = window.scrollY || window.pageYOffset || 0;
+    if (Math.abs(now - targetY) < 40) {
+      done = true;
+      clearListPosition();
+      if (saved.id) highlightPolicy(saved.id);
+    }
+  };
+
+  // 内容渲染 → 布局稳定 → 关系条/动效结束，逐轮重试
+  requestAnimationFrame(tryScroll);
+  [80, 200, 400, 700, 1100, 1600, 2400].forEach(function (ms) {
+    setTimeout(tryScroll, ms);
+  });
+  // 兜底：足够久之后无论如何都放行，避免记录永久残留
+  setTimeout(function () {
+    if (!done) {
+      window.scrollTo(0, targetY);
+      clearListPosition();
+      if (saved.id) highlightPolicy(saved.id);
+    }
+  }, 3000);
+
+  return true;
+}
+
+function clearListPosition() {
+  try { sessionStorage.removeItem(LIST_POS_KEY); } catch (e) { /* ignore */ }
+}
+
+/** 对刚查看过的政策做短暂视觉提示，帮用户确认「就是这条」 */
+function highlightPolicy(policyId) {
+  const card = document.querySelector('.result-card[data-id="' + CSS.escape(policyId) + '"]');
+  if (!card) return;
+  card.classList.add('is-just-viewed');
+  // 展开时可能被其他元素遮住，短暂聚焦即可
+  setTimeout(function () { card.classList.remove('is-just-viewed'); }, 2600);
+}
+
+/**
  * 全局流程指示器：四阶段，让用户始终知道自己在哪一步、下一步是什么。
  *
  * 1 确认情况 —— 描述发生了什么，并核对 AI 的理解
@@ -1032,14 +1144,15 @@ function bindEvidenceToggles(resultsById) {
   });
 }
 
-/** 顶部返回条 */
+/** 顶部返回条：backHref 仅作为兜底，实际优先回上一页（见 backOrFallback） */
 function renderTopbar(title, backHref, sub) {
   const el = document.querySelector('.topbar');
   if (!el) return;
   const tag = sub ? `<span class="theme-tag">${escapeHtml(sub)}</span>` : '';
-  const back = backHref
-    ? `<a class="back-link" href="${escapeHtml(backHref)}">← 返回</a>`
-    : '';
+  let back = '';
+  if (backHref) {
+    back = `<a class="back-link" href="${escapeHtml(backHref)}" data-back="1">← 返回</a>`;
+  }
   el.innerHTML = `
     <div class="brand-row">
       <div>
@@ -1049,4 +1162,13 @@ function renderTopbar(title, backHref, sub) {
       ${tag}
     </div>
     <div style="margin-top:10px">${back}</div>`;
+
+  // 优先回上一页；无历史记录时退回 href
+  const backEl = el.querySelector('[data-back]');
+  if (backEl) {
+    backEl.addEventListener('click', function (e) {
+      e.preventDefault();
+      backOrFallback(backHref);
+    });
+  }
 }

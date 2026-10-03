@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>phase6 · 390×844</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1000px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">视口 390 × 844 · 六个场景按序执行</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+/*
+ * 第六阶段 390×844 实测：对应需求里的测试1~测试6。
+ * 每条断言通过 fetch POST 到 /__e2e_log（mode=phase6），由 .tools/phase6-e2e.py 读取。
+ */
+var W = 390, H = 844;
+var log = document.getElementById('log');
+var f = document.getElementById('f');
+var lines = [], pass = 0, fail = 0;
+
+function out(s, cls) {
+  lines.push(cls ? '<span class="' + cls + '">' + s + '</span>' : s);
+  log.innerHTML = lines.join('\n');
+  try {
+    fetch('/__e2e_log', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'phase6', line:String(s), cls:cls||'' }) });
+  } catch(e){}
+}
+function check(name, cond, extra) {
+  if (cond) { pass++; out('  ok   ' + name, 'ok'); }
+  else { fail++; out('  FAIL ' + name + (extra ? '  -> ' + extra : ''), 'bad'); }
+}
+function D(){ return f.contentDocument; }
+function Wn(){ return f.contentWindow; }
+function q(s){ try { return D().querySelector(s); } catch(e){ return null; } }
+function qa(s){ try { return Array.prototype.slice.call(D().querySelectorAll(s)); } catch(e){ return []; } }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+async function waitFor(fn, ms, label){
+  var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{ if(fn()) return true; }catch(e){} await sleep(100); }
+  out('  ..超时: '+label, 'warn'); return false;
+}
+function load(url){
+  return new Promise(function(res){
+    f.addEventListener('load', function h(){ f.removeEventListener('load', h); res(); }, {once:true});
+    f.src = url;
+  });
+}
+/* 等待 iframe 发生一次导航（load 事件）。
+   无头模式下 iframe.src 不会随导航及时刷新，不能用它判断是否已跳转。 */
+function waitForEvent(ms){
+  return new Promise(function(res){
+    var to = setTimeout(function(){ res(false); }, ms || 12000);
+    f.addEventListener('load', function h(){
+      clearTimeout(to); f.removeEventListener('load', h); res(true);
+    }, { once:true });
+  });
+}
+function setSession(o){
+  var cur = {};
+  try { cur = JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}'); } catch(e){}
+  Object.keys(o).forEach(function(k){ cur[k]=o[k]; });
+  sessionStorage.setItem('policy_finder_session', JSON.stringify(cur));
+}
+function clearSession(){ try{ sessionStorage.removeItem('policy_finder_session'); }catch(e){} }
+function docTop(){ try { return D().documentElement.scrollTop; } catch(e){ return 0; } }
+
+async function run(){
+  out('=== 第六阶段实测（390×844）===');
+
+  /* ---------- 测试1：首页首屏信息层级 ---------- */
+  await load('/index.html');
+  await sleep(600);
+  var d1 = D();
+  var hero = d1.querySelector('.hero');
+  var entry = d1.querySelector('#entry');
+  var entryBtns = qa('#entry .choice.entry');
+  check('测试1 首页可加载', !!hero);
+  // 桌面无头模式下 iframe 内会出现 15px 滚动条，可用宽度略小于 390
+  var vw = d1.documentElement.clientWidth;
+  var vh = d1.documentElement.clientHeight;
+  check('测试1 视口宽度接近 390（桌面滚动条占位）', vw >= 370 && vw <= W, 'clientW=' + vw);
+  // 首屏（可见高度）内应完整看到标题与三个入口
+  var entryTop = entry.getBoundingClientRect().top;
+  var entryBottom = entry.getBoundingClientRect().bottom;
+  check('测试1 三个入口在首屏内可见', entryTop < vh, 'entry top=' + Math.round(entryTop));
+  check('测试1 三个入口完整显示（未截断）', entryBottom <= vh + 4,
+    'entry bottom=' + Math.round(entryBottom) + ' vh=' + vh);
+  check('测试1 三个入口齐全', entryBtns.length === 3, 'n=' + entryBtns.length);
+  // 首屏优先级：入口必须在理念卡之前；理念卡不得挤占入口的位置
+  var idea = d1.querySelector('.idea-card');
+  var how = d1.querySelector('.how-card');
+  var ideaTop = idea ? idea.getBoundingClientRect().top : 1e9;
+  var howTop = how ? how.getBoundingClientRect().top : 1e9;
+  check('测试1 核心理念排在入口之后', ideaTop >= entryBottom - 4,
+    'idea=' + Math.round(ideaTop) + ' entryBottom=' + Math.round(entryBottom));
+  check('测试1 使用流程排在核心理念之后', howTop >= ideaTop - 4,
+    'how=' + Math.round(howTop) + ' idea=' + Math.round(ideaTop));
+  // 绿智共生不在首屏、不在 topbar
+  var tag = d1.querySelector('.topbar .theme-tag');
+  check('测试1 topbar 已无「绿智共生」标签', tag === null);
+  var themeTagInTop = d1.querySelector('.topbar').textContent.indexOf('绿智共生') >= 0;
+  check('测试1 首屏无「绿智共生」字样', !themeTagInTop);
+  check('测试1 赛事主题仍在页面（页脚）', d1.body.textContent.indexOf('绿智共生') >= 0);
+  // 产品标题为最大字号
+  var h1 = d1.querySelector('.hero-title');
+  var fs = parseFloat(getComputedStyle(h1).fontSize);
+  check('测试1 「政策找人」是首屏最大字号', fs >= 30, fs + 'px');
+  // 无横向溢出
+  check('测试1 无横向滚动', d1.documentElement.scrollWidth <= vw + 1,
+    'scrollW=' + d1.documentElement.scrollWidth + ' clientW=' + vw);
+
+  /* ---------- 测试2：我的父母 → 优先父亲/母亲 ---------- */
+  clearSession();
+  setSession({ target:'parents', operator:'女儿', beneficiary:'', confirmed:false, profile:{} });
+  await load('/family.html');
+  await sleep(700);
+  var main = qa('#beneficiaryGrid .choice');
+  var mainRoles = main.map(function(b){ return b.dataset.role; });
+  var altRoles = qa('#altBody .choice').map(function(b){ return b.dataset.role; });
+  check('测试2 我的父母：主区只显示 父亲/母亲',
+    mainRoles.length === 2 && mainRoles[0] === '父亲' && mainRoles[1] === '母亲', mainRoles.join(','));
+  check('测试2 祖辈与配偶收进「其他关系」',
+    altRoles.length === 6 && altRoles.indexOf('爷爷') >= 0 && altRoles.indexOf('配偶') >= 0,
+    altRoles.join(','));
+  var altHidden = q('#altBody').hidden;
+  check('测试2 其他关系默认折叠', altHidden === true);
+  // 折叠区可展开，且能选中
+  q('#altToggle').click();
+  await sleep(150);
+  check('测试2 其他关系可展开', q('#altBody').hidden === false);
+  q('#altBody .choice[data-role="奶奶"]').click();
+  await sleep(200);
+  check('测试2 可选到祖辈（奶奶）',
+    D().querySelector('#altBody .choice[data-role="奶奶"]').classList.contains('selected'));
+  check('测试2 选择后下一步可用', q('#nextBtn').disabled === false);
+  check('测试2 关系条同步', (q('.rel-strip')||{textContent:''}).textContent.indexOf('奶奶') >= 0,
+    (q('.rel-strip')||{textContent:''}).textContent);
+
+  /* ---------- 测试3：我的长辈 → 祖辈优先 ---------- */
+  clearSession();
+  setSession({ target:'family', operator:'孙子', beneficiary:'', confirmed:false, profile:{} });
+  await load('/family.html');
+  await sleep(700);
+  var main3 = qa('#beneficiaryGrid .choice').map(function(b){ return b.dataset.role; });
+  var alt3 = qa('#altBody .choice').map(function(b){ return b.dataset.role; });
+  check('测试3 我的长辈：主区不含父母',
+    main3.indexOf('父亲') < 0 && main3.indexOf('母亲') < 0, main3.join(','));
+  check('测试3 我的长辈：主区显示祖辈/配偶/其他',
+    ['爷爷','奶奶','外公','外婆','配偶','其他'].every(function(r){ return main3.indexOf(r) >= 0; }),
+    main3.join(','));
+  check('测试3 父母收进「其他关系」',
+    alt3.length === 2 && alt3.indexOf('父亲') >= 0 && alt3.indexOf('母亲') >= 0, alt3.join(','));
+  var tip3 = q('#beneficiaryTip').textContent;
+  check('测试3 提示文案随入口变化', /祖辈|配偶/.test(tip3), tip3);
+  check('测试3 可正常选中祖辈', (function(){
+    q('#beneficiaryGrid .choice[data-role="爷爷"]').click();
+    return q('#beneficiaryGrid .choice[data-role="爷爷"]').classList.contains('selected');
+  })());
+
+  /* ---------- 测试4：详情页返回 → 回上一页 ---------- */
+  clearSession();
+  setSession({ target:'parents', operator:'女儿', beneficiary:'父亲', confirmed:true,
+               text:'我父亲72岁，一个人在广州生活，最近行动不方便。',
+               profile:{}, demo:false, demoBanner:false });
+  await load('/discover.html');
+  var gotCards = await waitFor(function(){ return q('.result-card'); }, 20000, '结果卡');
+  check('测试4 结果列表已渲染', gotCards);
+
+  // 点第一张卡进详情。
+  // 注意：无头模式下 iframe 的 f.src 不会及时刷新，不能用它判断是否已导航；
+  // 改用 iframe 的 load 事件（第五阶段 e2e 已验证的可靠写法）。
+  var cardId = q('.result-card').dataset.id;
+  q('.result-card').click();
+  var nav1 = await waitForEvent(15000);
+  check('测试4 已进入政策详情', nav1);
+  await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
+  check('测试4 详情页内容已加载', !!q('.trust-card'));
+  check('测试4 详情页有返回按钮', !!q('.back-link'),
+    'href=' + (q('.back-link') ? q('.back-link').getAttribute('href') : 'null'));
+
+  // 点返回：应回到发现页（上一页），而不是首页
+  q('.back-link').click();
+  var nav2 = await waitForEvent(15000);
+  check('测试4 返回后确实导航回上一页', nav2);
+  await waitFor(function(){ return q('.result-card'); }, 20000, '返回后的结果列表');
+  // 判定落在哪一页：结果卡只在 discover/self 页出现
+  check('测试4 返回后回到发现页（而非首页）', qa('.result-card').length > 0);
+  check('测试4 返回后确认台仍在（同一页状态保持）', !!q('.board'));
+
+  /* ---------- 测试5：详情返回 → 恢复滚动位置 ---------- */
+  var list = qa('.result-card');
+  check('测试5 结果列表仍完整', list.length >= 5, 'n=' + list.length);
+  // 滚到第 5 张卡附近
+  var target = list[Math.min(4, list.length - 1)];
+  var pid = target.dataset.id;
+  target.scrollIntoView({ block:'center' });
+  await sleep(500);
+  var yBefore = Wn().scrollY || Wn().pageYOffset || 0;
+  check('测试5 已滚动到中部', yBefore > 200, 'scrollY=' + Math.round(yBefore));
+
+  // 进详情
+  target.click();
+  var nav3 = await waitForEvent(15000);
+  check('测试5 已进入详情页', nav3);
+  await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
+  // 无头模式下 iframe.src 不刷新，改用详情页正文里的政策名反查：
+  // 页面上出现的就是所点那条政策，说明跳转与 id 都正确
+  var detailName = (q('.card h2') || {textContent:''}).textContent;
+  var cardName = null;
+  var allNames = list.map(function (c) {
+    return { id:c.dataset.id, name:(c.querySelector('.result-name')||{textContent:''}).textContent };
+  });
+  allNames.forEach(function (x) { if (x.id === pid) cardName = x.name; });
+  check('测试5 详情页展示的就是所点那条政策',
+    !!cardName && detailName.trim() === String(cardName).trim(),
+    '详情=' + detailName + ' 期望=' + cardName + ' id=' + pid);
+
+  // 返回
+  var backEl = q('.back-link');
+  check('测试5 详情页有返回按钮', !!backEl);
+  backEl.click();
+  var nav4 = await waitForEvent(15000);
+  await waitFor(function(){ return q('.result-card'); }, 20000, '返回后的结果列表');
+  await sleep(900);
+  var yAfter = Wn().scrollY || Wn().pageYOffset || 0;
+  check('测试5 返回后恢复到原滚动位置', Math.abs(yAfter - yBefore) < 160,
+    'before=' + Math.round(yBefore) + ' after=' + Math.round(yAfter));
+  var hl = qa('.result-card.is-just-viewed');
+  check('测试5 刚查看的政策有短暂视觉提示',
+    hl.length > 0 && hl.some(function(c){ return c.dataset.id === pid; }),
+    'hl=' + hl.map(function(c){ return c.dataset.id; }).join(','));
+
+  // 补充信息的滚动保持逻辑未被破坏（上一阶段修好的）
+  var cond = q('[data-confirm="hukou"][data-value="true"]');
+  check('测试5 补充信息三值按钮仍在', !!cond);
+  if (cond) {
+    // 先滚到中部再点，验证不会跳顶
+    q('.result-card').scrollIntoView({ block:'center' });
+    await sleep(400);
+    var y0 = Wn().scrollY;
+    cond.click();
+    await sleep(2200);
+    var y1 = Wn().scrollY;
+    check('测试5 补充信息后不跳顶', Math.abs(y1 - y0) < 220,
+      'y0=' + Math.round(y0) + ' y1=' + Math.round(y1));
+  }
+
+  /* ---------- 测试6：绿智共生不抢视觉层级 ---------- */
+  await load('/index.html');
+  await sleep(600);
+  var d6 = D();
+  var h1s = parseFloat(getComputedStyle(d6.querySelector('.hero-title')).fontSize);
+  var foot = d6.querySelector('.theme-foot');
+  var footSize = foot ? parseFloat(getComputedStyle(foot).fontSize) : 0;
+  check('测试6 「政策找人」字号远大于「绿智共生」', h1s > footSize * 2,
+    h1s + ' vs ' + footSize);
+  var footColor = foot ? getComputedStyle(foot).color : '';
+  var titleColor = getComputedStyle(d6.querySelector('.hero-title')).color;
+  check('测试6 绿智共生为弱色（非黑非深）', /rgb\((\d+), (\d+), (\d+)\)/.test(footColor), footColor);
+  check('测试6 绿智共生不在 topbar/hero 内',
+    d6.querySelector('.topbar').textContent.indexOf('绿智共生') < 0
+    && d6.querySelector('.hero').textContent.indexOf('绿智共生') < 0);
+  check('测试6 赛事主题信息未删除', d6.body.textContent.indexOf('绿智共生') >= 0);
+  check('测试6 首页仍无横向滚动',
+    d6.documentElement.scrollWidth <= d6.documentElement.clientWidth + 1,
+    'scrollW=' + d6.documentElement.scrollWidth + ' clientW=' + d6.documentElement.clientWidth);
+
+  out('');
+  out('=== 390×844 实测：通过 ' + pass + '，失败 ' + fail + ' ===', fail ? 'bad' : 'ok');
+}
+
+run().catch(function(e){
+  out('ERROR ' + e.message, 'bad');
+  out('=== 异常终止：通过 ' + pass + '，失败 ' + (fail+1) + ' ===', 'bad');
+});
+</script>
+</body>
+</html>

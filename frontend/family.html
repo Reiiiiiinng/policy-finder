@@ -40,15 +40,27 @@
 
   <div class="section">
     <h2 class="section-title">你要帮助谁？（受益人）</h2>
-    <div class="choice-grid" id="beneficiaryGrid">
-      <button type="button" class="choice" data-role="父亲"><span class="title">父亲</span></button>
-      <button type="button" class="choice" data-role="母亲"><span class="title">母亲</span></button>
-      <button type="button" class="choice" data-role="爷爷"><span class="title">爷爷</span></button>
-      <button type="button" class="choice" data-role="奶奶"><span class="title">奶奶</span></button>
-      <button type="button" class="choice" data-role="外公"><span class="title">外公</span></button>
-      <button type="button" class="choice" data-role="外婆"><span class="title">外婆</span></button>
-      <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
-      <button type="button" class="choice" data-role="其他"><span class="title">其他长辈</span></button>
+    <p class="hint" id="beneficiaryTip" style="margin:-4px 0 10px"></p>
+    <!-- 受益人选择区：主区 + 折叠区放在同一容器内，便于统一绑定与回填 -->
+    <div id="beneficiaryBox">
+      <div class="choice-grid" id="beneficiaryGrid">
+        <button type="button" class="choice" data-role="父亲"><span class="title">父亲</span></button>
+        <button type="button" class="choice" data-role="母亲"><span class="title">母亲</span></button>
+        <button type="button" class="choice" data-role="爷爷"><span class="title">爷爷</span></button>
+        <button type="button" class="choice" data-role="奶奶"><span class="title">奶奶</span></button>
+        <button type="button" class="choice" data-role="外公"><span class="title">外公</span></button>
+        <button type="button" class="choice" data-role="外婆"><span class="title">外婆</span></button>
+        <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
+        <button type="button" class="choice" data-role="其他"><span class="title">其他长辈</span></button>
+      </div>
+      <!-- 父母入口下，祖辈/配偶选项收在「其他关系」里，避免两个入口语义雷同 -->
+      <div class="alt-group" id="altGroup" hidden>
+        <button type="button" class="alt-toggle" id="altToggle" aria-expanded="false">
+          <span>其他关系</span>
+          <span class="at-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div class="alt-body choice-grid" id="altBody" hidden></div>
+      </div>
     </div>
   </div>
 
@@ -106,10 +118,66 @@
   let operator = session.operator || null;
   let beneficiary = session.beneficiary || null;
 
+  /* ---------------------------------------------------------------
+     区分「我的父母」与「我的长辈」两个入口
+     父母 → 主区只放 父亲/母亲，祖辈与配偶收进「其他关系」
+     长辈 → 主区放 全部祖辈/配偶/其他长辈，父亲母亲收进「其他关系」
+     入口语义来自首页写入的 session.target；两者都进 family.html，
+     不新增页面、不改跳转契约。
+     --------------------------------------------------------------- */
+  const PARENTS_TARGET = 'parents';
+  const CLOSER = ['父亲', '母亲'];
+  const ELDERS = ['爷爷', '奶奶', '外公', '外婆', '配偶', '其他'];
+
+  const entry = session.target === 'family' ? 'elders' : 'parents';
+  const mainRoles = entry === 'parents' ? CLOSER : ELDERS;
+  const altRoles = entry === 'parents' ? ELDERS : CLOSER;
+
+  // 主区按入口语义排序
+  const grid = document.getElementById('beneficiaryGrid');
+  const allBtns = {};
+  grid.querySelectorAll('.choice').forEach((b) => {
+    allBtns[b.dataset.role] = b;
+  });
+  mainRoles.forEach((r) => {
+    if (allBtns[r]) grid.appendChild(allBtns[r]);   // appendChild 即为移动
+  });
+
+  // 非主区关系移入折叠区
+  const altBody = document.getElementById('altBody');
+  const altGroup = document.getElementById('altGroup');
+  const altToggle = document.getElementById('altToggle');
+  altRoles.forEach((r) => {
+    if (allBtns[r]) altBody.appendChild(allBtns[r]);
+  });
+  altGroup.hidden = altRoles.length === 0;
+  altToggle.addEventListener('click', () => {
+    const open = altToggle.getAttribute('aria-expanded') === 'true';
+    altToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    altBody.hidden = open;
+  });
+
+  // 入口不同，标题与提示也不同
+  const tip = document.getElementById('beneficiaryTip');
+  if (entry === 'parents') {
+    tip.textContent = '先选父亲或母亲；如果是祖辈或其他亲属，可展开下方「其他关系」。';
+  } else {
+    tip.textContent = '选择祖辈、配偶或其他需要帮助的长辈。';
+  }
+  document.querySelector('#stepsBar .step[data-step="1"] .t').textContent =
+    entry === 'parents' ? '选择帮助对象' : '选择长辈';
+
   function bindGrid(gridId, onPick) {
-    document.querySelectorAll('#' + gridId + ' .choice').forEach((btn) => {
+    // 受益人可能分布在主区与折叠区两个容器里，这里按 data-kind 统一绑定
+    const sel = gridId === 'beneficiaryGrid'
+      ? '#beneficiaryBox .choice'
+      : '#' + gridId + ' .choice';
+    document.querySelectorAll(sel).forEach((btn) => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('#' + gridId + ' .choice').forEach((b) => b.classList.remove('selected'));
+        // 同一关系可能在两个容器里各有一个按钮，选择时统一清高亮
+        document.querySelectorAll(sel).forEach((b) => {
+          if (b.dataset.role === btn.dataset.role) b.classList.remove('selected');
+        });
         btn.classList.add('selected');
         onPick(btn.dataset.role);
       });
@@ -174,19 +242,27 @@
 
     updateSteps(confirmed);
     store.write({ operator, beneficiary, confirmed });
+    // 关系条依赖 operator/beneficiary：选择变化后必须重挂，否则仍显示旧值
+    mountRelationStrip();
   }
 
   bindGrid('operatorGrid', (role) => { operator = role; refresh(); });
   bindGrid('beneficiaryGrid', (role) => { beneficiary = role; refresh(); });
   document.getElementById('confirmCheck').addEventListener('change', refresh);
 
-  // 回填已选
+  // 回填已选（受益人可能在折叠区，需先展开才能高亮）
   if (operator) {
     const el = document.querySelector('#operatorGrid .choice[data-role="' + operator + '"]');
     if (el) el.classList.add('selected');
   }
   if (beneficiary) {
-    const el = document.querySelector('#beneficiaryGrid .choice[data-role="' + beneficiary + '"]');
+    const inAlt = altRoles.indexOf(beneficiary) >= 0;
+    if (inAlt) {
+      // 折叠区默认展开，避免回填后看不到已选
+      altBody.hidden = false;
+      altToggle.setAttribute('aria-expanded', 'true');
+    }
+    const el = document.querySelector('#beneficiaryBox .choice[data-role="' + beneficiary + '"]');
     if (el) el.classList.add('selected');
   }
   if (session.confirmed) document.getElementById('confirmCheck').checked = true;
