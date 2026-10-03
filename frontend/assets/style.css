@@ -3862,3 +3862,59 @@ input:focus {
 .return-bar.is-gone .rb-title {
   color: var(--ink);
 }
+
+/* ================================================================
+   v0.9 政策状态提示（时效 / 被替代 / 阈值核对）
+   仅在有内容时由 JS 生成；广州库（active + 无阈值）下不会出现在页面上，
+   因此不会给 390×844 首屏增加任何高度压力。
+   复用 .rc-block 与既有色彩变量，不新增大面积 UI。
+   ================================================================ */
+.rc-block.policy-validity-warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+}
+
+.rc-block.policy-validity-warn .rc-label {
+  color: var(--warn);
+}
+
+.rc-block.policy-validity-muted {
+  background: var(--pending-soft);
+  border-color: var(--pending-line);
+}
+
+.rc-block.policy-validity-muted .rc-label {
+  color: var(--pending);
+}
+
+.policy-validity-warn .pv-text,
+.policy-validity-muted .pv-text,
+.policy-threshold-note .pt-text {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.pv-sub,
+.pt-action {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* 阈值核对：默认与「未触及」用平静的绿系；触及用暖色提示；待补充用中性色 */
+.rc-block.policy-threshold-note {
+  background: var(--brand-wash);
+  border-color: var(--brand-line);
+}
+
+.policy-threshold-note.is-hit {
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+}
+
+.policy-threshold-note.is-unknown {
+  background: var(--pending-soft);
+  border-color: var(--pending-line);
+}

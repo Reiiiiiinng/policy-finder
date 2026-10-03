@@ -245,6 +245,12 @@
     // 万一会话在这期间被改写（例如跨标签页），以这里读到的最新结果为准。
     updateTopbarParent(backHref);
 
+    // v0.9：政策状态提示（时效 / 阈值核对）。
+    // 数据取自本次重跑匹配的 matchRow；取不到（画像丢失、政策不在结果里）时保持空白，
+    // 不生成任何 DOM —— 广州库恒为 active + 无阈值，这里必然为空。
+    const statusNotes = renderValidityNote(matchRow && matchRow.validity)
+      + renderThresholdNote(matchRow && matchRow.threshold_signal);
+
     content.innerHTML = `
       <div class="section">
         <div class="card">
@@ -259,6 +265,8 @@
           ${p.service_note ? `<p class="hint">${escapeHtml(p.service_note)}</p>` : ''}
         </div>
       </div>
+
+      ${statusNotes ? `<div class="section">${statusNotes}</div>` : ''}
 
       <div class="section">
         ${qBlock(1, '这是什么？', what)}

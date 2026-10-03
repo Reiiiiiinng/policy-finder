@@ -195,6 +195,79 @@ function sourceBlock(r) {
     </div>`;
 }
 
+/**
+ * 政策状态提示（有效期 / 被替代）。
+ *
+ * 纯展示：只读后端 derive_validity() 派生好的结果，不在前端做任何时效判断
+ * （180 天 expiring 口径属于引擎职责，见 docs/policy-data-spec.md 第二节）。
+ *
+ * 空内容一律不生成 DOM：
+ * - validity 为 null/undefined（旧数据、非三层库）→ ''
+ * - level=normal 且 message 为空（广州库恒为这种状态）→ ''
+ * 只表达「政策状态变化提醒」，不做任何资格判断，也不承诺办理结果。
+ */
+function renderValidityNote(validity) {
+  if (!validity) return '';
+  const level = validity.level || 'normal';
+  if (level !== 'warn' && level !== 'muted') return '';
+
+  // 文案优先取后端派生结果；后端没给 message 时才用 expires_at 兜底拼一句
+  let text = validity.message || '';
+  if (!text && validity.expires_at) {
+    text = level === 'warn'
+      ? `该政策有效期至 ${validity.expires_at}，届时请以最新文件为准`
+      : '该政策已过有效期，请以最新文件为准';
+  }
+  if (!text) return '';
+
+  const isWarn = level === 'warn';
+  const cls = isWarn ? 'policy-validity-warn' : 'policy-validity-muted';
+  const label = isWarn ? '政策时效提醒' : '政策状态提醒';
+
+  // 已被新文件替代时，明确给出替代文件，让用户有地方可去
+  const sup = (validity.status === 'superseded' && validity.superseded_by) || null;
+  const supHtml = sup && sup.name
+    ? `<div class="pv-sub">替代文件：${escapeHtml(sup.name)}`
+      + `${sup.document_no ? '（' + escapeHtml(sup.document_no) + '）' : ''}</div>`
+    : '';
+
+  return `
+    <div class="rc-block ${cls}">
+      <div class="rc-label">${escapeHtml(label)}</div>
+      <div class="pv-text">${escapeHtml(text)}</div>
+      ${supHtml}
+    </div>`;
+}
+
+/**
+ * 阈值提示（起付标准核对）。
+ *
+ * 纯展示：只读后端 threshold_signal() 算好的三态结论。
+ * - threshold_signal 为 null（该政策没有起付线，如广州库全部政策）→ ''
+ * - message 与 action 都为空 → ''
+ * 红线：绝不输出阈值数值，也不做「能报多少」的承诺；后端文案已写成
+ * 「具体标准请向医保部门核实」，前端原样展示即可。
+ */
+function renderThresholdNote(signal) {
+  if (!signal) return '';
+
+  const touched = signal.touched;
+  let stateCls = 'is-unknown';
+  if (touched === true) stateCls = 'is-hit';
+  else if (touched === false) stateCls = 'is-below';
+
+  const message = signal.message || '';
+  const action = signal.action || '';
+  if (!message && !action) return '';
+
+  return `
+    <div class="rc-block policy-threshold-note ${stateCls}">
+      <div class="rc-label">个人负担金额核对</div>
+      ${message ? `<div class="pt-text">${escapeHtml(message)}</div>` : ''}
+      ${action ? `<div class="pt-action">${escapeHtml(action)}</div>` : ''}
+    </div>`;
+}
+
 /** 轻量操作反馈 */
 function showToast(msg, ms) {
   let el = document.getElementById('pfToast');
@@ -1248,6 +1321,9 @@ function renderResultCards(data, opts) {
           </div>
           <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
         </div>
+
+        ${renderValidityNote(r.validity)}
+        ${renderThresholdNote(r.threshold_signal)}
 
         <div class="rc-block">
           <div class="rc-label">为什么推荐</div>

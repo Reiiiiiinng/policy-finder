@@ -230,6 +230,103 @@ console.log('== 结果分层 ==');
   check('全部优先时计数正确', has(allFocus, '共发现 1 项可能相关权益'), '');
 }
 
+console.log('== v0.9 政策状态与阈值提示 ==');
+{
+  const V = sandbox.renderValidityNote;
+  const T = sandbox.renderThresholdNote;
+  check('renderValidityNote 是函数', typeof V === 'function');
+  check('renderThresholdNote 是函数', typeof T === 'function');
+
+  // 空内容一律不生成 DOM —— 广州库就是这一种状态
+  check('validity=null 不渲染', V(null) === '' && V(undefined) === '');
+  check('normal + 空 message 不渲染',
+    V({ status: 'active', level: 'normal', message: '', expires_at: null }) === '');
+  check('level 缺失且无 message 不渲染', V({ status: 'active' }) === '');
+
+  const warn = V({
+    status: 'expiring', level: 'warn', expires_at: '2027-01-31',
+    message: '本办法有效期至 2027-01-31，届时请以最新文件为准',
+  });
+  check('warn 正常显示', has(warn, 'policy-validity-warn') && has(warn, '2027-01-31'), warn);
+  check('warn 有提示标题', has(warn, '政策时效提醒'), '');
+
+  const muted = V({
+    status: 'expired', level: 'muted', expires_at: '2026-12-31',
+    message: '该政策已过有效期，请以最新文件为准',
+  });
+  check('muted 正常显示', has(muted, 'policy-validity-muted') && has(muted, '已过有效期'), muted);
+
+  const sup = V({
+    status: 'superseded', level: 'muted', expires_at: null,
+    message: '该政策已由《佛山市大病保险管理办法》替代，请查看新规',
+    superseded_by: { name: '佛山市大病保险管理办法（2026年版）', document_no: '佛医保〔2026〕1号' },
+  });
+  check('被替代时给出替代文件', has(sup, '替代文件') && has(sup, '佛医保〔2026〕1号'), '');
+  check('muted 用中性类而非警示类', !has(sup, 'policy-validity-warn'));
+  check('无 message 但有 expires_at 也能提示',
+    has(V({ level: 'warn', expires_at: '2027-06-30' }), '2027-06-30'));
+
+  // 三态阈值
+  check('threshold=null 不显示', T(null) === '' && T(undefined) === '');
+  check('message/action 全空不显示', T({ touched: true }) === '');
+
+  const hit = T({
+    touched: true, message: '按您提供的金额，可能已触及起付标准',
+    action: '具体标准请向医保部门核实',
+  });
+  const below = T({
+    touched: false, message: '按您提供的金额，可能尚未达到起付标准',
+    action: '具体标准请向医保部门核实；如后续费用增加可重新判断',
+  });
+  const unknown = T({
+    touched: null, message: '尚未提供个人负担金额，无法判断是否已达到起付标准',
+    action: '可在补充信息里填写个人负担的大致金额，或直接向医保部门核实',
+  });
+  check('touched=true 显示可能触及', has(hit, 'is-hit') && has(hit, '可能已触及'), hit);
+  check('touched=false 显示未触及', has(below, 'is-below') && has(below, '尚未达到'), below);
+  check('touched=null 显示需补充信息', has(unknown, 'is-unknown') && has(unknown, '尚未提供'), unknown);
+  check('阈值提示不输出具体金额', !/\d+\s*(?:元|万)/.test(hit + below + unknown), '');
+  check('阈值提示含向医保部门核实的指引', has(hit, '向医保部门核实'), '');
+
+  // 产品红线用词
+  const FORBID = /符合资格|保证|自动办理|已享受/;
+  check('状态提示不含禁止词', !FORBID.test(warn + muted + sup + hit + below + unknown), '');
+
+  // 接入结果卡后的行为：广州库不新增任何 DOM，有数据时才出现
+  const card = (extra) => Object.assign({
+    policy_id: 'gz1', policy_name: '社区养老服务', category: '养老服务',
+    service_type: '照护服务', region: '广州市', status: '可能相关', score: 20,
+    tier: '强相关', ai_reason: ['您父亲年龄72岁，处于服务年龄范围内'], missing_information: [],
+    source_pending: false, evidence: {},
+  }, extra || {});
+
+  const gz = sandbox.renderResultCards({ profile: { mode: 'family' }, results: [card()] }, {});
+  check('广州库卡片不出现状态提示',
+    !has(gz, 'policy-validity-warn') && !has(gz, 'policy-validity-muted')
+    && !has(gz, 'policy-threshold-note'), '');
+
+  const fs = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [card({
+      validity: {
+        status: 'expiring', level: 'warn', expires_at: '2027-01-31',
+        message: '本办法有效期至 2027-01-31，届时请以最新文件为准',
+      },
+      threshold_signal: {
+        touched: true, message: '按您提供的金额，可能已触及起付标准',
+        action: '具体标准请向医保部门核实',
+      },
+    })],
+  }, {});
+  check('有数据时卡片出现状态提示',
+    has(fs, 'policy-validity-warn') && has(fs, 'policy-threshold-note'), '');
+  check('新提示不破坏卡片原有结构',
+    has(fs, 'result-card') && has(fs, '为什么推荐') && has(fs, '政策来源')
+    && has(fs, '查看详情与办理方式'), '');
+  const fsNoNeg = fs.replace(/不代表[^，。]*资格|不构成[^，。]*结论|不作为[^，。]*认定/g, '');
+  check('新增内容不引入资格断言', !/已符合资格|最符合/.test(fsNoNeg), '');
+}
+
 console.log('== 原有能力未被破坏 ==');
 {
   check('statusBadge 保留', typeof sandbox.statusBadge === 'function');

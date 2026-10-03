@@ -61,6 +61,7 @@ const required = {
   'policy.html': ['renderTopbar', 'mountDemoBanner', 'mountDemoProgress', 'mountFlow',
                   'mountRelationStrip', 'store', 'API', 'renderEvidenceChain',
                   'filterAnsweredMissing', 'personalize', 'explainMissing', 'statusBadge',
+                  'renderValidityNote', 'renderThresholdNote',
                   'showToast', 'escapeHtml', 'query'],
 };
 Object.keys(required).forEach((page) => {
@@ -192,7 +193,9 @@ const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8'
 ['.flow', '.flow-step', '.flow-dot', '.board', '.scene-chip', '.tier-head', '.tier-head.is-focus',
  '.result-summary', '.more-group', '.more-toggle', '.more-body', '.more-inner',
  '.evidence', '.ev-step', '.ev-cond', '.final-step', '.fs-opt', '.where-row', '.rel-strip',
- '.how-card', '.step-lead'].forEach((sel) => {
+ '.how-card', '.step-lead',
+ '.policy-validity-warn', '.policy-validity-muted',
+ '.policy-threshold-note', '.policy-threshold-note.is-hit'].forEach((sel) => {
   check('CSS 定义 ' + sel, css.indexOf(sel) >= 0);
 });
 
