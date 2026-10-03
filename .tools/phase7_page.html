@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>phase7 · 390×844</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1100px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">视口 390 × 844 · 第七阶段：结果展示减负</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+/*
+ * 第七阶段实测（对应需求里的 6 项测试要求）：
+ *   1首屏明显减少
+ *   2 6 项重点正常显示
+ *   3 另外 4 项可展开
+ *   4 展开后详情点击正常
+ *   5 返回后仍恢复原滚动位置
+ *   6 无横向滚动
+ * 断言经 /__e2e_log 回传（mode=phase7）。
+ */
+var log = document.getElementById('log');
+var f = document.getElementById('f');
+var lines = [], pass = 0, fail = 0;
+
+function out(s, cls) {
+  lines.push(cls ? '<span class="' + cls + '">' + s + '</span>' : s);
+  log.innerHTML = lines.join('\n');
+  try {
+    fetch('/__e2e_log', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'phase7', line:String(s), cls:cls||'' }) });
+  } catch(e){}
+}
+function check(name, cond, extra) {
+  if (cond) { pass++; out('  ok   ' + name, 'ok'); }
+  else { fail++; out('  FAIL ' + name + (extra ? '  -> ' + extra : ''), 'bad'); }
+}
+function D(){ return f.contentDocument; }
+function Wn(){ return f.contentWindow; }
+function q(s){ try { return D().querySelector(s); } catch(e){ return null; } }
+function qa(s){ try { return Array.prototype.slice.call(D().querySelectorAll(s)); } catch(e){ return []; } }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+async function waitFor(fn, ms, label){
+  var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{ if(fn()) return true; }catch(e){} await sleep(100); }
+  out('  ..超时: '+label, 'warn'); return false;
+}
+function load(url){
+  return new Promise(function(res){
+    f.addEventListener('load', function h(){ f.removeEventListener('load', h); res(); }, {once:true});
+    f.src = url;
+  });
+}
+function waitForEvent(ms){
+  return new Promise(function(res){
+    var to = setTimeout(function(){ res(false); }, ms||12000);
+    f.addEventListener('load', function h(){
+      clearTimeout(to); f.removeEventListener('load', h); res(true);
+    }, {once:true});
+  });
+}
+function setSession(o){
+  var cur = {};
+  try { cur = JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}'); } catch(e){}
+  Object.keys(o).forEach(function(k){ cur[k]=o[k]; });
+  sessionStorage.setItem('policy_finder_session', JSON.stringify(cur));
+}
+function clearSession(){ try{ sessionStorage.removeItem('policy_finder_session'); }catch(e){}
+  try{ sessionStorage.removeItem('pf_list_pos'); }catch(e){}
+  try{ sessionStorage.removeItem('pf_more_expanded'); }catch(e){} }
+
+/** 统计从结果区标题起、844px 视口内可见的卡片数量 */
+function visibleCards(){
+  var vh = D().documentElement.clientHeight;
+  return qa('.result-card').filter(function(c){
+    var r = c.getBoundingClientRect();
+    return r.top < vh && r.bottom > 0;
+  }).length;
+}
+/** 页面总高度 */
+function docH(){ return D().documentElement.scrollHeight; }
+
+async function run(){
+  out('=== 第七阶段实测（390×844）===');
+
+  clearSession();
+  setSession({ target:'parents', operator:'女儿', beneficiary:'父亲', confirmed:true,
+               text:'我父亲72岁，一个人在广州生活，最近行动不方便。',
+               profile:{}, demo:false, demoBanner:false });
+  await load('/discover.html');
+  var got = await waitFor(function(){ return q('.result-card'); }, 25000, '结果卡');
+  check('结果列表已渲染', got);
+  if (!got) { out('=== 异常终止 ===','bad'); return; }
+
+  var total = qa('.result-card').length;
+  check('共10 张卡片全部在 DOM 中', total === 10, 'n=' + total);
+
+  /* ---------- 顶部文案 ---------- */
+  var anchor = (q('#resultAnchor')||{}).textContent || '';
+  check('顶部显示「共发现 10 项可能相关权益」',
+    /共发现\s*10\s*项可能相关权益/.test(anchor), anchor);
+  var summary = (q('.result-summary')||{}).textContent || '';
+  check('顶部显示「建议优先了解其中 6 项」',
+    /建议优先了解其中\s*6\s*项/.test(summary), summary);
+  check('顶部不使用「强相关」', D().body.textContent.indexOf('强相关') < 0);
+  check('顶部不使用「最符合」「已符合资格」（肯定语境）',
+    !/最符合/.test(D().body.textContent));
+
+  /* ---------- 1. 首屏明显减少 ----------
+     注意：页面顺序是「描述 → 情况确认台 → 结果」，结果本来就在首屏之下，
+     所以这里度量的是「滚动到结果区后，一屏能看到的卡片数」与「结果区总高度」。*/
+  var anchorEl = q('#resultAnchor');
+  var y = anchorEl.getBoundingClientRect().top + (Wn().pageYOffset || 0) - 8;
+  Wn().scrollTo(0, Math.max(0, y));
+  await sleep(700);
+  var vh = D().documentElement.clientHeight;
+  var vis = visibleCards();
+  check('滚到结果区后一屏可见卡片少于总数（已减负）', vis < total, 'visible=' + vis + '/' + total);
+  var headVisible = await waitFor(function(){
+    var h = q('.tier-head.is-focus');
+    if (!h) return false;
+    var r = h.getBoundingClientRect();
+    return r.top < D().documentElement.clientHeight && r.bottom > 0;
+  }, 5000, '优先关注分组头进入视口');
+  check('滚到结果区后一屏内能看到优先关注分组头', headVisible);
+  check('结果区不再一次性铺开 10 张卡', (function(){
+    // 折叠时文档高度应明显小于全部展开的高度
+    return docH() < 14000;
+  })(), 'docH=' + docH());
+
+  /* ---------- 2. 6 项重点正常显示 ---------- */
+  var focusHead = q('.tier-head.is-focus');
+  check('存在「优先关注」分组标题', !!focusHead);
+  check('标题显示 6 项', !!focusHead && /6\s*项/.test(focusHead.textContent),
+    focusHead ? focusHead.textContent.replace(/\s+/g,' ').trim() : '');
+  check('标题用词为「优先关注」', !!focusHead && focusHead.textContent.indexOf('优先关注') >= 0);
+  // 重点区内的卡片 = 6
+  var focusCards = focusHead ? qa('.tier-head.is-focus ~ .tier-items .result-card') : [];
+  check('优先关注区直接展示 6 张卡', focusCards.length === 6, 'n=' + focusCards.length);
+  check('重点卡均可见（在首屏范围内可滚到）', focusCards.every(function(c){
+    return c.getBoundingClientRect().height > 0;
+  }));
+  // 保留要素
+  var firstCard = focusCards[0];
+  check('保留「为什么推荐」', D().body.textContent.indexOf('为什么推荐') >= 0);
+  check('保留「还需确认」', D().body.textContent.indexOf('还需确认') >= 0);
+  check('保留「政策来源」', D().body.textContent.indexOf('政策来源') >= 0);
+  check('保留「可能相关」徽章', /可能相关/.test(firstCard.textContent));
+  check('保留核验徽章（已核验/来源待核验）',
+    /已核验/.test(D().body.textContent) || /来源待核验/.test(D().body.textContent));
+
+  /* ---------- 3. 另外 4 项默认折叠、可展开 ---------- */
+  var toggle = q('#moreToggle');
+  var body = q('[data-more-body]');
+  check('存在「其他可能相关」折叠按钮', !!toggle);
+  check('折叠按钮文案为「其他可能相关 4 项」',
+    !!toggle && /其他可能相关\s*4\s*项/.test(toggle.textContent),
+    toggle ? toggle.textContent.replace(/\s+/g,' ').trim() : '');
+  check('默认收起（aria-expanded=false）',
+    !!toggle && toggle.getAttribute('aria-expanded') === 'false');
+  var hCollapsed = body ? body.getBoundingClientRect().height : 999;
+  check('收起时折叠区高度为 0', hCollapsed < 2, 'h=' + hCollapsed);
+  var group = q('[data-more-group]');
+  check('折叠区收起时标记 is-open', group && !group.classList.contains('is-open'));
+
+  // 展开
+  toggle.click();
+  await sleep(600);
+  check('点击后展开为 true', toggle.getAttribute('aria-expanded') === 'true');
+  check('展开后标记 is-open', group.classList.contains('is-open'));
+  // 注意：无头环境下 CSS transition 不会推进，rect.height 会停在动画起始值。
+  // 所以这里断言「目标高度已写入 + 内容已可命中」，这两项与动画无关，
+  // 才是真正决定用户能不能看到、点到内容的因素。
+  var targetH = parseFloat(body.style.maxHeight || '0');
+  check('展开时已写入真实内容高度（>100）', targetH > 100, 'maxHeight=' + targetH);
+  check('展开后卡片可被命中（非 visibility:hidden）', (function(){
+    var inner = q('.more-inner');
+    var cs = getComputedStyle(inner);
+    return cs.visibility === 'visible' && cs.pointerEvents !== 'none';
+  })());
+  var otherCards = qa('[data-more-body] .result-card');
+  check('展开后显示 4 张卡', otherCards.length === 4, 'n=' + otherCards.length);
+  // 展开后箭头旋转（动画）
+  var arrow = q('.mt-arrow');
+  var arrowTransform = arrow ? getComputedStyle(arrow).transform : '';
+  check('箭头有旋转动画', arrow && arrowTransform && arrowTransform !== 'none', arrowTransform);
+
+  /* ---------- 6. 无横向滚动 ---------- */
+  check('展开后仍无横向滚动',
+    D().documentElement.scrollWidth <= D().documentElement.clientWidth + 1,
+    'scrollW=' + D().documentElement.scrollWidth + ' clientW=' + D().documentElement.clientWidth);
+
+  /* ---------- 4. 展开后详情点击正常 ---------- */
+  // 滚到折叠区内的一张卡
+  var target = otherCards[1] || otherCards[0];
+  var pid = target.dataset.id;
+  target.scrollIntoView({ block:'center' });
+  await sleep(400);
+  var yBefore = Wn().scrollY || Wn().pageYOffset || 0;
+  var evBtn = target.querySelector('.ev-toggle');
+  if (evBtn) {
+    evBtn.click();
+    await sleep(400);
+    check('展开区内证据链可展开', !!target.querySelector('.evidence'));
+  }
+  target.click();
+  var nav1 = await waitForEvent(15000);
+  check('展开后点击卡片可进入详情', nav1);
+  await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
+  check('详情页内容已加载', !!q('.trust-card'));
+  var detailName = (q('.card h2')||{textContent:''}).textContent.trim();
+  var targetName = (target.querySelector('.result-name')||{textContent:''}).textContent.trim();
+  check('详情页就是所点的那条', !!detailName && detailName === targetName,
+    '详情=' + detailName + ' 期望=' + targetName);
+
+  /* ---------- 5. 返回后仍恢复原滚动位置 ---------- */
+  var backEl = q('.back-link');
+  check('详情页有返回按钮', !!backEl);
+  backEl.click();
+  await waitForEvent(15000);
+  await waitFor(function(){ return q('.result-card'); }, 25000, '返回后的结果列表');
+  await sleep(1000);
+  var yAfter = Wn().scrollY || Wn().pageYOffset || 0;
+  check('返回后恢复到原滚动位置', Math.abs(yAfter - yBefore) < 170,
+    'before=' + Math.round(yBefore) + ' after=' + Math.round(yAfter));
+  // 展开状态应被记住，否则用户刚展开的内容又折起来
+  check('返回后「其他可能相关」仍保持展开',
+    q('#moreToggle').getAttribute('aria-expanded') === 'true');
+  var hl = qa('.result-card.is-just-viewed');
+  check('刚查看的政策有短暂高亮',
+    hl.length > 0 && hl.some(function(c){ return c.dataset.id === pid; }),
+    'hl=' + hl.map(function(c){return c.dataset.id;}).join(','));
+
+  /* ---------- 收起后仍能正常用 ---------- */
+  q('#moreToggle').click();
+  await sleep(500);
+  check('可再次收起', q('#moreToggle').getAttribute('aria-expanded') === 'false');
+  var collapsedTo = parseFloat(q('[data-more-body]').style.maxHeight || '999');
+  check('收起时目标高度写为 0', collapsedTo === 0, 'maxHeight=' + collapsedTo);
+  check('收起后内容不可被命中', (function(){
+    var cs = getComputedStyle(q('.more-inner'));
+    return cs.visibility === 'hidden' || cs.pointerEvents === 'none';
+  })());
+  check('收起后重点卡仍可点击', (function(){
+    var c = q('.tier-head.is-focus ~ .tier-items .result-card');
+    return !!c && c.getBoundingClientRect().height > 0;
+  })());
+
+  out('');
+  out('=== 第七阶段：通过 ' + pass + '，失败 ' + fail + ' ===', fail ? 'bad' : 'ok');
+}
+
+run().catch(function(e){
+  out('ERROR ' + e.message, 'bad');
+  out('=== 异常终止：通过 ' + pass + '，失败 ' + (fail+1) + ' ===', 'bad');
+});
+</script>
+</body>
+</html>

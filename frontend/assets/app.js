@@ -980,9 +980,15 @@ function renderEvidenceChain(ev, opts) {
 }
 
 /**
- * 结果卡：在原有四段结构（推荐/待确认+原因/来源/查看详情）之上，
- * 新增分层标识与可展开的证据链。既有的类名与数据属性全部保留，
- * 详情页跳转仍依赖 .result-card 的 click 与 data-id。
+ * 结果卡：第七阶段改为「优先关注 N 项 + 其他可能相关 N 项（默认折叠）」。
+ *
+ * 分组口径（只改展示，不改匹配）：
+ *   引擎仍按老口径给出 tier（强相关 / 可能相关 / 待确认），分组依据不变；
+ *   这里只把「强相关」这一档在界面上换成中性说法「优先关注」，
+ *   并把剩下两档合并成可折叠的「其他可能相关」。
+ *   单卡状态徽章（可能相关 / 待确认 / 已核验 / 来源待核验）原样保留。
+ *
+ * 措辞红线：不用「最符合」「强相关」「已符合资格」。
  */
 function renderResultCards(data, opts) {
   opts = opts || {};
@@ -992,13 +998,6 @@ function renderResultCards(data, opts) {
   }
 
   const profile = data.profile || {};
-  const selfMode = profile.mode === 'self';
-
-  const TIER_META = {
-    '强相关': { cls: 'tier-strong', desc: 'AI 识别到了对应的生活变化' },
-    '可能相关': { cls: 'tier-mid', desc: '有对应生活变化，但有关键条件待确认' },
-    '待确认': { cls: 'tier-low', desc: '目前仅依据年龄等基础信息提示' },
-  };
 
   const oneCard = (r) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
@@ -1023,10 +1022,8 @@ function renderResultCards(data, opts) {
         </ul>
       </div>` : '';
 
-    // 证据链默认收起，用户点「看证据」再展开——保持卡片首屏清爽
-    const tier = r.tier || '';
-    const tm = TIER_META[tier];
-
+    // 分组标题已经说明了「优先关注 / 其他可能相关」，
+    // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
     return `
       <article class="result-card" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
         <div class="result-head">
@@ -1036,11 +1033,6 @@ function renderResultCards(data, opts) {
           </div>
           <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
         </div>
-
-        ${tm ? `<div class="tier-strip ${tm.cls}">
-          <span class="ts-name">${escapeHtml(tier)}</span>
-          <span class="ts-desc">${escapeHtml(tm.desc)}</span>
-        </div>` : ''}
 
         <div class="rc-block">
           <div class="rc-label">为什么推荐</div>
@@ -1058,39 +1050,115 @@ function renderResultCards(data, opts) {
       </article>`;
   };
 
-  // 按分层分组：强相关在前，弱提示在后，避免用户被长列表淹没
-  const order = ['强相关', '可能相关', '待确认'];
-  const groups = order
-    .map((k) => ({ tier: k, items: list.filter((r) => r.tier === k) }))
-    .filter((g) => g.items.length);
-  // 有未分层的兜底（旧数据兼容）
-  const orphan = list.filter((r) => order.indexOf(r.tier) < 0);
-  if (orphan.length) groups.push({ tier: '', items: orphan });
+  // 分组：引擎的「强相关」档展示为「优先关注」，其余两档合并为「其他可能相关」
+  const focus = list.filter((r) => r.tier === '强相关');
+  const others = list.filter((r) => r.tier !== '强相关');
 
-  const cardsHtml = groups.map((g) => {
-    const tm = TIER_META[g.tier];
-    const head = g.tier
-      ? `<div class="tier-head ${tm.cls}">
-           <span class="th-name">${escapeHtml(g.tier)}</span>
-           <span class="th-count">${g.items.length} 项</span>
-           <span class="th-desc">${escapeHtml(tm.desc)}</span>
-         </div>`
-      : '';
-    return head + `<div class="tier-items">${g.items.map(oneCard).join('')}</div>`;
-  }).join('');
+  const focusHtml = focus.length
+    ? `<div class="tier-head is-focus">
+         <span class="th-name">优先关注</span>
+         <span class="th-count">${focus.length} 项</span>
+         <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
+       </div>
+       <div class="tier-items">${focus.map(oneCard).join('')}</div>`
+    : '';
 
+  // 折叠区：默认收起，展开状态由 bindResultGroups 恢复
+  const othersHtml = others.length
+    ? `<div class="more-group" data-more-group>
+         <button type="button" class="more-toggle" id="moreToggle"
+                 aria-expanded="false" aria-controls="moreItems">
+           <span class="mt-label">其他可能相关 ${others.length} 项</span>
+           <span class="mt-arrow" aria-hidden="true">⌄</span>
+         </button>
+         <div class="more-body" id="moreItems" data-more-body>
+           <div class="more-inner">
+             <p class="more-tip">这些项目前缺少关键信息或仅有年龄等基础线索，是否适用还需进一步确认。</p>
+             <div class="tier-items">${others.map(oneCard).join('')}</div>
+           </div>
+         </div>
+       </div>`
+    : '';
+
+  const focusCount = focus.length;
+  const summary = focusCount
+    ? `建议优先了解其中 ${focusCount} 项`
+    : '暂未识别到优先关注项，以下均需进一步确认';
+
+  // 生活场景归纳保留，但放到结果列表之后：
+  // 它与「优先关注 / 其他可能相关」是同一批信息的两种归纳，
+  // 放在列表前面会把重点卡片挤出首屏。功能未删，只是换了位置。
   return `
     <div class="section">
-      <h2 class="section-title" id="resultAnchor">${escapeHtml(opts.heading
-        || ('AI发现：根据您提供的信息，发现 ' + list.length + ' 项可能相关的公共服务权益'))}</h2>
+      <h2 class="section-title" id="resultAnchor">共发现 ${list.length} 项可能相关权益</h2>
       ${renderAiFlowDone()}
+      <p class="result-summary">${escapeHtml(summary)}</p>
       <p class="hint" style="margin:-4px 0 10px">
         以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
       </p>
       <div class="notice">${escapeHtml(data.notice || '')}</div>
+      <div class="tier-groups">${focusHtml}${othersHtml}</div>
       ${renderSceneSummary(list)}
-      <div class="tier-groups">${cardsHtml}</div>
     </div>`;
+}
+
+/**
+ * 折叠区交互：默认收起，点击展开/收起。
+ * 高度由 JS 按真实内容测量后写进 max-height —— 不依赖 CSS 对 auto 高度
+ * 的解析，保证任何环境下都能真正展开（收起高度由 CSS 的 max-height:0 兜底）。
+ * 展开状态写入 sessionStorage：从详情页返回时列表会整体重建，
+ * 不记住状态会让用户刚展开的内容又折起来，滚动位置也会对不上。
+ */
+const MORE_EXPAND_KEY = 'pf_more_expanded';
+
+function isMoreExpanded() {
+  try { return sessionStorage.getItem(MORE_EXPAND_KEY) === '1'; } catch (e) { return false; }
+}
+
+function setMoreExpanded(on) {
+  try {
+    if (on) sessionStorage.setItem(MORE_EXPAND_KEY, '1');
+    else sessionStorage.removeItem(MORE_EXPAND_KEY);
+  } catch (e) { /* 隐私模式下忽略 */ }
+}
+
+function applyMoreExpanded(on) {
+  const group = document.querySelector('[data-more-group]');
+  const btn = document.getElementById('moreToggle');
+  const body = document.querySelector('[data-more-body]');
+  const inner = document.querySelector('.more-inner');
+  if (!group || !btn || !body) return;
+
+  group.classList.toggle('is-open', !!on);
+  btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+
+  if (on) {
+    // 先放开高度限制量出真实内容高度，再写回具体值供 max-height 过渡
+    body.style.maxHeight = 'none';
+    const h = inner ? inner.scrollHeight : 0;
+    body.style.maxHeight = (h || 400) + 'px';
+  } else {
+    // 先固定为当前高度，再强制回流让浏览器认到该高度，最后压到 0。
+    // 这里不用 requestAnimationFrame：后台标签页/无头环境下 rAF 可能不触发，
+    // 一旦不触发折叠就永远收不起来（实测踩过）。
+    body.style.maxHeight = body.scrollHeight + 'px';
+    void body.offsetHeight;      // 强制同步回流
+    body.style.maxHeight = '0px';
+  }
+}
+
+function bindResultGroups() {
+  const btn = document.getElementById('moreToggle');
+  if (!btn) return;
+  if (btn.__bound) return;
+  btn.__bound = true;
+  applyMoreExpanded(isMoreExpanded());
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    setMoreExpanded(!open);
+    applyMoreExpanded(!open);
+  });
 }
 
 /**

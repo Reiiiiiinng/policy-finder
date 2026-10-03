@@ -201,14 +201,15 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
   const nextTop = rest.slice(1).search(/^function /m);
   const card = nextTop > 0 ? rest.slice(0, nextTop + 1) : rest;
 
-  // 卡片顺序：名称 → 分层 → 为什么推荐 → 还需确认 → 来源 → 证据链 → 详情
-  // 「政策来源」由 sourceBlock() 渲染，所以这里查函数调用而非 is-trust 字面量
+  // 卡片顺序：名称 → 为什么推荐 → 还需确认 → 来源 → 证据链 → 详情
+  // （第七阶段已移除单卡上的 tier-strip 分层色条，改由分组标题承担，
+  //   所以这里不再检查 tier-strip）
   // 只取真正拼 HTML 的模板片段（oneCard 的 return `...`），
   // 否则会误把模板之前声明的 missingHtml / sourceBlock 等变量当成渲染顺序。
   const tplAt = card.indexOf('return `');
   const tpl = tplAt >= 0 ? card.slice(tplAt) : card;
 
-  const order = ['result-name', 'tier-strip', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot'];
+  const order = ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot'];
   let last = -1, ok = true, missing = [];
   order.forEach((k) => {
     const at = tpl.indexOf(k);
@@ -227,8 +228,11 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
   check('来源块仍是浅蓝信任区', /is-trust/.test(app) && /政策来源/.test(app));
   check('未引入折叠/分页（本阶段不做）',
     !/加载更多|查看更多|showMore|pageSize/.test(card));
-  check('结果不截断（仍全部渲染）',
-    /g\.items\.map\(oneCard\)\.join/.test(card), '应按分组全量渲染');
+  // 第七阶段：不再「全部平铺」，但也不能丢结果——两组都要渲染进 DOM，
+  // 「其他可能相关」只是默认折叠（收起状态由 CSS 控制高度，不是移除节点）。
+  check('优先关注组全量渲染', /focus\.map\(oneCard\)\.join/.test(card));
+  check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(oneCard\)\.join/.test(card));
+  check('折叠区保留全部卡片节点', /more-toggle/.test(card) && /data-more-body/.test(card));
 }
 
 console.log('== 已有功能未被破坏 ==');

@@ -3657,3 +3657,119 @@ input:focus {
     box-shadow: 0 0 0 2px var(--brand-mid);
   }
 }
+
+/* ================================================================
+   第七阶段：结果展示减负
+   「优先关注 N 项」直接展示；「其他可能相关 N 项」默认折叠。
+   ================================================================ */
+
+/* 顶部结论句：比 section-title 更轻，避免与标题抢层级 */
+.result-summary {
+  margin: -4px 0 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  line-height: 1.6;
+}
+
+/* 「优先关注」分组头 */
+.tier-head.is-focus {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  margin-top: 0;
+}
+
+/* ---- 其他可能相关：折叠区 ---- */
+.more-group {
+  margin-top: 14px;
+}
+
+.more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--cream-2);
+  color: var(--ink-2);
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.more-toggle:hover {
+  background: var(--brand-wash);
+  border-color: var(--brand-line);
+}
+
+.more-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.mt-arrow {
+  flex: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--brand);
+  transition: transform 0.25s ease;
+}
+
+.more-group.is-open .mt-arrow {
+  transform: rotate(180deg);
+}
+
+/*
+ * 轻量展开动画：用 max-height 做过渡。
+ * 这里刻意不用 grid-template-rows: 0fr→1fr 那种写法——
+ * 那依赖 grid 对「auto 高度内容」的行解析，万一解析不出高度，
+ * 内容就永久不可见（功能问题，不只是动画问题）。
+ * max-height 由 JS 按真实内容高度赋值，任何浏览器都能正常展开收起。
+ */
+.more-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.more-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.22s ease 0.06s;
+}
+
+/*
+ * 收起时内容高度为 0，但仍会参与命中测试——
+ * 可能点到「看不见」的卡片，必须显式关掉指针事件与可见性。
+ */
+.more-group:not(.is-open) .more-inner {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.more-tip {
+  margin: 10px 0 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.65;
+  padding: 9px 11px;
+  background: var(--cream);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--line);
+}
+
+/* 无障碍：减少动效偏好下取消过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .more-body,
+  .more-inner,
+  .mt-arrow {
+    transition: none !important;
+  }
+}

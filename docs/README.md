@@ -153,6 +153,7 @@ node .tools/page-check.js         # 页面接线：103 项（内联脚本语法�
 python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程，家庭 38 / 本人 37 项
 node .tools/phase6-test.js        # 第六阶段交互修正专项：86 项
 python .tools/phase6-e2e.py       # 第六阶段 390×844 实测：45 项（对应需求里的测试1~6）
+python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：43 项（结果展示减负）
 ```
 
 - `baseline.py` 只比对**不应被改动**的部分（结果条数、顺序、status、score、理由文本、待确认项），新增字段不参与比对。
@@ -210,3 +211,6 @@ python .tools/phase6-e2e.py       # 第六阶段 390×844 实测：45 项（对�
 | 2026-10-03 | `frontend/assets/app.js`、`frontend/discover.html`、`frontend/self.html` | 第六阶段问题5：新增列表位置记忆（`saveListPosition`/`restoreListPosition`/`highlightPolicy`），进入详情前记scrollY 与 policy_id，返回后多轮重试直到真正滚到目标高度才清除记录，并给刚查看的政策加 2.4s 高亮 | 与上一阶段的「补充信息局部刷新锁高」互不干扰；`?focus=` 回跳优先于位置恢复；30 分钟以上记录视为陈旧不再恢复 |
 | 2026-10-03 | `frontend/family.html` | 第六阶段顺带修复：关系条在 `refresh()` 里重挂，选择操作者/受益人后顶部「谁在帮谁查」不再停留在旧值 | 家庭协助轴的准确性提升 |
 | 2026-10-03 | `.tools/phase6-*`、`.tools/phase6_page.html` | 第六阶段测试：`phase6-test.js` 86 项结构与逻辑断言；`phase6-e2e.py` 以 390×844 视口跑需求里的测试1~6，共 45 项 | 仅开发期使用；后端 `data/`、`backend/`、`policy.html` 本阶段零改动 |
+| 2026-10-03 | `frontend/assets/app.js`、`frontend/assets/style.css` | 第七阶段：结果展示减负——顶部显示「共发现 N 项可能相关权益」+「建议优先了解其中 N 项」；引擎的「强相关」档在界面上改称「优先关注」并直接展示；其余两档合并为「其他可能相关 N 项」默认折叠；移除单卡上重复的分层色条 `.tier-strip`；生活场景归纳移到列表之后（功能未删，仅换位置） | 只改展示层：`backend/`、`data/`、`policy.html` 与 API 契约零改动，匹配结果与评分规则不变；单卡状态徽章（可能相关/待确认/已核验/来源待核验）与「为什么推荐/还需确认/政策来源」全部保留 |
+| 2026-10-03 | `frontend/assets/app.js` | 第七阶段折叠区实现：展开状态存sessionStorage（返回详情页后仍保持展开），高度由 JS 按真实内容测量后写 `max-height` | 曾用 `grid-template-rows: 0fr→1fr` 做动画，但那是把「能不能看见内容」押在一个动画属性上，解析不出高度就会永久看不见；改为 JS 测高 + max-height，任何环境都能展开。收起用同步强制回流而非 requestAnimationFrame（后台标签页 rAF 可能不触发，会导致收不起来） |
+| 2026-10-03 | `.tools/phase7-e2e.py`、`.tools/phase7_page.html` | 第七阶段测试：390×844 实测 43 项，覆盖顶部文案、优先关注 6 项、折叠区默认收起/展开/再收起、展开后点卡片进详情、返回恢复滚动位置与展开状态、无横向滚动 | 注意：无头环境下 **CSS transition 不推进**，`rect.height` 会停在动画起始值。断言必须针对「目标状态」（`style.maxHeight`、`aria-expanded`、`visibility`/`pointer-events`），不能断言动画中间值 |

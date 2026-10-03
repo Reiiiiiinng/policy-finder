@@ -141,9 +141,18 @@ async function run() {
   // ---------- 4. 结果分层 ----------
   var gotTier = await waitFor(function () { return q('.tier-groups'); }, 9000, '结果分层');
   check('结果按分层展示', gotTier);
-  check('存在分层分组标题', qa('.tier-head').length >= 1, 'n=' + qa('.tier-head').length);
+  check('存在「优先关注」分组标题', q('.tier-head.is-focus') !== null);
+  check('顶部显示共发现 N 项', /共发现\s*\d+\s*项可能相关权益/.test(D().body.textContent),
+    (D().querySelector('#resultAnchor')||{}).textContent);
+  check('顶部显示建议优先了解 N 项', /建议优先了解其中\s*\d+\s*项/.test(D().body.textContent));
   check('结果卡已渲染', qa('.result-card').length > 0, 'n=' + qa('.result-card').length);
-  check('强相关排在最前', q('.tier-head.tier-strong') !== null);
+  check('优先关注卡片排在折叠区之前', (function(){
+    var firstFocus = q('.tier-head.is-focus');
+    var toggle = D().getElementById('moreToggle');
+    if (!firstFocus || !toggle) return false;
+    return firstFocus.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false;
+  })());
+  check('不使用「强相关」字样', D().body.textContent.indexOf('强相关') < 0);
   check('卡片保留查看详情入口', D().body.textContent.indexOf('查看详情与办理方式') >= 0);
   check('无伪造能力文案',
     !/自动办理|已认证|官方认证|保证(您)?符合/.test(D().body.textContent));

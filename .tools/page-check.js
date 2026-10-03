@@ -188,7 +188,8 @@ check('详情页返回区分本人/家庭模式', /backHref = selfMode \? 'self\
 
 console.log('== CSS 变量与类名一致 ==');
 const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8');
-['.flow', '.flow-step', '.flow-dot', '.board', '.scene-chip', '.tier-head', '.tier-strip',
+['.flow', '.flow-step', '.flow-dot', '.board', '.scene-chip', '.tier-head', '.tier-head.is-focus',
+ '.result-summary', '.more-group', '.more-toggle', '.more-body', '.more-inner',
  '.evidence', '.ev-step', '.ev-cond', '.final-step', '.fs-opt', '.where-row', '.rel-strip',
  '.how-card', '.step-lead'].forEach((sel) => {
   check('CSS 定义 ' + sel, css.indexOf(sel) >= 0);

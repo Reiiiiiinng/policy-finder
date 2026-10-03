@@ -169,6 +169,9 @@ console.log('== 结果分层 ==');
     source_department: '广州市民政局', source_document_no: '穗民〔2024〕76号',
     source_publish_date: '2024-07-17', source_checked_at: '2026-09-29',
     matched_scenes: tier === '待确认' ? [] : ['独居'],
+    missing_information: tier === '待确认'
+      ? ['是否属于所在社区卫生服务机构的服务覆盖范围']
+      : [],
     evidence: { profile_basis: [], policy_conditions: [], citation: {}, pending_count: 0 },
   });
   const data = {
@@ -182,16 +185,49 @@ console.log('== 结果分层 ==');
     ],
   };
   const h = sandbox.renderResultCards(data, {});
-  check('渲染三档分组标题', has(h, '强相关') && has(h, '可能相关') && has(h, '待确认'));
-  check('分组计数正确', has(h, '>2 项<') && has(h, '>1 项<'));
+  check('顶部显示总数', has(h, '共发现 4 项可能相关权益'), '');
+  check('顶部显示建议优先了解数', has(h, '建议优先了解其中 2 项'), '');
+  check('分组标题为「优先关注」', has(h, '优先关注'));
+  check('折叠区标题为「其他可能相关 2 项」', has(h, '其他可能相关 2 项'), '');
+  check('优先关注计数正确', has(h, '>2 项<'));
   check('卡片保留 data-id', has(h, 'data-id="p1"'));
   check('保留 .result-card 类', has(h, 'result-card'));
   check('保留查看详情入口', has(h, '查看详情与办理方式'));
   check('保留来源区', has(h, '政策来源'));
   check('保留为什么推荐', has(h, '为什么推荐'));
+  check('保留还需确认', has(h, '还需确认'));
   check('证据链默认收起', has(h, 'hidden') && has(h, 'data-ev-toggle'));
-  check('顺序：强相关在前', h.indexOf('data-id="p1"') < h.indexOf('data-id="p3"'));
+  check('优先项在折叠项之前', h.indexOf('data-id="p1"') < h.indexOf('data-id="p3"'));
+  check('折叠区默认收起', has(h, 'aria-expanded="false"') && has(h, 'data-more-body'));
+  check('折叠区有可访问性关联', has(h, 'aria-controls="moreItems"') && has(h, 'id="moreItems"'));
+  // 措辞红线：新分组不得使用「强相关」「最符合」「已符合资格」
+  check('不使用「强相关」字样', !has(h, '强相关'), '');
+  // 注意：页面里「不代表已符合资格」是合规免责声明，
+  // 只有脱离否定语境的「已符合资格」才违规，所以先把否定表述剥掉再检查。
+  const hNoNeg = h.replace(/不代表[^，。]*资格|不构成[^，。]*结论|不作为[^，。]*认定/g, '');
+  check('不使用「最符合」', !/最符合/.test(hNoNeg), '');
+  check('不使用肯定语境的「已符合资格」', !/已符合资格/.test(hNoNeg), '');
+  check('保留「不代表已符合资格」免责表述', /不代表已符合资格/.test(h), '');
+  // 状态徽章仍用「可能相关 / 待确认」，这是需求要求保留的
+  check('保留可能相关徽章', has(h, '可能相关'));
+  check('保留待确认徽章', has(h, '待确认'));
   check('空结果走空状态', has(sandbox.renderResultCards({ profile: {}, results: [] }, {}), 'empty-card'));
+
+  // 无优先项时不应显示「优先关注 0 项」
+  const noFocus = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [mk('p9', '认知功能筛查', '待确认', '待确认')],
+  }, {});
+  check('无优先项时不出现「优先关注」分组', !has(noFocus, '优先关注 0'), '');
+  check('无优先项时改用其他提示', has(noFocus, '暂未识别到优先关注项'), '');
+
+  // 全部为优先项时不应出现折叠区
+  const allFocus = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [mk('p8', '社区养老服务', '强相关', '可能相关')],
+  }, {});
+  check('全部优先时不出现折叠区', !has(allFocus, 'more-toggle'), '');
+  check('全部优先时计数正确', has(allFocus, '共发现 1 项可能相关权益'), '');
 }
 
 console.log('== 原有能力未被破坏 ==');
