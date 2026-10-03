@@ -19,7 +19,16 @@ import re
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-DB_PATH = os.path.join(ROOT_DIR, "data", "guangzhou_elderly_policy_v1.1.json")
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+
+# 政策库注册表。用环境变量 POLICY_DB 选择：guangzhou / foshan / 任意文件路径。
+# 默认仍为广州库，佛山库需显式切换——避免本轮引擎改造影响既有回归基线。
+DATABASES = {
+    "guangzhou": os.path.join(DATA_DIR, "guangzhou_elderly_policy_v1.1.json"),
+    "foshan": os.path.join(DATA_DIR, "foshan_medical_assistance_v1.json"),
+}
+DB_KEY = os.environ.get("POLICY_DB", "guangzhou")
+DB_PATH = DATABASES.get(DB_KEY, DB_KEY)
 
 # ---------------------------------------------------------------- 生活场景词典
 # 关键词 -> 生活场景标签（与数据库的 scene_tag_library / match.scene_signals 对齐）
@@ -39,6 +48,15 @@ SCENE_KEYWORDS = {
                      "工作忙", "没人陪"],
     "经济压力": ["费用高", "压力大", "经济困难", "没钱", "负担重", "费用压力"],
     "不了解政策": ["不知道有", "不了解", "没听说过", "有哪些政策", "有什么补贴"],
+    # ---- 医疗救助域（佛山场景，见 data/foshan_medical_assistance_v1.json）
+    "住院自付高": ["住院自付", "自付高", "自付费用高", "自付了", "自费高", "自付很多",
+                   "住院花", "住院费用高", "报销后还要", "自己掏"],
+    "大病医疗支出": ["大病", "重病", "重大疾病", "肿瘤", "癌症", "化疗", "透析", "手术费"],
+    "长期服药": ["长期吃药", "长期服药", "每天吃药", "常年吃药", "长期用药", "长期开药"],
+    "门诊特定病种": ["门诊特定病种", "门特", "门慢", "特定病种"],
+    "家庭经济困难": ["低保", "特困", "经济困难", "家庭困难", "困难家庭", "低收入"],
+    "收入偏低": ["收入低", "没有收入", "没收入", "收入不高", "没有固定收入"],
+    "需要长期照护": ["长期照护", "长期护理", "长期照顾"],
 }
 
 # 亲属称谓 -> 受益人称谓
@@ -100,11 +118,62 @@ def parse_age(text):
     return None
 
 
+# 地区名归一化：比较时把「佛山」「深圳」等统一成「XX市」。
+# 只用于比较，不改变对外返回的展示值（避免影响既有基线中的 region 字段）。
+REGION_ALIASES = {
+    "广州": "广州市", "佛山": "佛山市", "深圳": "深圳市", "东莞": "东莞市",
+    "珠海": "珠海市", "中山": "中山市", "惠州": "惠州市",
+    "北京": "北京市", "上海": "上海市",
+}
+
+
+def normalize_region(name):
+    """把地区名归一成「XX市」形式用于比较。空值原样返回，未知名称原样返回。"""
+    if not name:
+        return name
+    s = str(name).strip()
+    if not s or s.endswith("市"):
+        return s
+    return REGION_ALIASES.get(s, s)
+
+
+# 个人负担金额：只识别与「自付 / 自费 / 自己掏」明确关联的数字，
+# 避免把住院总花费、年龄等无关数字误当作自付额。
+_SELF_PAID_RE = re.compile(
+    r"(?:自付|自费|自己掏|自己付|个人负担|个人支付)[^\d]{0,8}?(\d+(?:\.\d+)?)\s*(万|千|元|块)?"
+)
+_AMOUNT_UNIT = {"万": 10000, "千": 1000, "元": 1, "块": 1}
+
+
+def parse_self_paid(text):
+    """
+    解析用户自述的、经报销后个人负担的医疗费用（元）。
+    仅用于与政策起付标准做内部比较，不参与任何金额计算、不对外输出数值。
+    解析不到返回 None，不猜测。
+    """
+    if not text:
+        return None
+    m = _SELF_PAID_RE.search(text)
+    if not m:
+        return None
+    try:
+        num = float(m.group(1))
+    except ValueError:
+        return None
+    unit = m.group(2) or "元"
+    amount = num * _AMOUNT_UNIT.get(unit, 1)
+    if amount <= 0 or amount > 10000000:      # 超过一千万视为解析异常
+        return None
+    return int(amount)
+
+
 def parse_region(text):
-    """解析地区。当前库只覆盖广州，其他地区返回 unknown 由上层提示。"""
+    """解析地区。当前支持广州与佛山两套库，其他地区由上层提示无对应数据。"""
     if "广州" in text:
         return "广州市"
-    for other in ["深圳", "佛山", "东莞", "北京", "上海", "珠海", "中山", "惠州"]:
+    if "佛山" in text:
+        return "佛山市"
+    for other in ["深圳", "东莞", "北京", "上海", "珠海", "中山", "惠州"]:
         if other in text:
             return other
     return None
@@ -183,6 +252,11 @@ def build_profile(text="", relation=None, operator=None, age=None, region=None, 
         "who": who,
         "mode": mode or "family",
         "raw_text": text,
+        # ---- 佛山医疗救助场景新增（旧库用不到，恒为 None，不影响既有输出）
+        # self_paid_amount 仅用于与政策起付标准做内部比较，不对外输出数值
+        "self_paid_amount": parse_self_paid(text),
+        # family_economic 取值见各政策 conditions.qualify[].options
+        "family_economic": None,
     }
     return profile
 
@@ -252,13 +326,237 @@ def _dedup(items):
     return out
 
 
+def _has_three_layer(policy):
+    """
+    判断该政策是否使用新版三层条件模型（见 docs/policy-data-spec.md）。
+    广州库沿用旧式扁平 conditions（age_min / hukou_required / ...），走原路径，行为不变。
+    """
+    cond = policy.get("conditions") or {}
+    return isinstance(cond.get("qualify"), list)
+
+
+# ---------------------------------------------------------------- 第 1 层：资格条件
+# 决定「用户是否符合」。三值 boolean / 有限枚举 enum / 作为条件的比例 ratio_condition。
+# 未知一律转「待确认」，明确不符合才 blocked——与旧路径同一套产品原则。
+
+def _qualify_state(item, profile):
+    """
+    单项资格条件的三值判断。
+    返回 (state, evidence)
+    state: met | failed | unknown
+    """
+    key = item.get("key")
+    itype = item.get("type")
+    val = profile.get(key)
+
+    if itype == "boolean":
+        if val is True:
+            return "met", "您已确认：符合"
+        if val is False:
+            return "failed", "您已确认：不符合"
+        return "unknown", "尚未确认，需要您或受理单位核实"
+
+    if itype == "enum":
+        options = item.get("options") or []
+        labels = {o.get("value"): o.get("label") for o in options}
+        if val is None:
+            return "unknown", "尚未选择，需要您确认"
+        if val == "none":
+            return "failed", "您已确认：以上都不是"
+        return "met", "您已确认：%s" % labels.get(val, val)
+
+    if itype == "ratio_condition":
+        # 比例型条件：需要票据与家庭收入核算，用户无法自判，一律转待确认。
+        # 这是「按用途划线」的直接收益——比例作为条件时归第 1 层，参与判定。
+        return "unknown", "需按票据与家庭收入核算，建议向受理单位核实"
+
+    return "unknown", "尚未确认"
+
+
+def _check_qualify(policy, profile):
+    """
+    新版三层模型的第 1 层检查。
+    返回 (blocked, missing_list, condition_rows)
+    """
+    missing = []
+    rows = []
+    blocked = False
+
+    for item in (policy.get("conditions") or {}).get("qualify", []) or []:
+        state, evidence = _qualify_state(item, profile)
+        rows.append({
+            "key": item.get("key"),
+            "label": item.get("label", ""),
+            "requirement": item.get("requirement", ""),
+            "state": state,
+            "evidence": evidence,
+            "source_ref": item.get("source_ref", ""),
+        })
+        if state == "failed":
+            blocked = True
+        elif state == "unknown":
+            missing.append(item.get("ask") or item.get("label") or item.get("key"))
+
+    return blocked, missing, rows
+
+
+# ---------------------------------------------------------------- 第 2 层：阈值
+# 入库、参与内部比较，但**任何页面渲染路径都不得输出该数值**。
+# 输出只能是「你可能已触及门槛，建议向医保部门核实具体标准」。
+
+_DEDUCTIBLE_KEYS = ("deductible", "deductible_tilted", "tilted_deductible")
+
+
+def threshold_signal(policy, profile):
+    """
+    把用户自述的个人负担金额与起付标准做内部比较。
+    返回 None（该政策无起付线）或字典；字典里**不含任何阈值数值**。
+    """
+    ths = (policy.get("conditions") or {}).get("thresholds") or []
+    values = [t.get("value") for t in ths
+              if t.get("key") in _DEDUCTIBLE_KEYS and isinstance(t.get("value"), (int, float))]
+    if not values:
+        return None
+
+    paid = profile.get("self_paid_amount")
+    if paid is None:
+        return {
+            "touched": None,
+            "message": "尚未提供个人负担金额，无法判断是否已达到起付标准",
+            "action": "可在补充信息里填写个人负担的大致金额，或直接向医保部门核实",
+        }
+
+    if paid >= min(values):
+        return {
+            "touched": True,
+            "message": "按您提供的金额，可能已触及起付标准",
+            "action": "具体标准请向医保部门核实",
+        }
+    return {
+        "touched": False,
+        "message": "按您提供的金额，可能尚未达到起付标准",
+        "action": "具体标准请向医保部门核实；如后续费用增加可重新判断",
+    }
+
+
+def threshold_rows(policy):
+    """
+    阈值的展示行。**只给名称与出处，不给数值**——这是产品红线。
+    """
+    ths = (policy.get("conditions") or {}).get("thresholds") or []
+    rows = []
+    for t in ths:
+        rows.append({
+            "label": t.get("label", ""),
+            "unit": t.get("unit", ""),
+            "source_ref": t.get("source_ref", ""),
+            "has_value": t.get("value") is not None or bool(t.get("formula")),
+            "display": "具体标准请向医保部门核实",
+        })
+    return rows
+
+
+# ---------------------------------------------------------------- 政策时效
+
+EXPIRING_DAYS = 180
+
+
+def _parse_date(s):
+    """解析 YYYY-MM-DD。失败返回 None，不猜测。"""
+    if not s:
+        return None
+    try:
+        parts = str(s).strip().split("-")
+        if len(parts) != 3:
+            return None
+        import datetime
+        return datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except Exception:
+        return None
+
+
+def derive_validity(policy, today=None):
+    """
+    从 validity 派生展示状态。
+    数据层只存 active / expired / superseded；expiring 由 expires_at 与当天日期计算，
+    不写死在数据里（见 docs/policy-data-spec.md 第二节）。
+    返回 {status, level, expires_at, effective_from, verified_at, superseded_by, message}
+    level: normal | warn | muted
+    """
+    import datetime
+    v = policy.get("validity") or {}
+    today = today or datetime.date.today()
+
+    stored = v.get("status") or "active"
+    expires = _parse_date(v.get("expires_at"))
+    sup = v.get("superseded_by")
+
+    if stored == "superseded" and sup:
+        name = sup.get("name") or "新文件"
+        return {
+            "status": "superseded",
+            "level": "muted",
+            "expires_at": v.get("expires_at"),
+            "effective_from": v.get("effective_from"),
+            "verified_at": v.get("verified_at"),
+            "superseded_by": sup,
+            "message": "该政策已由《%s》替代，请查看新规" % name,
+        }
+
+    if stored == "expired" or (expires and expires < today):
+        return {
+            "status": "expired",
+            "level": "muted",
+            "expires_at": v.get("expires_at"),
+            "effective_from": v.get("effective_from"),
+            "verified_at": v.get("verified_at"),
+            "superseded_by": sup,
+            "message": "该政策已过有效期，请以最新文件为准",
+        }
+
+    if expires and (expires - today).days <= EXPIRING_DAYS:
+        return {
+            "status": "expiring",
+            "level": "warn",
+            "expires_at": v.get("expires_at"),
+            "effective_from": v.get("effective_from"),
+            "verified_at": v.get("verified_at"),
+            "superseded_by": None,
+            "message": "本办法有效期至 %s，届时请以最新文件为准" % v.get("expires_at"),
+        }
+
+    return {
+        "status": "active",
+        "level": "normal",
+        "expires_at": v.get("expires_at"),
+        "effective_from": v.get("effective_from"),
+        "verified_at": v.get("verified_at"),
+        "superseded_by": None,
+        "message": "",
+    }
+
+
 def _hard_condition_check(policy, profile):
     """
     硬条件检查。
     返回 (blocked, missing_list)
     - blocked=True 表示明确不符合（例如年龄明确低于门槛），直接不推荐
     - missing_list 表示需要用户补充确认的信息
+
+    新版三层模型（佛山库）走 _check_qualify；旧式扁平条件（广州库）走原路径。
+    两条路径共享同一条产品原则：未知转「待确认」，明确不符合才排除。
     """
+    # 地区不符一律排除，两种模型通用。比较时做归一化，避免「佛山」与「佛山市」被判死。
+    region_scope = (policy.get("region", {}) or {}).get("scope")
+    if region_scope and profile.get("region"):
+        if normalize_region(profile["region"]) != normalize_region(region_scope):
+            return True, ["该政策适用于%s，老人当前所在地区为%s" % (region_scope, profile["region"])]
+
+    # 新版三层模型：第 1 层资格条件
+    if _has_three_layer(policy):
+        blocked, missing, _rows = _check_qualify(policy, profile)
+        return blocked, missing
+
     cond = (policy.get("conditions", {}) or {})
     missing = []
 
@@ -287,10 +585,6 @@ def _hard_condition_check(policy, profile):
             missing.append("老人是否属于失能或部分失能（建议先做照护需求综合评估）")
         elif profile["disability"] is False:
             return True, ["该服务面向失能或部分失能老年人，您已确认老人不属于该范围"]
-
-    region_scope = (policy.get("region", {}) or {}).get("scope")
-    if region_scope and profile["region"] and profile["region"] != region_scope:
-        return True, ["该政策适用于%s，老人当前所在地区为%s" % (region_scope, profile["region"])]
 
     return False, missing
 
@@ -343,6 +637,14 @@ SCENE_PLAIN = {
     "家庭照护困难": "描述中提到家庭照护方面的困难",
     "需要社区帮助": "描述中提到需要社区层面的帮助",
     "不愿入住养老机构": "描述中提到不愿入住养老机构",
+    # ---- 医疗救助域
+    "住院自付高": "描述中提到住院后个人负担的费用较高",
+    "大病医疗支出": "描述中提到重大疾病带来的医疗支出",
+    "长期服药": "描述中提到长期用药、长期开药",
+    "门诊特定病种": "描述中提到门诊特定病种（门特 / 门慢）",
+    "家庭经济困难": "描述中提到家庭经济困难或已取得相关认定",
+    "收入偏低": "描述中提到家庭收入偏低",
+    "需要长期照护": "描述中提到需要长期照护",
 }
 
 # 三值条件的中文标签，用于证据链里逐条列出
@@ -398,40 +700,62 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
     # ---- 第2 段：政策条件（这条权益要求什么，哪些还没确认）
     cond = policy.get("conditions", {}) or {}
     conds = []
-    if cond.get("age_min"):
-        met = profile.get("age") is not None and profile["age"] >= cond["age_min"]
-        conds.append({
-            "label": "年龄门槛",
-            "requirement": "年满 %s 周岁" % cond["age_min"],
-            "state": "met" if met else "unknown",
-            "evidence": ("您描述为 %s 岁" % profile["age"]) if profile.get("age") is not None
-                        else "尚未提供年龄",
-        })
-    for key in ("hukou", "insurance", "disability"):
-        req = cond.get(key + "_required")
-        if req is not True:
-            continue
-        label, yes_text, no_text = _COND_LABEL[key]
-        val = profile.get(key)
-        if val is True:
-            state, ev = "met", "您已确认：%s" % yes_text
-        elif val is False:
-            state, ev = "failed", "您已确认：%s" % no_text
-        else:
-            state, ev = "unknown", "尚未确认，需要您或受理单位核实"
-        conds.append({
-            "label": label,
-            "requirement": "需符合：%s" % yes_text,
-            "state": state,
-            "evidence": ev,
-        })
-    for item in cond.get("other", []) or []:
-        conds.append({
-            "label": "其他条件",
-            "requirement": str(item),
-            "state": "unknown",
-            "evidence": "需向受理单位确认适用口径",
-        })
+
+    if _has_three_layer(policy):
+        # 新版三层模型：第 1 层资格条件逐条列出；第 2 层阈值只给名称与出处，不给数值。
+        _blocked, _missing, rows = _check_qualify(policy, profile)
+        for r in rows:
+            conds.append({
+                "label": r["label"],
+                "requirement": r["requirement"],
+                "state": r["state"],
+                "evidence": r["evidence"],
+                "source_ref": r["source_ref"],
+            })
+        for t in threshold_rows(policy):
+            conds.append({
+                "label": t["label"],
+                "requirement": t["display"],
+                "state": "unknown",
+                "evidence": "阈值仅用于内部判断，页面不展示具体数值",
+                "source_ref": t["source_ref"],
+                "is_threshold": True,
+            })
+    else:
+        if cond.get("age_min"):
+            met = profile.get("age") is not None and profile["age"] >= cond["age_min"]
+            conds.append({
+                "label": "年龄门槛",
+                "requirement": "年满 %s 周岁" % cond["age_min"],
+                "state": "met" if met else "unknown",
+                "evidence": ("您描述为 %s 岁" % profile["age"]) if profile.get("age") is not None
+                            else "尚未提供年龄",
+            })
+        for key in ("hukou", "insurance", "disability"):
+            req = cond.get(key + "_required")
+            if req is not True:
+                continue
+            label, yes_text, no_text = _COND_LABEL[key]
+            val = profile.get(key)
+            if val is True:
+                state, ev = "met", "您已确认：%s" % yes_text
+            elif val is False:
+                state, ev = "failed", "您已确认：%s" % no_text
+            else:
+                state, ev = "unknown", "尚未确认，需要您或受理单位核实"
+            conds.append({
+                "label": label,
+                "requirement": "需符合：%s" % yes_text,
+                "state": state,
+                "evidence": ev,
+            })
+        for item in cond.get("other", []) or []:
+            conds.append({
+                "label": "其他条件",
+                "requirement": str(item),
+                "state": "unknown",
+                "evidence": "需向受理单位确认适用口径",
+            })
 
     # ---- 第3 段：官方依据
     src = policy.get("source", {}) or {}
@@ -539,6 +863,14 @@ def score_policy(policy, profile):
         # 证据链与分层：纯展示派生，不参与任何判断，也不改变上面任何既有字段
         "evidence": build_evidence_chain(policy, profile, hit, missing),
         "tier": assign_tier({"status": status, "matched_scenes": hit}),
+        # 佛山库新增字段。全部为纯透传或纯派生：广州库缺这些字段时返回空值/None，
+        # 既有调用方与基线输出完全不受影响。
+        "policy_level": policy.get("policy_level", ""),
+        "validity": derive_validity(policy),
+        "green_note": policy.get("green_note") or None,
+        "materials": policy.get("materials") or [],
+        "threshold_signal": threshold_signal(policy, profile),
+        "result_params": (policy.get("conditions") or {}).get("result_params"),
     }
 
 

@@ -47,6 +47,7 @@
             "key": "insurance",
             "type": "boolean",
             "label": "参加本市基本医疗保险",
+            "ask": "老人是否已参加佛山市基本医疗保险",
             "requirement": "已参加佛山市基本医疗保险",
             "source_ref": "佛医保〔2025〕13号 第九条"
           },
@@ -54,13 +55,32 @@
             "key": "family_economic",
             "type": "enum",
             "label": "家庭经济状况认定类别",
+            "ask": "家里是否已取得特困人员 / 低保 / 低保边缘 / 支出型困难家庭认定",
             "options": [
-              { "value": "tekun", "label": "特困人员" },
-              { "value": "guer", "label": "孤儿 / 事实无人抚养儿童" },
-              { "value": "dibao", "label": "最低生活保障对象" },
-              { "value": "dibao_bianyuan", "label": "最低生活保障边缘家庭成员" },
-              { "value": "zhichuxing", "label": "支出型困难家庭成员" },
-              { "value": "none", "label": "以上都不是" }
+              {
+                "value": "tekun",
+                "label": "特困人员"
+              },
+              {
+                "value": "guer",
+                "label": "孤儿 / 事实无人抚养儿童"
+              },
+              {
+                "value": "dibao",
+                "label": "最低生活保障对象"
+              },
+              {
+                "value": "dibao_bianyuan",
+                "label": "最低生活保障边缘家庭成员"
+              },
+              {
+                "value": "zhichuxing",
+                "label": "支出型困难家庭成员"
+              },
+              {
+                "value": "none",
+                "label": "以上都不是"
+              }
             ],
             "source_ref": "佛医保〔2025〕13号 第六条"
           },
@@ -68,6 +88,7 @@
             "key": "expense_scope",
             "type": "boolean",
             "label": "费用属定点医药机构发生的合规医疗费用",
+            "ask": "本次医疗费用是否发生在医保定点医药机构",
             "requirement": "在定点医药机构发生的、符合基本医疗保险规定的普通门诊 / 门诊特定病种 / 住院费用",
             "source_ref": "佛医保〔2025〕13号 第十条"
           }
@@ -78,7 +99,9 @@
             "label": "年度救助起付标准",
             "value": 12000,
             "unit": "元/年",
-            "applies_to": ["zhichuxing"],
+            "applies_to": [
+              "zhichuxing"
+            ],
             "note": "收入型医疗救助对象不设年度救助起付标准",
             "source_ref": "佛医保〔2025〕13号 第十一条"
           },
@@ -94,7 +117,9 @@
             "label": "倾斜救助年度起付标准",
             "value": 12000,
             "unit": "元/年",
-            "applies_to": ["zhichuxing"],
+            "applies_to": [
+              "zhichuxing"
+            ],
             "note": "最低生活保障对象与最低生活保障边缘家庭成员的倾斜救助起付标准为 7000 元",
             "source_ref": "佛医保〔2025〕13号 第十二条"
           },
@@ -189,7 +214,10 @@
         "倾斜救助"
       ],
       "green_note": {
-        "anchors": ["少跑动", "无纸化"],
+        "anchors": [
+          "少跑动",
+          "无纸化"
+        ],
         "citations": [
           {
             "point": "部门间信息共享可获取的材料不再要求申请人提供",
@@ -227,6 +255,7 @@
             "key": "hukou",
             "type": "boolean",
             "label": "申请人或共同生活家庭成员具有当地户籍",
+            "ask": "家庭成员是否具有当地户籍",
             "requirement": "申请人或共同生活家庭成员具有当地户籍",
             "source_ref": "粤府办〔2022〕3号 第九条、第十条"
           },
@@ -234,10 +263,20 @@
             "key": "family_economic",
             "type": "enum",
             "label": "拟认定的家庭类别",
+            "ask": "想了解哪一类认定",
             "options": [
-              { "value": "dibao_bianyuan", "label": "最低生活保障边缘家庭" },
-              { "value": "zhichuxing", "label": "支出型困难家庭" },
-              { "value": "unknown", "label": "不确定，想先了解" }
+              {
+                "value": "dibao_bianyuan",
+                "label": "最低生活保障边缘家庭"
+              },
+              {
+                "value": "zhichuxing",
+                "label": "支出型困难家庭"
+              },
+              {
+                "value": "unknown",
+                "label": "不确定，想先了解"
+              }
             ],
             "source_ref": "粤府办〔2022〕3号 第二条"
           },
@@ -245,6 +284,7 @@
             "key": "edge_income_ratio",
             "type": "ratio_condition",
             "label": "低保边缘家庭收入条件",
+            "ask": "家庭人均月收入是否在当地城镇最低生活保障标准的 1.5 倍以下",
             "requirement": "申请之日前家庭人均月收入在当地城镇最低生活保障标准 1.5 倍以下，且不得超过当地月最低工资标准",
             "ratio": 1.5,
             "source_ref": "粤府办〔2022〕3号 第九条"
@@ -253,6 +293,7 @@
             "key": "rigid_expense_ratio",
             "type": "ratio_condition",
             "label": "支出型困难家庭刚性支出条件",
+            "ask": "家庭刚性支出（医疗、教育、残疾康复等）是否达到家庭年收入的 60% 以上",
             "requirement": "共同生活的家庭成员经认定的医疗、教育、残疾康复或因灾、因意外事故等刚性支出，达到或超过其家庭年收入的 60%",
             "ratio": 0.6,
             "source_ref": "粤府办〔2022〕3号 第十条"
@@ -261,6 +302,7 @@
             "key": "property_condition",
             "type": "boolean",
             "label": "家庭财产状况符合规定",
+            "ask": "家庭名下房产、车辆、商事登记情况是否符合规定",
             "requirement": "金融资产人均不超过当地 24 个月城镇最低生活保障标准；居住用途不动产总计不超过 1 套（栋）且无非居住用途不动产；名下无机动车辆（残疾人代步车、燃油摩托车、电瓶车除外）；名下无商事登记信息",
             "source_ref": "粤府办〔2022〕3号 第十四条"
           }
@@ -361,7 +403,10 @@
         "前置认定"
       ],
       "green_note": {
-        "anchors": ["少跑动", "一次性告知"],
+        "anchors": [
+          "少跑动",
+          "一次性告知"
+        ],
         "citations": [
           {
             "point": "申请资料在认定程序间直接流转，不再重复提交",
@@ -398,6 +443,7 @@
             "key": "insurance",
             "type": "boolean",
             "label": "参加本市基本医疗保险",
+            "ask": "老人是否已参加佛山市基本医疗保险",
             "requirement": "已参加佛山市职工基本医疗保险或城乡居民基本医疗保险",
             "source_ref": "佛医保〔2023〕47号 第二条、第十一条"
           },
@@ -405,6 +451,7 @@
             "key": "expense_scope",
             "type": "boolean",
             "label": "费用属住院（含家庭病床）或门诊特定病种",
+            "ask": "费用是否发生在住院（含家庭病床）或门诊特定病种",
             "requirement": "费用发生在住院（含家庭病床）或门诊特定病种，且属基本医疗保险规定的支付范围",
             "source_ref": "佛医保〔2023〕47号 第十二条、第十三条"
           },
@@ -412,6 +459,7 @@
             "key": "tilted_group",
             "type": "boolean",
             "label": "是否属大病保险倾斜政策困难群体",
+            "ask": "是否属于大病保险倾斜政策困难群体",
             "requirement": "属上级文件规定大病保险倾斜政策困难群体的参保人员",
             "source_ref": "佛医保〔2023〕47号 第十四条、第二十六条"
           }
@@ -430,7 +478,9 @@
             "label": "困难群体起付标准",
             "value": 2000,
             "unit": "元/医保年度",
-            "applies_to": ["tilted_group"],
+            "applies_to": [
+              "tilted_group"
+            ],
             "note": "属大病保险倾斜政策困难群体的参保人员适用",
             "source_ref": "佛医保〔2023〕47号 第十四条"
           },
@@ -518,7 +568,10 @@
         "倾斜政策困难群体"
       ],
       "green_note": {
-        "anchors": ["少跑动", "无纸化"],
+        "anchors": [
+          "少跑动",
+          "无纸化"
+        ],
         "citations": [
           {
             "point": "即时结算一次办结，无需个人垫付后分头报销",
@@ -549,6 +602,7 @@
             "key": "insurance",
             "type": "boolean",
             "label": "参加本市基本医疗保险",
+            "ask": "老人是否已参加佛山市基本医疗保险",
             "requirement": "已参加佛山市基本医疗保险",
             "source_ref": "佛医保〔2023〕57号"
           },
@@ -556,6 +610,7 @@
             "key": "disease_in_catalog",
             "type": "boolean",
             "label": "所患疾病属门诊特定病种目录范围",
+            "ask": "所患疾病是否在门诊特定病种目录内",
             "requirement": "所患疾病在佛山市门诊特定病种目录内，并经规定程序确认",
             "source_ref": "佛医保〔2023〕57号",
             "to_verify": true
@@ -633,7 +688,9 @@
         "续期"
       ],
       "green_note": {
-        "anchors": ["少跑动"],
+        "anchors": [
+          "少跑动"
+        ],
         "citations": [],
         "disclaimer": "本条为政策原文的流程性说明，不构成任何碳减排量化承诺。"
       }
@@ -661,6 +718,7 @@
             "key": "expense_type",
             "type": "boolean",
             "label": "属支出型救助对象情形",
+            "ask": "是否因疾病治疗、护理等必需支出突然增加，导致基本生活出现严重困难",
             "requirement": "因疾病治疗、病残护理、老幼照料等必需支出超出家庭承受能力，导致基本生活一定时期内出现严重困难",
             "source_ref": "佛民办〔2021〕98号 第七条"
           },
@@ -668,6 +726,7 @@
             "key": "income_ratio",
             "type": "ratio_condition",
             "label": "家庭收入与必需支出比例条件",
+            "ask": "家庭生活必需支出是否超过家庭年度可支配收入的 30%",
             "requirement": "申请之日前 12 个月内，家庭人均可支配收入低于本市上年度人均可支配收入，且家庭生活必需支出仍超过该家庭年度可支配收入的 30%",
             "ratio": 0.3,
             "source_ref": "佛民办〔2021〕98号 第八条"
@@ -676,6 +735,7 @@
             "key": "property_condition",
             "type": "boolean",
             "label": "家庭财产状况符合规定",
+            "ask": "家庭财产状况是否符合本市低收入家庭规定",
             "requirement": "家庭财产状况参照本市低收入家庭的有关规定进行认定",
             "source_ref": "佛民办〔2021〕98号 第八条"
           },
@@ -683,11 +743,24 @@
             "key": "residency",
             "type": "enum",
             "label": "申请地身份条件",
+            "ask": "符合以下哪一项身份条件",
             "options": [
-              { "value": "ben_shi_huji", "label": "本市户籍人员" },
-              { "value": "lianxu_12yue", "label": "在本市连续居住超过 12 个月的非本市户籍人员" },
-              { "value": "gaoxiao_xuesheng", "label": "本市各类全日制普通高等院校学生" },
-              { "value": "none", "label": "以上都不是" }
+              {
+                "value": "ben_shi_huji",
+                "label": "本市户籍人员"
+              },
+              {
+                "value": "lianxu_12yue",
+                "label": "在本市连续居住超过 12 个月的非本市户籍人员"
+              },
+              {
+                "value": "gaoxiao_xuesheng",
+                "label": "本市各类全日制普通高等院校学生"
+              },
+              {
+                "value": "none",
+                "label": "以上都不是"
+              }
             ],
             "source_ref": "佛民办〔2021〕98号 第十一条"
           }
@@ -810,7 +883,10 @@
         "家庭经济状况核对"
       ],
       "green_note": {
-        "anchors": ["一次性告知", "少跑动"],
+        "anchors": [
+          "一次性告知",
+          "少跑动"
+        ],
         "citations": [
           {
             "point": "材料不齐全时一次性告知全部补正内容，避免反复往返",
@@ -851,6 +927,7 @@
             "key": "insurance",
             "type": "boolean",
             "label": "参加佛山市基本医疗保险",
+            "ask": "是否已参加佛山市基本医疗保险",
             "requirement": "佛山市基本医疗保险参保人员",
             "source_ref": "健康·佛医保 2026 年度待遇责任细则"
           }
@@ -923,7 +1000,9 @@
         "按年度投保"
       ],
       "green_note": {
-        "anchors": ["无纸化"],
+        "anchors": [
+          "无纸化"
+        ],
         "citations": [],
         "disclaimer": "本条为政策原文的流程性说明，不构成任何碳减排量化承诺。"
       }

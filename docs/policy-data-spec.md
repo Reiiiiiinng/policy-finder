@@ -80,7 +80,7 @@
 | --- | --- | --- |
 | `effective_from` | date \| null | 施行日期 |
 | `expires_at` | date \| null | 失效日期；政策未写明时为 `null` |
-| `status` | enum | `active` / `expiring` / `expired` / `superseded` |
+| `status` | enum | 数据层只取 `active` / `expired` / `superseded`；`expiring` 由引擎按 `expires_at` 派生，**不写死在数据里** |
 | `superseded_by` | object \| null | 被哪份新文件替代，含 `name` 与 `document_no` |
 | `verified_at` | date | **最后一次人工核对官网的日期** |
 
@@ -168,6 +168,7 @@
       "key": "family_economic",
       "type": "enum",
       "label": "家庭经济状况认定",
+      "ask": "家里是否已取得特困人员 / 低保 / 低保边缘 / 支出型困难家庭认定",
       "options": [
         { "value": "tekun",       "label": "特困人员" },
         { "value": "di_bao",      "label": "最低生活保障对象" },
@@ -199,9 +200,11 @@
 **硬性约定**
 
 1. `qualify` 里的每一项都必须能被用户**自判**（是 / 否 / 不确定），或从有限选项中选出。不能自判的条件不入 `qualify`，改写进 `missing_information`。
-2. `thresholds` 的 `value` **只用于内部比较**，任何页面渲染路径都不得直接输出该数值。
-3. `result_params` 只声明「存在比例 / 金额」，**不存数值**。
-4. 每一条条件、阈值都必须带 `source_ref`，精确到条款号。核不到原文的，整条不写。
+2. 每个 `qualify` 项都必须带 `ask`——面向用户的提问文案。**文案归数据，引擎不生成**，否则多城市扩展时文案会散落在代码里。
+3. `thresholds` 的 `value` **只用于内部比较**，任何页面渲染路径都不得直接输出该数值。
+4. `result_params` 只声明「存在比例 / 金额」，**不存数值**。
+5. 每一条条件、阈值都必须带 `source_ref`，精确到条款号。核不到原文的，整条不写。
+6. 阈值为**公式**而非固定数值时（如「本市上上年度城镇单位在岗职工年平均工资的 7 倍」），`value` 置 `null`，改用 `formula` 存原文表述。
 
 ### 4.3 source
 
