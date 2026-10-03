@@ -197,7 +197,14 @@ class Handler(SimpleHTTPRequestHandler):
             return _json(self, {"profile": profile, "disclaimer": DISCLAIMER})
 
         if path == "/api/match":
-            # 支持两种入参：直接给文本，或给已确认的画像（前端家庭协助页会补充字段）
+            # 入参分两类，来源不同、处理方式必须不同：
+            #   1) 由本次文本解析出来的（年龄 / 地区 / 生活场景 / 自述自付金额）
+            #      —— 一律以本次 text 为准，绝不沿用上一轮画像。
+            #   2) 由用户明确作答得来的（户籍 / 医保 / 失能 / 家庭经济认定）
+            #      —— 文本里推不出来，必须沿用，否则用户答过的问题会被反复问。
+            # 曾经把 1) 也从上一轮画像里沿用（age / region / scenes 并集），
+            # 导致用户改完描述再匹配时旧画像残留：AI 分析依据会显示上一次的
+            # 年龄与地区，结果条数也虚高。这是对「可核对」这一核心承诺的直接破坏。
             text = payload.get("text", "")
             base = payload.get("profile") or {}
             mode = payload.get("mode") or base.get("mode")
@@ -205,17 +212,18 @@ class Handler(SimpleHTTPRequestHandler):
                 text=text,
                 relation=base.get("relation") or payload.get("relation"),
                 operator=base.get("operator") or payload.get("operator"),
-                age=base.get("age"),
-                region=base.get("region"),
+                age=payload.get("age"),
+                region=payload.get("region"),
                 mode=mode,
             )
-            for key in ("hukou", "insurance", "disability"):
+            # 只沿用用户明确作答过的事实
+            for key in ("hukou", "insurance", "disability", "family_economic"):
                 if key in base and base[key] is not None:
                     profile[key] = base[key]
-            if base.get("scenes"):
-                profile["scenes"] = sorted(set(profile["scenes"]) | set(base["scenes"]))
-            # 用户在「情况确认台」手动增删生活事件后，重新解析的 scenes
-            # 可以作为最终结果（replace 语义），用于人机协同纠正 AI 的识别。
+            # 用户在「情况确认台」手动增删生活事件后，其清单作为最终结果
+            # （replace 语义），用于人机协同纠正 AI 的识别。
+            # 注意：这里只在用户确实编辑过时才覆盖，不做「与旧场景取并集」，
+            # 否则改了描述旧场景也清不掉。
             if isinstance(base.get("confirmed_scenes"), list):
                 profile["scenes"] = sorted(set(base["confirmed_scenes"]))
                 # 回传用户已确认的事件清单：前端每次匹配后都会用返回的 profile
