@@ -80,6 +80,30 @@ def main():
     check("场景被替换", sorted(m2["profile"]["scenes"]) ==
           sorted(["行动不便", "长期卧床", "年龄增长"]) and "独居" not in m2["profile"]["scenes"],
           m2["profile"]["scenes"])
+    check("回传 confirmed_scenes", m2["profile"].get("confirmed_scenes") is not None,
+          m2["profile"].get("confirmed_scenes"))
+    check("标记 scenes_edited", m2["profile"].get("scenes_edited") is True)
+
+    # 回归：用户纠正事件后，再回答硬条件问题不能把纠正结果丢掉
+    m2b = call("/api/match", {"text": "我父亲72岁，一个人在广州生活，最近行动不方便。",
+                              "relation": "父亲",
+                              "profile": {"confirmed_scenes": ["行动不便", "长期卧床", "年龄增长"],
+                                          "scenes_edited": True,
+                                          "hukou": True}})
+    check("纠正后再答硬条件，场景不丢", sorted(m2b["profile"]["scenes"]) ==
+          sorted(["行动不便", "长期卧床", "年龄增长"]), m2b["profile"]["scenes"])
+
+    # 只传 scenes_edited + confirmed_scenes（不带本次列表）也要沿用
+    m2c = call("/api/match", {"text": "我父亲72岁，一个人在广州生活，最近行动不方便。",
+                              "relation": "父亲",
+                              "profile": {"scenes_edited": True,
+                                          "confirmed_scenes": ["长期卧床"],
+                                          "insurance": True}})
+    check("沿用上次确认的事件", m2c["profile"]["scenes"] == ["长期卧床"], m2c["profile"]["scenes"])
+
+    # 未纠正过时不应出现 scenes_edited
+    m2d = call("/api/match", {"text": "我父亲72岁，一个人在广州生活。", "relation": "父亲"})
+    check("未纠正时无 scenes_edited", "scenes_edited" not in m2d["profile"])
 
     print("== 硬条件三值 ==")
     a = call("/api/match", {"text": "我父亲72岁在广州行动不便", "relation": "父亲",

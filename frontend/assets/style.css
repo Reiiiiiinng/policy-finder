@@ -3408,3 +3408,15 @@ input:focus {
   color: var(--muted);
   line-height: 1.6;
 }
+
+/* 情况确认台：用户已纠正过生活事件时的提示 */
+.board-edited {
+  font-size: 12px;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  border-radius: var(--radius-pill);
+  padding: 4px 11px;
+  margin: 0 0 10px;
+  font-weight: 700;
+  display: inline-block;
+}

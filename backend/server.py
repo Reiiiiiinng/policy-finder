@@ -70,6 +70,26 @@ def _tier_summary(results):
     return [{"tier": k, "count": counts[k]} for k in order if counts[k]]
 
 
+# ---------------------------------------------------------------- 端到端自测日志接收
+# 仅供 .tools/e2e.py 使用：把浏览器里跑出来的断言结果收进内存，供脚本读取。
+# 不参与任何业务逻辑，收到 /api/health 的 reset 时清空。
+E2E_LOG = {"lines": [], "mode": None, "done": False}
+
+
+def _e2e_record(payload):
+    mode = payload.get("mode") or "unknown"
+    if E2E_LOG["mode"] not in (None, mode):
+        E2E_LOG["lines"] = []
+        E2E_LOG["done"] = False
+    E2E_LOG["mode"] = mode
+    E2E_LOG["lines"].append({
+        "line": payload.get("line", ""),
+        "cls": payload.get("cls", ""),
+    })
+    if "通过" in str(payload.get("line", "")) or payload.get("done"):
+        E2E_LOG["done"] = True
+
+
 def _detail(policy, profile=None):
     data = dict(policy)
     data["rag_text"] = engine.build_rag_text(policy)
@@ -93,6 +113,19 @@ class Handler(SimpleHTTPRequestHandler):
                 "version": DB.get("version"),
                 "policy_count": len(DB.get("policies", [])),
                 "disclaimer": DISCLAIMER,
+            })
+
+        if path == "/__e2e_log":
+            # GET：?peek=1 只读取不重置，供测试脚本轮询；否则重置
+            if "peek" not in (urlparse(self.path).query or ""):
+                E2E_LOG["lines"] = []
+                E2E_LOG["done"] = False
+                E2E_LOG["mode"] = None
+                return _json(self, {"ok": True, "reset": True})
+            return _json(self, {
+                "mode": E2E_LOG["mode"],
+                "done": E2E_LOG["done"],
+                "lines": E2E_LOG["lines"],
             })
 
         if path == "/api/policies":
@@ -185,6 +218,18 @@ class Handler(SimpleHTTPRequestHandler):
             # 可以作为最终结果（replace 语义），用于人机协同纠正 AI 的识别。
             if isinstance(base.get("confirmed_scenes"), list):
                 profile["scenes"] = sorted(set(base["confirmed_scenes"]))
+                # 回传用户已确认的事件清单：前端每次匹配后都会用返回的 profile
+                # 覆盖本地存储，若不回传就会丢掉用户的纠正结果。
+                profile["confirmed_scenes"] = list(profile["scenes"])
+                profile["scenes_edited"] = True
+            elif base.get("scenes_edited"):
+                # 用户此前纠正过事件，但这次没再传 confirmed_scenes：
+                # 沿用上次已确认的结果，不退回 AI 的初始识别。
+                prev = base.get("confirmed_scenes")
+                if isinstance(prev, list):
+                    profile["scenes"] = sorted(set(prev))
+                profile["confirmed_scenes"] = list(profile["scenes"])
+                profile["scenes_edited"] = True
 
             profile["missing_fields"] = engine.profile_missing_fields(profile)
             results = engine.match_policies(DB, profile)
@@ -216,7 +261,19 @@ class Handler(SimpleHTTPRequestHandler):
                 "disclaimer": DISCLAIMER,
             })
 
+        if path == "/__e2e_log":
+            _e2e_record(payload)
+            return _json(self, {"ok": True})
+
         return _json(self, {"error": "unknown api"}, 404)
+
+    def do_OPTIONS(self):
+        # 仅供本机端到端自测页面回传断言结果，不涉及任何业务数据
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), fmt % args))

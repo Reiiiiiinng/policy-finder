@@ -700,6 +700,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
         这些是 AI 从您的描述里读到的。请核对一下：认错了就点掉，漏了就在下面补上——
         您的确认会直接改变匹配结果。
       </p>
+      ${profile.scenes_edited ? '<p class="board-edited">已按您的确认调整过，下面是调整后的情况。</p>' : ''}
       <div class="scene-chips is-on">${chips(detected, 'on')}</div>
       ${optional.length ? `
         <div class="board-sub">可能还有这些情况，如果符合请点一下</div>

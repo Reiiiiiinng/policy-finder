@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>measure</title>
+<style>
+  body { margin:0; font:12px/1.5 monospace; background:#111; color:#0f0; }
+  #out { padding:6px; white-space:pre-wrap; word-break:break-all; }
+  iframe { width:430px; height:1200px; border:0; display:block; background:#fff; }
+</style>
+</head>
+<body>
+<div id="out">measuring…</div>
+<iframe id="f"></iframe>
+<script>
+  // 用 query 参数指定被测页面：_measure.html?p=discover.html
+  var page = new URLSearchParams(location.search).get('p') || 'index.html';
+  var f = document.getElementById('f');
+  var out = document.getElementById('out');
+
+  function report() {
+    try {
+      var d = f.contentDocument.documentElement;
+      var wide = [];
+      d.querySelectorAll('*').forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.right > d.clientWidth + 1) {
+          var cls = (typeof el.className === 'string') ? el.className : '';
+          wide.push(el.tagName + '.' + cls.slice(0, 24) + '@' + Math.round(r.right));
+        }
+      });
+      out.textContent = 'page=' + page +
+        '  clientW=' + d.clientWidth +
+        '  scrollW=' + d.scrollWidth +
+        '  overflow=' + (d.scrollWidth > d.clientWidth + 1 ? 'YES' : 'no') +
+        '  wideCount=' + wide.length +
+        '\n' + (wide.slice(0, 8).join('\n') || '(no overflowing elements)');
+      out.style.color = (d.scrollWidth > d.clientWidth + 1) ? '#f66' : '#0f0';
+    } catch (e) {
+      out.textContent = 'ERR ' + e.message;
+    }
+  }
+
+  f.addEventListener('load', function () {
+    setTimeout(report, 600);
+    setTimeout(report, 1600);
+  });
+  f.src = '/' + page;
+</script>
+</body>
+</html>

@@ -224,6 +224,8 @@
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
         const viewportY = btn.getBoundingClientRect().top;
         btn.disabled = true;
+        // 保留用户已确认的生活事件：后端会把 scenes_edited / confirmed_scenes
+        // 回传，这里只需原样带过去，避免重新匹配时退回 AI 的初始识别。
         const profile = Object.assign({}, current.profile, { [key]: value });
         store.write({ profile: profile });
         runMatch({ restore: { key: key, value: raw, viewportY: viewportY }, keepHeight: true });
@@ -237,7 +239,10 @@
       const btn = document.querySelector('[data-scene="' + CSS.escape(
         (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
       const viewportY = btn ? btn.getBoundingClientRect().top : 0;
-      const profile = Object.assign({}, current.profile, { confirmed_scenes: scenes });
+      const profile = Object.assign({}, current.profile, {
+        confirmed_scenes: scenes,
+        scenes_edited: true,
+      });
       store.write({ profile: profile });
       runMatch({
         restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },

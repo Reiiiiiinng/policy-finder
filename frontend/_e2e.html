@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>e2e</title>
+<style>
+  body{margin:0;font:12px/1.55 monospace;background:#111;color:#0f0}
+  #log{padding:8px;white-space:pre-wrap;word-break:break-all;max-height:640px;overflow:auto}
+  iframe{width:430px;height:900px;border:0;background:#fff}
+  .ok{color:#0f0}.bad{color:#f66}
+</style>
+</head>
+<body>
+<div id="log">running…</div>
+<iframe id="f" src="/index.html"></iframe>
+<script>
+/*
+ * 端到端流程自测：在真实浏览器里跑完
+ *   首页 → 家庭协助 → 描述 → 情况确认台 → 结果分层 → 证据链 → 详情页 → 进一步确认
+ * 逐步断言关键节点是否出现，并把结果打印到页面上（便于截图核对）。
+ *   e2e.html   家庭模式
+ *   e2e.html?mode=self  本人模式
+ */
+var MODE = new URLSearchParams(location.search).get('mode') || 'family';
+var log = document.getElementById('log');
+var f = document.getElementById('f');
+var pass = 0, fail = 0;
+var lines = [];
+
+function out(s, cls) {
+  lines.push(cls ? '<span class="' + cls + '">' + s + '</span>' : s);
+  log.innerHTML = lines.join('\n');
+  // 同步结果回服务端：截图受虚拟时间限制，异步断言跑不完，
+  // 改为把结果 POST 出来，由测试脚本读取，避免依赖截图时机。
+  try {
+    fetch('/__e2e_log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: MODE, line: String(s), cls: cls || '' }),
+    });
+  } catch (e) { /* 忽略 */ }
+}
+
+var STARTED = false;
+function check(name, cond, extra) {
+  if (cond) { pass++; out('  ok   ' + name, 'ok'); }
+  else { fail++; out('  FAIL ' + name + (extra ? '  -> ' + extra : ''), 'bad'); }
+}
+function W() { return f.contentWindow; }
+function D() { return f.contentDocument; }
+function q(sel) { return D().querySelector(sel); }
+function qa(sel) { return Array.prototype.slice.call(D().querySelectorAll(sel)); }
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+async function waitFor(fn, ms, label) {
+  var t0 = Date.now();
+  while (Date.now() - t0 < (ms || 8000)) {
+    try { if (fn()) return true; } catch (e) {}
+    await sleep(120);
+  }
+  out('  ..timeout waiting: ' + label);
+  return false;
+}
+
+function seed() {
+  // 直接写入 sessionStorage，跳过首页点击，等价于用户已在首页选好入口
+  var base = { operator: '女儿', beneficiary: '父亲', confirmed: true, text: '', profile: {}, selfText: '', selfProfile: {} };
+  try { sessionStorage.setItem('policy_finder_session', JSON.stringify(base)); } catch (e) {}
+}
+
+async function run() {
+  out('=== 端到端流程自测（' + MODE + ' 模式）===');
+
+  // ---------- 1. 情况确认台 ----------
+  f.src = '/' + (MODE === 'self' ? 'self.html' : 'discover.html');
+  await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
+  seed();
+  // seed 必须在页面脚本后写入再刷新，确保 session 生效
+  f.contentWindow.location.reload();
+  await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
+  await sleep(300);
+
+  var ta = q('#situation');
+  check('描述输入框存在', !!ta);
+  ta.value = MODE === 'self'
+    ? '我72岁，一个人在广州生活，最近行动不方便。'
+    : '我父亲72岁，一个人在广州生活，最近行动不方便。';
+  q('#discoverBtn').click();
+
+  var gotBoard = await waitFor(function () { return q('.board'); }, 9000, '情况确认台');
+  check('情况确认台已渲染', gotBoard);
+  check('流程指示器存在', qa('.flow-step').length === 4, 'count=' + qa('.flow-step').length);
+  // 匹配完成后流程应推进到第2步「发现权益」，第1步变为已完成
+  var act = q('.flow-step.is-active');
+  check('流程已推进到第2步', act && act.textContent.indexOf('发现权益') >= 0,
+    act ? act.textContent.replace(/\s+/g, ' ') : 'null');
+  check('第1步标记为已完成', !!q('.flow-step.is-done'));
+  check('生活事件 chip 已渲染', qa('[data-scene]').length > 3, 'n=' + qa('[data-scene]').length);
+  var onChips = qa('.scene-chip.is-on').map(function (e) { return e.dataset.scene; });
+  check('AI 识别到的事件已选中', onChips.length >= 2, onChips.join(','));
+  check('关键条件三值按钮存在', qa('[data-confirm]').length === 9, 'n=' + qa('[data-confirm]').length);
+  check('关系条存在（家庭协助轴）',
+    MODE === 'self' ? true : !!q('.rel-strip'), MODE === 'self' ? '本人模式不显示' : 'missing');
+
+  // ---------- 2. 人机协同：增删生活事件 ----------
+  var before = qa('.scene-chip.is-on').length;
+  var offChip = q('.scene-chip.is-on');
+  var offName = offChip && offChip.dataset.scene;
+  offChip.click();
+  var afterRemove = await waitFor(function () {
+    return qa('.scene-chip.is-on').length !== before;
+  }, 8000, '事件移除后重匹配');
+  check('可移除 AI 识别的事件（人机协同）', afterRemove,
+    'before=' + before + ' now=' + qa('.scene-chip.is-on').length);
+
+  // 补回刚才移除的事件
+  var backChip = Array.prototype.find.call(qa('[data-scene]'), function (e) {
+    return e.dataset.scene === offName;
+  });
+  if (backChip) {
+    backChip.click();
+    await waitFor(function () {
+      return qa('.scene-chip.is-on').length === before;
+    }, 8000, '事件补回');
+  }
+  check('可补回生活事件', qa('.scene-chip.is-on').length === before,
+    'now=' + qa('.scene-chip.is-on').length);
+
+  // ---------- 3. 硬条件三值确认 ----------
+  var hukouYes = q('[data-confirm="hukou"][data-value="true"]');
+  hukouYes.click();
+  await waitFor(function () {
+    var b = q('.board-cond .bc-state');
+    return b && b.textContent.indexOf('是') >= 0;
+  }, 8000, '户籍已确认');
+  check('户籍可确认并回显', q('.board-cond .bc-state').textContent.indexOf('是') >= 0,
+    q('.board-cond .bc-state').textContent);
+  check('已选项高亮', q('[data-confirm="hukou"][data-value="true"]').className.indexOf('is-picked') >= 0);
+
+  // ---------- 4. 结果分层 ----------
+  var gotTier = await waitFor(function () { return q('.tier-groups'); }, 9000, '结果分层');
+  check('结果按分层展示', gotTier);
+  check('存在分层分组标题', qa('.tier-head').length >= 1, 'n=' + qa('.tier-head').length);
+  check('结果卡已渲染', qa('.result-card').length > 0, 'n=' + qa('.result-card').length);
+  check('强相关排在最前', q('.tier-head.tier-strong') !== null);
+  check('卡片保留查看详情入口', D().body.textContent.indexOf('查看详情与办理方式') >= 0);
+  check('无伪造能力文案',
+    !/自动办理|已认证|官方认证|保证(您)?符合/.test(D().body.textContent));
+
+  // ---------- 5. 证据链懒展开 ----------
+  var evBtn = q('[data-ev-toggle]');
+  check('证据链按钮存在', !!evBtn);
+  if (evBtn) {
+    evBtn.click();
+    var gotEv = await waitFor(function () { return q('.evidence'); }, 3000, '证据链展开');
+    check('证据链可展开', gotEv);
+    if (gotEv) {
+      var evTxt = q('.evidence').textContent;
+      check('证据链含「依据什么」', evTxt.indexOf('依据什么') >= 0);
+      check('证据链含「要求什么」', evTxt.indexOf('要求什么') >= 0);
+      check('证据链含「出自哪里」', evTxt.indexOf('出自哪里') >= 0);
+      check('证据链含真实文号或来源待核验',
+        /穗民|穗医保|来源待核验/.test(evTxt), evTxt.slice(0, 120));
+      check('证据链无资格断言', !/符合资格|已符合资格/.test(evTxt));
+    }
+  }
+
+  // ---------- 6. 详情页 ----------
+  var firstCard = q('.result-card');
+  var pid = firstCard && firstCard.dataset.id;
+  check('结果卡带 policy id', !!pid, String(pid));
+  var topBefore = W().scrollY;
+  firstCard.click();
+  await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
+  await waitFor(function () { return q('.final-step'); }, 9000, '详情页进一步确认');
+  check('详情页加载完成', !!q('.trust-card'));
+  check('详情页保留五问结构', qa('.detail-block').length >= 5, 'n=' + qa('.detail-block').length);
+  check('详情页有「去哪里核实」', D().body.textContent.indexOf('去哪里核实') >= 0);
+  check('详情页有来源信息', D().body.textContent.indexOf('责任部门') >= 0);
+
+  // 状态徽章：不再是硬编码「可能相关」
+  var badge = q('.badge');
+  check('状态徽章真实渲染', badge && badge.textContent.length > 0, badge && badge.textContent);
+
+  // ---------- 7. 第四步：进一步确认 ----------
+  var fsOpts = qa('.fs-opt');
+  check('进一步确认有三个选项', fsOpts.length === 3, 'n=' + fsOpts.length);
+  var verifyOpt = Array.prototype.find.call(fsOpts, function (b) { return b.dataset.fs === 'verify'; });
+  verifyOpt.click();
+  var gotMark = await waitFor(function () {
+    var m = q('#fsMark'); return m && m.textContent.indexOf('打算去核实') >= 0;
+  }, 3000, '表态记录');
+  check('可记录「打算去核实」', gotMark);
+  check('表态后显示提示语', q('#fsNote') && !q('#fsNote').hidden);
+
+  // 清除
+  var clr = q('#fsClear');
+  check('可清除表态', !!clr);
+  if (clr) { clr.click(); await sleep(200); }
+
+  // ---------- 8. 回到确认台（闭环） ----------
+  var backBtn = q('[id="fsFixScene"]');
+  check('提供「回去调整生活变化」入口', !!backBtn);
+  if (backBtn) {
+    backBtn.click();
+    await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
+    await waitFor(function () { return q('.scene-chips'); }, 9000, '回到确认台');
+    check('可回到情况确认台', !!q('.board'));
+  }
+
+  out('');
+  out('=== ' + MODE + ' 模式：通过 ' + pass + '，失败 ' + fail + ' ===',
+    fail ? 'bad' : 'ok');
+  document.title = (fail ? 'FAIL' : 'PASS') + '-' + MODE;
+}
+
+f.addEventListener('load', function () {
+  // 只触发一次：iframe 后续导航也会触发 load，需防止重复跑完整流程
+  if (STARTED) return;
+  STARTED = true;
+  setTimeout(function () {
+    run().catch(function (e) {
+      out('ERROR ' + e.message, 'bad');
+      out('=== ' + MODE + ' 模式：异常终止 ===', 'bad');
+    });
+  }, 300);
+});
+</script>
+</body>
+</html>

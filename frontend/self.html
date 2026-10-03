@@ -219,7 +219,11 @@
       const btn = document.querySelector('[data-scene="' + CSS.escape(
         (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
       const viewportY = btn ? btn.getBoundingClientRect().top : 0;
-      const profile = Object.assign({}, current.profile, { confirmed_scenes: scenes });
+      // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
+      const profile = Object.assign({}, current.profile, {
+        confirmed_scenes: scenes,
+        scenes_edited: true,
+      });
       store.write({ selfProfile: profile });
       runMatch({
         restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
