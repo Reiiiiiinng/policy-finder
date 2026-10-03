@@ -5,8 +5,9 @@
     python .tools/e2e.py            # 家庭模式 + 本人模式都跑
     python .tools/e2e.py family     # 只跑家庭模式
 
-原理：页面 frontend/_e2e.html 在 iframe 里逐步操作真实 UI，
-每条断言通过 fetch POST 到 /__e2e_log，本脚本轮询取回结果。
+原理：把 .tools/e2e_page.html 临时复制成 frontend/_e2e.html，
+该页面在 iframe 里逐步操作真实 UI，每条断言通过 fetch POST 到
+/__e2e_log，本脚本轮询取回结果。跑完自动删除临时文件。
 （截图受 --virtual-time-budget 限制跑不完异步断言，所以走数据回传。）
 """
 
@@ -21,6 +22,8 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = "http://127.0.0.1:8000"
+PAGE_SRC = os.path.join(ROOT, ".tools", "e2e_page.html")
+PAGE_DST = os.path.join(ROOT, "frontend", "_e2e.html")
 EDGE_CANDIDATES = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -110,9 +113,16 @@ def main():
         print("后端未启动，请先运行 python backend/server.py")
         return 1
 
+    # 临时把自测页面放进可访问目录
+    shutil.copyfile(PAGE_SRC, PAGE_DST)
+
     total = 0
-    for m in modes:
-        total += run_mode(edge, m, shots)
+    try:
+        for m in modes:
+            total += run_mode(edge, m, shots)
+    finally:
+        if os.path.exists(PAGE_DST):
+            os.remove(PAGE_DST)
 
     print("\n端到端自测%s：总失败 %d" % ("失败" if total else "通过", total))
     return 1 if total else 0
