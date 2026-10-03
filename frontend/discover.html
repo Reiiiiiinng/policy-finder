@@ -59,6 +59,8 @@
   mountRelationStrip();
 
   const session = store.read();
+  // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
+  const RETURN_PID = consumeReturnParam();
   const EXAMPLE = '我父亲72岁，一个人在广州生活，最近行动不方便。';
 
   const input = document.getElementById('situation');
@@ -172,25 +174,34 @@
 
     // 从政策详情返回时，恢复进入详情前的滚动位置并高亮刚看过的政策。
     // 只在有有效记录时执行，不影响正常的补充信息局部刷新。
-    if (opts.restorePosition) restoreListPosition();
+    if (opts.restorePosition && !RETURN_PID) restoreListPosition();
+
+    // 带着「刚才查看的那条政策」返回：在新结果里重新定位。
+    // 首次进来不抢滚动（让 applyFocus 把用户送到要调整的那个区块）；
+    // 用户改完条件触发局部重匹配后再滚动过去，此时由它接管滚动。
+    const returnTookOver = applyReturnPolicy(data.results, {
+      pid: RETURN_PID, scroll: !!isRefresh,
+    });
 
     if (isRefresh) showToast('已根据您的确认重新匹配');
 
-    if (opts.restore) restorePosition(opts.restore);
-    else if (opts.scrollToResult) {
-      const anchor = area.firstElementChild;
-      if (anchor) {
-        window.scrollTo({
-          top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12),
-          behavior: 'smooth',
-        });
+    if (!returnTookOver) {
+      if (opts.restore) restorePosition(opts.restore);
+      else if (opts.scrollToResult) {
+        const anchor = area.firstElementChild;
+        if (anchor) {
+          window.scrollTo({
+            top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12),
+            behavior: 'smooth',
+          });
+        }
       }
     }
 
     if (isRefresh) {
       requestAnimationFrame(() => {
         area.style.minHeight = '';
-        if (opts.restore) restorePosition(opts.restore);
+        if (opts.restore && !returnTookOver) restorePosition(opts.restore);
       });
     }
   }
@@ -275,7 +286,7 @@
     bindResultGroups();
   }
 
-  // 从详情页「回去调整」带 focus 参数时，滚动到对应区块
+  // 从详情页「回去调整」带 focus 参数回来时，滚动到对应区块
   function applyFocus() {
     const f = query('focus');
     if (!f) return;
@@ -290,11 +301,11 @@
   }
 
   // 已输入过则自动跑一次，方便从详情页返回。
-  // restorePosition 只在真的有返回记录时才恢复滚动，
-  // 有 ?focus= 参数时（从详情页主动回跳调整）优先按focus 定位。
+  // restorePosition 只在真的有返回记录时才恢复滚动；
+  // 带 focus 参数时（从详情页「回去调整」过来）优先按区块定位。
   if (session.text && !session.demo) {
-    const opt = { restorePosition: true };
-    if (query('focus')) { opt.scrollToResult = false; opt.restorePosition = false; }
+    const hinted = !!query('focus');
+    const opt = { restorePosition: !hinted, scrollToResult: !hinted };
     runMatch(opt).then(applyFocus);
   }
 </script>

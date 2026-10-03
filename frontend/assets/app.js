@@ -590,32 +590,67 @@ function mountRelationStrip() {
 }
 
 /**
- * 真正的「返回上一页」。
+ * 顶部返回：明确回到「父页面」，不依赖浏览器历史。
  *
- * 原来所有页面的返回都是写死的 href（如详情页 → discover.html，
- * 家庭协助页 → index.html），导致从详情页点返回会跳过发现结果页直接回首页。
- * 现在改为：优先用浏览历史回上一页；没有可用历史时才退回 href。
+ * 为什么不能只靠 history.back()：
+ *   history.length 是整个历史栈的**总长度**，不是当前位置。用户刷新过、
+ *   直接打开过链接、或者用过浏览器前进/后退之后，history.length 依然 > 1，
+ *   但身后可能已无可退的记录——此时 history.back() 要么无效，要么把用户
+ *   弹出站点。更糟的是一旦某个中间环节多压了一条历史，返回就会在
+ *   「发现权益」和「进一步确定」之间来回弹。
  *
- * 为什么不能只用 history.back()：
- *   - 浏览器要求 history.back() 必须由用户手势触发，异步里调用会被拦截；
- *   - 直接打开页面（如刷新后、新标签页）时没有上一页可回。
- * 所以做成 <a href="兜底"> + 点击时优先 history.back() 的形式，
- * 保留 href 既是无JS/无历史时的兜底，也保留了中键新窗口打开等原生行为。
+ * 现在每个页面在渲染顶部栏时登记自己的父页面，返回时直接跳过去，
+ * 层级关系是写死的，不受历史栈状态影响：
+ *   家庭协助 / 本人入口 → 发现权益 → 进一步确定（政策详情）
+ *
+ * 用 location.replace 而不是 location.href：返回时把当前页替换掉，
+ * 历史栈深度不会增长，避免浏览器前进/后退又绕回详情页。
  */
-function backOrFallback(fallbackHref) {
-  // 没有历史记录，或只有当前这一页 → 直接走兜底
-  if (!history.length || history.length <= 1) {
-    location.href = fallbackHref;
-    return;
-  }
-  // document.referrer 为空说明不是从站内页面点进来的（例如直接粘贴 URL），
-  // 此时回退可能退到外站，先记录来源，避免用户被带回站外。
-  const ref = document.referrer;
-  if (!ref) {
-    location.href = fallbackHref;
-    return;
-  }
-  history.back();
+const NAV_PARENT_PREFIX = 'pf_parent_';
+
+/** 当前页面标识（用于按页面登记父级） */
+function navPageKey() {
+  const p = String(location.pathname || '').split('/').pop();
+  return p || 'index.html';
+}
+
+/** 登记本页的父页面 */
+function registerNavParent(parentHref) {
+  try {
+    sessionStorage.setItem(NAV_PARENT_PREFIX + navPageKey(), parentHref || '');
+  } catch (e) { /* 隐私模式下忽略 */ }
+}
+
+/**
+ * 解析本页的父页面。优先级：
+ *   1) URL 上的 ?from=xxx.html（显式指定来源，便于将来新增入口）
+ *   2) 进入本页时登记的父页面
+ *   3) 页面自身的默认值
+ */
+function resolveNavParent(defaultHref) {
+  try {
+    const from = new URLSearchParams(location.search).get('from');
+    if (from && /^[\w-]+\.html$/.test(from)) return from;
+  } catch (e) { /* ignore */ }
+  try {
+    const v = sessionStorage.getItem(NAV_PARENT_PREFIX + navPageKey());
+    if (v) return v;
+  } catch (e) { /* ignore */ }
+  return defaultHref || '';
+}
+
+/** 执行返回：明确跳到父页面 */
+function goToParent(defaultHref) {
+  const parent = resolveNavParent(defaultHref);
+  // 连父页面都拿不到时（不应发生），兜底回首页，绝不把用户弹出站点
+  location.replace(parent || 'index.html');
+}
+
+/** 父页面在渲染后才确定时（如详情页要先判断是否本人模式），更新顶部返回 */
+function updateTopbarParent(parentHref) {
+  registerNavParent(parentHref);
+  const el = document.querySelector('.back-link');
+  if (el) el.setAttribute('href', parentHref);
 }
 
 /** 结果位置记忆：进入详情前记下滚动位置与政策 id，返回时恢复 */
@@ -699,6 +734,186 @@ function highlightPolicy(policyId) {
   card.classList.add('is-just-viewed');
   // 展开时可能被其他元素遮住，短暂聚焦即可
   setTimeout(function () { card.classList.remove('is-just-viewed'); }, 2600);
+}
+
+/* ================================================================
+   带着「刚才查看的那条政策」返回
+   ----------------------------------------------------------------
+   场景：在详情页点「回去调整生活变化 / 回去补充关键条件」→ 回到发现权益
+   → 改完条件自动重新匹配 → 结果顺序可能全变了，刚才那条要重新找。
+
+   与上面的「恢复滚动位置」是两件事：
+     恢复滚动位置 —— 位置没变，把视口挪回去；
+     本机制        —— 结果已经变了，按 policy_id 在**新结果**里重新定位。
+
+   约定：
+     · 唯一标识只用 policy_id，不用政策标题（标题可能重复/改写）；
+     · 详情页进入时记录当前 id + 名称；
+     · 只有点「回去调整」才通过 ?back=<policy_id> 触发定位；
+       顶部返回不带这个参数，因此原有返回行为完全不变。
+   ================================================================ */
+const RETURN_KEY = 'pf_return_policy';
+const RETURN_MAX_AGE = 30 * 60 * 1000;
+
+/** 进入政策详情时记录：当前政策 id（唯一标识）+ 名称（仅用于提示文案） */
+function saveReturnPolicy(policyId, policyName) {
+  if (!policyId) return;
+  try {
+    sessionStorage.setItem(RETURN_KEY, JSON.stringify({
+      id: policyId,
+      name: policyName || '',
+      t: Date.now(),
+    }));
+  } catch (e) { /* 隐私模式下忽略 */ }
+}
+
+function readReturnPolicy() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(RETURN_KEY) || 'null');
+    if (!v || !v.id) return null;
+    if (Date.now() - (v.t || 0) > RETURN_MAX_AGE) {
+      sessionStorage.removeItem(RETURN_KEY);
+      return null;
+    }
+    return v;
+  } catch (e) { return null; }
+}
+
+/**
+ * 接住详情页带回的 ?back=<policy_id>。
+ * 读完立刻把参数从地址栏去掉：刷新后不会重复提示，
+ * 也不会把内部参数留在可分享的链接里。
+ */
+function consumeReturnParam() {
+  try {
+    const pid = new URLSearchParams(location.search).get('back');
+    if (!pid) return '';
+    const u = new URL(location.href);
+    u.searchParams.delete('back');
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+    return pid;
+  } catch (e) { return ''; }
+}
+
+function removeReturnBar() {
+  document.querySelectorAll('[data-return-bar]').forEach((el) => el.remove());
+}
+
+function returnBarHtml(o) {
+  if (o.gone) {
+    return `
+      <div class="return-bar is-gone" data-return-bar role="status">
+        <div class="rb-icon" aria-hidden="true">○</div>
+        <div class="rb-main">
+          <div class="rb-title">调整后，这项政策暂未继续匹配</div>
+          <div class="rb-sub">${escapeHtml(o.sub || '')}</div>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="return-bar" data-return-bar role="status">
+      <div class="rb-icon" aria-hidden="true">↩</div>
+      <div class="rb-main">
+        <div class="rb-title">你刚才查看的是这项政策</div>
+        <div class="rb-sub">${escapeHtml(o.name || '')}</div>
+      </div>
+      <button type="button" class="rb-go" data-return-go="${escapeHtml(o.pid)}">继续查看 →</button>
+    </div>`;
+}
+
+/** 提示条上的「继续查看」：与点卡片进详情走同一条路 */
+function bindReturnBar() {
+  const bar = document.querySelector('[data-return-bar]');
+  if (!bar) return;
+  const go = bar.querySelector('[data-return-go]');
+  if (!go) return;
+  go.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const pid = go.dataset.returnGo;
+    saveListPosition(pid);          // 返回时仍能回到这个位置
+    location.href = 'policy.html?id=' + encodeURIComponent(pid);
+  });
+}
+
+/** 卡片落在折叠区里时展开折叠区，否则滚不过去。
+    只改视觉展开、不写 sessionStorage，避免改变用户自己的折叠偏好。 */
+function openMoreGroupIfNeeded(card) {
+  if (!card || !card.closest('[data-more-body]')) return;
+  const btn = document.getElementById('moreToggle');
+  if (!btn || btn.getAttribute('aria-expanded') === 'true') return;
+  applyMoreExpanded(true);
+}
+
+function scrollToReturnCard(pid) {
+  const card = document.querySelector('.result-card[data-id="' + CSS.escape(pid) + '"]');
+  if (!card) return;
+  highlightPolicy(pid);
+  // 折叠区展开有过渡动画，高度要等一会儿才稳定，多试几轮。
+  // 用瞬时 scrollTo 而不是 smooth：列表刚整体重建，本就已经换了内容，
+  // 平滑滚动在这里只会拖慢定位（且与 restoreListPosition 的既有做法保持一致）。
+  const tryScroll = function () {
+    const top = card.getBoundingClientRect().top + window.scrollY - 76;
+    window.scrollTo(0, Math.max(0, top));
+  };
+  requestAnimationFrame(tryScroll);
+  [140, 360, 700, 1200].forEach(function (ms) { setTimeout(tryScroll, ms); });
+}
+
+/**
+ * 在**新结果**里定位刚才查看的那条政策。
+ *
+ * results  本次匹配结果
+ * opts.pid 要定位的 policy_id（空则不做任何事）
+ * opts.scroll  true 时滚动过去（重新匹配完成后用）；
+ *              false 时只插提示条 + 高亮，把视口让给「调整条件」区块
+ *
+ * 返回 true 表示「由我接管了滚动」：调用方据此跳过自己的 restorePosition，
+ * 否则两处会互相覆盖（实测会把视口拽回被点的按钮，定位失效）。
+ */
+function applyReturnPolicy(results, opts) {
+  opts = opts || {};
+  const pid = opts.pid;
+  if (!pid) return false;
+  const list = results || [];
+  const stored = readReturnPolicy();
+  const name = (stored && stored.id === pid) ? stored.name : '';
+  const row = list.filter((r) => r.policy_id === pid)[0] || null;
+
+  removeReturnBar();
+
+  if (!row) {
+    // 调整后不再匹配：不强行跳转，只说明一句，正常展示新结果。
+    // name 只用于让用户确认「是哪一条」，不影响任何匹配与展示逻辑。
+    const sub = (name ? name + ' 已不在本次结果中。' : '')
+      + (list.length ? '下面是按新情况重新匹配的结果。' : '可以先补充更多情况再匹配一次。');
+    const html = returnBarHtml({ gone: true, sub: sub });
+    const anchor = document.getElementById('resultAnchor')
+      || document.querySelector('.tier-groups');
+    if (anchor) anchor.insertAdjacentHTML('afterend', html);
+    else {
+      const area = document.getElementById('resultArea');
+      if (area) area.insertAdjacentHTML('afterbegin', html);
+    }
+    return false;   // 没定位到就保持原有行为，用户仍停在刚才操作的区块
+  }
+
+  const card = document.querySelector('.result-card[data-id="' + CSS.escape(pid) + '"]');
+  openMoreGroupIfNeeded(card);
+
+  const html = returnBarHtml({ gone: false, pid: pid, name: name });
+  if (card) card.insertAdjacentHTML('beforebegin', html);
+  else {
+    const anchor = document.getElementById('resultAnchor');
+    if (anchor) anchor.insertAdjacentHTML('afterend', html);
+  }
+  bindReturnBar();
+
+  if (opts.scroll) {
+    scrollToReturnCard(pid);
+    return true;
+  }
+  highlightPolicy(pid);
+  return false;
 }
 
 /**
@@ -1212,14 +1427,15 @@ function bindEvidenceToggles(resultsById) {
   });
 }
 
-/** 顶部返回条：backHref 仅作为兜底，实际优先回上一页（见 backOrFallback） */
-function renderTopbar(title, backHref, sub) {
+/** 顶部返回条：parentHref 是本页的父页面，点击后明确跳回该页 */
+function renderTopbar(title, parentHref, sub) {
   const el = document.querySelector('.topbar');
   if (!el) return;
   const tag = sub ? `<span class="theme-tag">${escapeHtml(sub)}</span>` : '';
   let back = '';
-  if (backHref) {
-    back = `<a class="back-link" href="${escapeHtml(backHref)}" data-back="1">← 返回</a>`;
+  if (parentHref) {
+    // href 保留：既是无 JS / 中键新窗口的兜底，也让父页面关系可被查看
+    back = `<a class="back-link" href="${escapeHtml(parentHref)}" data-back="1">← 返回</a>`;
   }
   el.innerHTML = `
     <div class="brand-row">
@@ -1231,12 +1447,14 @@ function renderTopbar(title, backHref, sub) {
     </div>
     <div style="margin-top:10px">${back}</div>`;
 
-  // 优先回上一页；无历史记录时退回 href
+  // 登记本页父页面（返回时按它跳转，不看浏览器历史）
+  registerNavParent(parentHref);
+
   const backEl = el.querySelector('[data-back]');
   if (backEl) {
     backEl.addEventListener('click', function (e) {
       e.preventDefault();
-      backOrFallback(backHref);
+      goToParent(parentHref);
     });
   }
 }

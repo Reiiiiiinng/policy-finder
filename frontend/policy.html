@@ -21,7 +21,15 @@
 
 <script src="assets/app.js"></script>
 <script>
-  renderTopbar('政策依据', 'index.html', '第 3 步');
+  // 顶部返回的父页面必须「同步」确定，不能等异步接口回来再补。
+  // 之前这里先写死 index.html，再由 updateTopbarParent() 在接口返回后补登记成
+  // discover.html / self.html。实测复现：在接口返回前点顶部返回，会被带回首页，
+  // 而不是回到发现权益（本人模式同理，会丢掉「我的发现结果」）。
+  // selfMode 只依赖本地会话，可以同步读出，所以这里一次性给对。
+  const _navSession = store.read();
+  const _navProfile = _navSession.profile || _navSession.selfProfile || null;
+  const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
+  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html', '第 3 步');
   mountDemoBanner();
   mountDemoProgress(4);
   mountFlow(3);
@@ -66,6 +74,10 @@
     const session = store.read();
     const savedProfile = session.profile || session.selfProfile || null;
     const p = detail;
+    // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
+    // 之后点「回去调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
+    saveReturnPolicy(id, p.policy_name);
+
     const ver = p.verification || {};
     const pending = ver.status === 'to_verify';
     const selfMode = !!(savedProfile && savedProfile.mode === 'self');
@@ -229,6 +241,10 @@
     const backHref = selfMode ? 'self.html' : 'discover.html';
     const backLabel = selfMode ? '← 返回我的发现结果' : '← 返回发现结果';
 
+    // 兜底再登记一次：与顶部栏渲染时用的是同一套判定，正常应完全一致；
+    // 万一会话在这期间被改写（例如跨标签页），以这里读到的最新结果为准。
+    updateTopbarParent(backHref);
+
     content.innerHTML = `
       <div class="section">
         <div class="card">
@@ -387,17 +403,28 @@
 
     const fixScene = document.getElementById('fsFixScene');
     if (fixScene) {
-      fixScene.addEventListener('click', () => {
-        // 带上定位参数，返回后自动滚到生活事件区
-        location.href = backHref + '?focus=scene';
-      });
+      fixScene.addEventListener('click', () => goBackToList('scene', backHref));
     }
     const fixInfo = document.getElementById('fsFixInfo');
     if (fixInfo) {
-      fixInfo.addEventListener('click', () => {
-        location.href = backHref + '?focus=cond';
-      });
+      fixInfo.addEventListener('click', () => goBackToList('cond', backHref));
     }
+  }
+
+  /**
+   * 「回去调整生活变化 / 回去补充关键条件」的跳转。
+   *
+   * 语义是「退回发现权益这一层」，因此与顶部返回一致：明确跳到父页面，
+   * 用 location.replace 替换当前页，历史栈深度不变——
+   * 不会把用户留在详情页，也不会让顶部返回再弹回来。
+   *
+   * 额外带上 back=<policy_id>：告诉列表页「我刚在看这一条」。
+   * 重新匹配后结果顺序可能全变，列表页按 id 重新定位它，
+   * 找不到时只提示「暂未继续匹配」，绝不强行跳回旧页面。
+   */
+  function goBackToList(focus, backHref) {
+    const suffix = id ? '&back=' + encodeURIComponent(id) : '';
+    location.replace(backHref + '?focus=' + focus + suffix);
   }
 
   load();

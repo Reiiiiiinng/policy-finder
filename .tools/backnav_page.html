@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>backnav · 顶部返回导航压力验证</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1200px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">390 × 844 · 顶部返回导航压力验证</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+/*
+ * 只验证一件事：顶部「返回」按钮是否稳定回到父页面。
+ * 重点压「详情页刚加载、异步补登记尚未完成时立刻点击」这条路径。
+ * 断言经 /__e2e_log 回传（mode=backnav）。
+ */
+var log=document.getElementById('log'), f=document.getElementById('f');
+var lines=[], pass=0, fail=0;
+function out(s,cls){ lines.push(cls?'<span class="'+(cls||'')+'">'+s+'</span>':s);
+  log.innerHTML=lines.join('\n');
+  try{fetch('/__e2e_log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'backnav',line:String(s),cls:cls||''})});}catch(e){} }
+function check(n,c,x){ if(c){pass++;out('  ok   '+n,'ok');} else {fail++;out('  FAIL '+n+(x?'  -> '+x:''),'bad');} }
+function D(){ return f.contentDocument; }
+function W(){ return f.contentWindow; }
+function q(s){ try{return D().querySelector(s);}catch(e){return null;} }
+function qa(s){ try{return Array.prototype.slice.call(D().querySelectorAll(s));}catch(e){return[];} }
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function waitFor(fn,ms,lb){ var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{if(fn())return true;}catch(e){} await sleep(120);}
+  if(lb)out('  ..超时: '+lb,'warn'); return false; }
+function page(){ try{return W().location.pathname.split('/').pop()+W().location.search;}catch(e){return '?';} }
+function navTo(url){ return new Promise(function(res){
+  f.addEventListener('load',function h(){f.removeEventListener('load',h);res(true);},{once:true});
+  f.src=url; setTimeout(function(){res(false);},15000);}); }
+function nav(ms){ return new Promise(function(res){
+  var to=setTimeout(function(){res(false);},ms||15000);
+  f.addEventListener('load',function h(){clearTimeout(to);f.removeEventListener('load',h);res(true);},{once:true});}); }
+function seedSession(o){ var cur={};
+  try{cur=JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}');}catch(e){}
+  Object.keys(o).forEach(function(k){cur[k]=o[k];});
+  sessionStorage.setItem('policy_finder_session',JSON.stringify(cur)); }
+
+var FAMILY={target:'parents',operator:'女儿',beneficiary:'父亲',confirmed:true,
+  text:'我父亲72岁，一个人在广州生活，最近行动不便。',
+  profile:{},demo:false,demoBanner:false};
+var SELF={target:'self',selfText:'我72岁，一个人在广州生活，最近行动不便。',
+  selfProfile:{},demo:false,demoBanner:false};
+
+// 进入发现页 → 等结果卡 → 点第一张卡进详情
+async function toPolicy(){
+  await waitFor(function(){return q('.result-card');},30000,'结果卡');
+  var url0 = W().location.pathname.split('/').pop();
+  q('.result-card').click(); await nav(); 
+  return url0;
+}
+
+async function run(){
+ out('=== 顶部返回导航压力验证（390×844）===');
+
+ /* ---------- S1 详情页刚加载就立刻点返回 ---------- */
+ out('--- S1 详情页 load 后立即点击顶部返回（异步补登记可能未完成）---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await toPolicy();
+ var reg1='(读不到)';
+ try{ reg1=String(W().sessionStorage.getItem('pf_parent_policy.html')); }catch(e){}
+ out('  ..当前登记的父页面 = '+reg1, 'warn');
+ var bl=q('.back-link');
+ check('S1 详情页顶部返回按钮已渲染', !!bl);
+ if(bl){ bl.click(); await nav(); await sleep(800); }
+ check('S1 立即点击 → 发现权益（不得跳回首页）', /discover\.html/.test(page()), page());
+
+ /* ---------- S2 正常等待渲染完成后点返回 ---------- */
+ out('--- S2 等待渲染完成后点击 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await toPolicy(); await sleep(1200);
+ q('.back-link').click(); await nav(); await sleep(900);
+ check('S2 渲染完成后点击 → 发现权益', /discover\.html/.test(page()), page());
+
+ /* ---------- S3 往返 3 次，不得横跳 ---------- */
+ out('--- S3 发现权益 ↔ 进一步确定 往返 3 次 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ var ping=false;
+ for(var i=1;i<=3;i++){
+   await waitFor(function(){return q('.result-card');},30000,'结果卡'+i);
+   q('.result-card').click(); await nav(); await sleep(900);
+   if(!/policy\.html/.test(page())){ check('S3-'+i+' 应进入进一步确定',false,page()); ping=true; break; }
+   q('.back-link').click(); await nav(); await sleep(900);
+   if(!/discover\.html/.test(page())){ check('S3-'+i+' 返回后应在发现权益',false,page()); ping=true; break; }
+ }
+ if(!ping) check('S3 往返 3 次全程未横跳（发现权益↔进一步确定）', true);
+
+ /* ---------- S4 刷新详情页后返回 ---------- */
+ out('--- S4 在详情页刷新后点返回 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await toPolicy(); await sleep(900);
+ var beforeReload=page();
+ W().location.reload(); await nav(); await sleep(1200);
+ check('S4 刷新后仍在详情页', /policy\.html/.test(page()), page());
+ q('.back-link').click(); await nav(); await sleep(900);
+ check('S4 刷新后返回 → 发现权益', /discover\.html/.test(page()), page());
+
+ /* ---------- S5 浏览器后退与顶部返回混用 ---------- */
+ out('--- S5 浏览器后退 + 顶部返回混用 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await toPolicy(); await sleep(900);
+ W().history.back(); await nav(); await sleep(900);
+ check('S5 浏览器后退 → 发现权益', /discover\.html/.test(page()), page());
+ q('.back-link').click(); await nav(); await sleep(900);
+ check('S5 随后顶部返回 → 家庭协助', /family\.html/.test(page()), page());
+ q('.back-link').click(); await nav(); await sleep(900);
+ check('S5 再顶部返回 → 首页', /index\.html/.test(page()), page());
+
+ /* ---------- S6 本人模式：立即点击 ---------- */
+ out('--- S6 本人模式：详情页 load 后立即点击 ---');
+ sessionStorage.clear(); seedSession(SELF);
+ await navTo('/self.html'); await sleep(400);
+ await waitFor(function(){return q('.result-card');},30000,'本人结果卡');
+ q('.result-card').click(); await nav();
+ var reg2='(读不到)';
+ try{ reg2=String(W().sessionStorage.getItem('pf_parent_policy.html')); }catch(e){}
+ out('  ..当前登记的父页面 = '+reg2, 'warn');
+ var bl2=q('.back-link');
+ check('S6 本人模式顶部返回按钮已渲染', !!bl2);
+ if(bl2){ bl2.click(); await nav(); await sleep(900); }
+ check('S6 立即点击 → 本人发现页（不得跳回首页）', /self\.html/.test(page()), page());
+
+ /* ---------- S7 直接打开详情页，立即点击 ---------- */
+ out('--- S7 直接打开详情页，load 后立即点击 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/policy.html?id=gz_elderly_002');
+ var bl3=q('.back-link');
+ check('S7 顶部返回按钮已渲染', !!bl3);
+ if(bl3){ bl3.click(); await nav(); await sleep(900); }
+ check('S7 立即点击 → 发现权益', /discover\.html/.test(page()), page());
+
+ out('');
+ out('=== 通过 '+pass+'，失败 '+fail+' ===', fail?'bad':'ok');
+}
+
+run().catch(function(e){
+ out('ERROR '+e.message,'bad');
+ out('=== 异常终止：通过 '+pass+'，失败 '+(fail+1)+' ===','bad');
+});
+</script>
+</body>
+</html>

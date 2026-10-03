@@ -34,7 +34,10 @@ const sandbox = {
     setItem: (k, v) => { store[k] = String(v); },
     removeItem: (k) => { delete store[k]; },
   },
-  location: { search: '', href: '' },
+  // backOrFallback 会做同源校验（避免从外站直达时把用户带回站外），
+  // 所以 mock 里必须给出 origin，否则会一律走兜底分支。
+  location: { search: '', href: '', pathname: '/index.html',
+               origin: 'http://127.0.0.1:8000', replace(u) { this.__replaced = u; } },
   history: { length: 3, back() { sandbox.__backed = true; } },
   window: null,
   scrollY: 0, pageYOffset: 0, innerHeight: 800,
@@ -42,12 +45,14 @@ const sandbox = {
   setTimeout: () => 0, clearTimeout: () => {},
   requestAnimationFrame: (f) => f(), console,
   CSS: { escape: (s) => s },
+  URL,   // 通用工具，VM 里必须提供
+  URLSearchParams,   // resolveNavParent 解析 ?from= 参数时用到
   fetch: async () => ({ json: async () => ({}) }),
 };
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
-vm.runInContext(src + '\n;globalThis.__X={backOrFallback,saveListPosition,restoreListPosition,clearListPosition,renderFlow};',
+vm.runInContext(src + '\n;globalThis.__X={goToParent,registerNavParent,resolveNavParent,navPageKey,saveListPosition,restoreListPosition,clearListPosition,renderFlow};',
   sandbox, { filename: 'app.js' });
 const X = sandbox.__X;
 
@@ -114,37 +119,72 @@ console.log('== 问题3：绿智共生弱化 ==');
   check('「政策找人」字号 > 绿智共生字号', heroTitle > footSize * 2, heroTitle + ' vs ' + footSize);
 }
 
-console.log('== 问题4：返回改为上一页 ==');
+console.log('== 问题4：顶部返回 = 明确父页面（不再用 history.back）==');
 {
-  check('backOrFallback 已定义', typeof X.backOrFallback === 'function');
-  // 无历史 → 走兜底 href
-  sandbox.history.length = 1;
-  sandbox.document.referrer = 'http://x/';
-  sandbox.location.href = '';
-  X.backOrFallback('index.html');
-  check('无历史记录时退回兜底', sandbox.location.href === 'index.html', sandbox.location.href);
-
-  // 有历史 + 有 referrer → 走 history.back
-  sandbox.history.length = 5;
-  sandbox.document.referrer = 'http://127.0.0.1:8000/discover.html';
-  sandbox.__backed = false;
-  sandbox.location.href = '';
-  X.backOrFallback('index.html');
-  check('有历史时回上一页', sandbox.__backed === true && sandbox.location.href === '');
-
-  // 无 referrer（直接打开 URL）→ 不退回外站
-  sandbox.__backed = false;
-  sandbox.document.referrer = '';
-  sandbox.location.href = '';
-  X.backOrFallback('index.html');
-  check('无来源时用兜底而非退到外站', sandbox.__backed === false && sandbox.location.href === 'index.html');
-
   const app = read('frontend/assets/app.js');
-  check('renderTopbar 绑定返回拦截', /data-back="1"/.test(app) && /backOrFallback\(backHref\)/.test(app));
-  check('返回仍保留 href（可中键/无JS 兜底）', /href="\$\{escapeHtml\(backHref\)\}"/.test(app));
-  // 各页兜底 href 不变
-  check('详情页兜底仍指向发现页', /renderTopbar\('政策依据', 'index\.html'/.test(read('frontend/policy.html')));
-  check('Demo banner 未受影响', /function mountDemoBanner/.test(app));
+  check('goToParent 已定义', typeof X.goToParent === 'function');
+  check('registerNavParent 已定义', typeof X.registerNavParent === 'function');
+  check('resolveNavParent 已定义', typeof X.resolveNavParent === 'function');
+  check('旧的 backOrFallback 已移除', typeof X.backOrFallback === 'undefined');
+  check('顶部返回不再调用 history.back()',
+    !/goToParent[\s\S]{0,200}history\.back\(/.test(app));
+  check('顶部返回使用 location.replace（不压栈）',
+    /location\.replace\(parent/.test(app));
+
+  // 明确跳到父页面：无论历史栈多长、身后有没有记录，都去父页面
+  sandbox.location.replace = function (u) { sandbox.__replaced = u; };
+  sandbox.__replaced = '';
+  X.goToParent('family.html');
+  check('返回明确跳到父页面', sandbox.__replaced === 'family.html', sandbox.__replaced);
+
+  // 历史栈再长也不会改道——这正是修复「来回跳」的关键
+  sandbox.history.length = 99;
+  sandbox.__replaced = '';
+  X.goToParent('discover.html');
+  check('历史栈很长时仍去父页面（不受 history.length 影响）',
+    sandbox.__replaced === 'discover.html', sandbox.__replaced);
+
+  // 父页面缺失时兜底回首页，绝不把用户弹出站点
+  sandbox.__replaced = '';
+  X.goToParent('');
+  check('父页面缺失时兜底回首页', sandbox.__replaced === 'index.html', sandbox.__replaced);
+
+  // 登记与解析：按页面各自记录，互不串台
+  sandbox.location.pathname = '/discover.html';
+  X.registerNavParent('family.html');
+  check('登记的父页面可被解析',
+    X.resolveNavParent('index.html') === 'family.html',
+    X.resolveNavParent('index.html'));
+  sandbox.location.pathname = '/policy.html';
+  check('不同页面的父页面互不串台',
+    X.resolveNavParent('index.html') === 'index.html',
+    X.resolveNavParent('index.html'));
+
+  // URL 上的 ?from= 优先级最高
+  sandbox.location.pathname = '/discover.html';
+  sandbox.location.search = '?from=self.html';
+  check('?from= 参数优先于登记值',
+    X.resolveNavParent('family.html') === 'self.html',
+    X.resolveNavParent('family.html'));
+  sandbox.location.search = '';
+
+  check('renderTopbar 绑定返回拦截', /data-back="1"/.test(app) && /goToParent\(parentHref\)/.test(app));
+  check('返回仍保留 href（可中键/无 JS 兜底）', /href="\$\{escapeHtml\(parentHref\)\}/.test(app));
+
+  // 各页父页面声明符合层级：家庭协助/本人入口 -> 发现权益 -> 政策详情
+  const fam = read('frontend/family.html');
+  const disc = read('frontend/discover.html');
+  const self_ = read('frontend/self.html');
+  const pol = read('frontend/policy.html');
+  check('家庭协助页 父页面为 index.html',
+    /renderTopbar\('家庭协助', 'index\.html'/.test(fam));
+  check('发现权益页 父页面为 family.html',
+    /renderTopbar\('确认情况', 'family\.html'/.test(disc));
+  check('本人发现页 父页面为 index.html',
+    /renderTopbar\('本人权益发现', 'index\.html'/.test(self_));
+  check('政策详情页 运行时把父页面改为发现权益',
+    /updateTopbarParent\(backHref\)/.test(pol) &&
+    /const backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(pol));
 }
 
 console.log('== 问题5：详情返回恢复滚动位置 ==');

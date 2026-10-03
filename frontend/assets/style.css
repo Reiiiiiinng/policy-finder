@@ -3773,3 +3773,92 @@ input:focus {
     transition: none !important;
   }
 }
+
+
+/* ================================================================
+   「带着刚才查看的政策返回」
+   详情页 → 回去调整条件 → 重新匹配后，在新结果里重新定位那一条。
+   ================================================================ */
+
+.return-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px var(--sp) 0;
+  padding: 12px 14px;
+  background: var(--brand-wash);
+  border: 1px solid var(--brand-line);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.return-bar .rb-icon {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.return-bar .rb-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.return-bar .rb-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  line-height: 1.5;
+}
+
+.return-bar .rb-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.return-bar .rb-go {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.return-bar .rb-go:active {
+  background: var(--brand-dark);
+}
+
+/* 调整后不再匹配：中性提示，不用警示红，也不暗示「出错了」 */
+.return-bar.is-gone {
+  background: var(--pending-soft);
+  border-color: var(--pending-line);
+  border-left-color: var(--pending);
+}
+
+.return-bar.is-gone .rb-icon {
+  background: var(--pending);
+}
+
+.return-bar.is-gone .rb-title {
+  color: var(--ink);
+}

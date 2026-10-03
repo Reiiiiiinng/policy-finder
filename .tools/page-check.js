@@ -80,6 +80,7 @@ const BUILTIN = new Set([
   'requestAnimationFrame', 'console', 'parseInt', 'parseFloat', 'isNaN',
   'encodeURIComponent', 'decodeURIComponent', 'alert', 'confirm',
   'Number', 'String', 'Array', 'Object', 'JSON', 'Promise', 'Math', 'Date',
+  'URL', 'URLSearchParams',
   'Boolean', 'Error', 'RegExp', 'Map', 'Set', 'Symbol', 'Proxy', 'Reflect',
 ]);
 Object.keys(scripts).forEach((page) => {

@@ -28,13 +28,16 @@
 
   <div class="section">
     <h2 class="section-title">谁在帮忙查询？（操作者）</h2>
+    <p class="hint" style="margin:-4px 0 10px">
+      代为查询的是家属或工作人员。本人为自己查询请使用首页「我自己」入口。
+      再点一次已选中的项可取消选择。
+    </p>
     <div class="choice-grid" id="operatorGrid">
       <button type="button" class="choice" data-role="女儿"><span class="title">女儿</span></button>
       <button type="button" class="choice" data-role="儿子"><span class="title">儿子</span></button>
       <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
       <button type="button" class="choice" data-role="其他家属"><span class="title">其他家属</span></button>
       <button type="button" class="choice" data-role="社区工作人员"><span class="title">社区工作人员</span></button>
-      <button type="button" class="choice" data-role="本人"><span class="title">本人</span></button>
     </div>
   </div>
 
@@ -115,7 +118,11 @@
   mountRelationStrip();
 
   const session = store.read();
-  let operator = session.operator || null;
+  // 「本人」已从操作者列表移除。老会话里可能存着 operator='本人'，
+  // 这里做一次合法性校验，不认识的取值一律当未选择，避免出现
+  // 「有值但页面上没有任何按钮高亮」的错位状态。
+  const OPERATOR_ROLES = ['女儿', '儿子', '配偶', '其他家属', '社区工作人员'];
+  let operator = OPERATOR_ROLES.indexOf(session.operator) >= 0 ? session.operator : null;
   let beneficiary = session.beneficiary || null;
 
   /* ---------------------------------------------------------------
@@ -174,12 +181,19 @@
       : '#' + gridId + ' .choice';
     document.querySelectorAll(sel).forEach((btn) => {
       btn.addEventListener('click', () => {
-        // 同一关系可能在两个容器里各有一个按钮，选择时统一清高亮
+        const role = btn.dataset.role;
+        const wasSelected = btn.classList.contains('selected');
+        // 同一关系可能在两个容器里各有一个按钮，先把同 role 的高亮都清掉
         document.querySelectorAll(sel).forEach((b) => {
-          if (b.dataset.role === btn.dataset.role) b.classList.remove('selected');
+          if (b.dataset.role === role) b.classList.remove('selected');
         });
-        btn.classList.add('selected');
-        onPick(btn.dataset.role);
+        if (wasSelected) {
+          // 再点一次已选中的项 = 取消选择，回到未选择状态
+          onPick(null);
+        } else {
+          btn.classList.add('selected');
+          onPick(role);
+        }
       });
     });
   }
@@ -212,9 +226,8 @@
 
   function refresh() {
     const checked = document.getElementById('confirmCheck').checked;
-    // 受益人本人操作时，信息默认为其本人提供
-    const selfOperated = operator === '本人';
-    const confirmed = checked || selfOperated;
+    // 「本人」已从协助查询中移除（本人走独立入口），这里不存在本人代查的情况
+    const confirmed = checked;
 
     document.getElementById('operatorVal').textContent = operator || '未选择';
     document.getElementById('beneficiaryVal').textContent = beneficiary || '未选择';

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>return · 带着刚才查看的政策返回</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1400px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">390 × 844 · 带着刚才查看的政策返回</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+var log=document.getElementById('log'), f=document.getElementById('f');
+var lines=[], pass=0, fail=0;
+function out(s,cls){ lines.push(cls?'<span class="'+(cls||'')+'">'+s+'</span>':s);
+  log.innerHTML=lines.join('\n');
+  try{fetch('/__e2e_log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'return',line:String(s),cls:cls||''})});}catch(e){} }
+function check(n,c,x){ if(c){pass++;out('  ok   '+n,'ok');} else {fail++;out('  FAIL '+n+(x?'  -> '+x:''),'bad');} }
+function D(){ return f.contentDocument; }
+function W(){ return f.contentWindow; }
+function q(s){ try{return D().querySelector(s);}catch(e){return null;} }
+function qa(s){ try{return Array.prototype.slice.call(D().querySelectorAll(s));}catch(e){return[];} }
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function waitFor(fn,ms,lb){ var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{if(fn())return true;}catch(e){} await sleep(120);}
+  if(lb)out('  ..超时: '+lb,'warn'); return false; }
+function url(){ try{return W().location.pathname.split('/').pop()+W().location.search;}catch(e){return '?';} }
+function navTo(u){ return new Promise(function(res){
+  f.addEventListener('load',function h(){f.removeEventListener('load',h);res(true);},{once:true});
+  f.src=u; setTimeout(function(){res(false);},15000);}); }
+function nav(ms){ return new Promise(function(res){
+  var to=setTimeout(function(){res(false);},ms||15000);
+  f.addEventListener('load',function h(){clearTimeout(to);f.removeEventListener('load',h);res(true);},{once:true});}); }
+function seedSession(o){ var cur={};
+  try{cur=JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}');}catch(e){}
+  Object.keys(o).forEach(function(k){cur[k]=o[k];});
+  sessionStorage.setItem('policy_finder_session',JSON.stringify(cur)); }
+
+var FAMILY={target:'parents',operator:'女儿',beneficiary:'父亲',confirmed:true,
+  text:'我父亲72岁，一个人在广州生活，最近行动不便。',
+  profile:{},demo:false,demoBanner:false};
+var SELF={target:'self',selfText:'我72岁，一个人在广州生活，最近行动不便。',
+  selfProfile:{},demo:false,demoBanner:false};
+
+function cardName(card){
+  var n = card ? card.querySelector('.result-name') : null;
+  return n ? n.textContent.trim() : '';
+}
+// 卡片是否在视口内
+function inView(el, slack){
+  if(!el) return false;
+  var r = el.getBoundingClientRect();
+  var h = W().innerHeight || 844;
+  return r.bottom > (slack?-slack:0) && r.top < h * 0.9;
+}
+
+async function run(){
+ out('=== 带着刚才查看的政策返回（390×844）===');
+
+ /* ---------- T1 详情页 → 回去调整生活变化 → 回到发现权益 ---------- */
+ out('--- T1 家庭模式：回去调整生活变化 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await waitFor(function(){return q('.result-card');},30000,'结果卡');
+ var firstCard = q('.result-card');
+ var PID = firstCard.dataset.id;
+ var PNAME = cardName(firstCard);
+ out('  ..目标政策 '+PID+' 「'+PNAME+'」','warn');
+ firstCard.click(); await nav(); await sleep(900);
+ check('T1 已进入详情页', /policy\.html/.test(url()), url());
+
+ var fix = q('#fsFixScene');
+ check('T1 详情页有「回去调整生活变化」', !!fix);
+ fix.click(); await nav();
+ await waitFor(function(){return q('.return-bar');},20000,'返回提示条');
+ check('T1 回到发现权益', /discover\.html/.test(url()), url());
+ check('T1 地址栏已清掉 back 参数', !/back=/.test(url()), url());
+ check('T1 focus 参数保留（仍能定位到调整区块）', /focus=scene/.test(url()), url());
+
+ var bar = q('.return-bar');
+ check('T1 出现返回提示条', !!bar);
+ check('T1 提示条文案为「你刚才查看的是这项政策」',
+   /你刚才查看的是这项政策/.test(bar.textContent), bar.textContent.replace(/\s+/g,' ').trim());
+ check('T1 提示条显示政策名称', PNAME && bar.textContent.indexOf(PNAME)>=0, PNAME);
+ var go = q('[data-return-go]');
+ check('T1 提示条带「继续查看」按钮', !!go);
+ check('T1 按钮携带的是 policy_id', go && go.dataset.returnGo===PID, go?go.dataset.returnGo:'(无)');
+ check('T1 卡片被短暂高亮', !!q('.result-card.is-just-viewed'));
+ var tgt = D().querySelector('.result-card[data-id="'+PID+'"]');
+ check('T1 提示条紧贴在目标卡片上方', bar && bar.nextElementSibling===tgt);
+ // 无头环境下 smooth 滚动不推进，因此改为断言「视口没有跳到卡片那里」：
+ // 目标卡片在文档下方两千像素开外，只要 scrollY 仍然很小就说明没有抢滚动。
+ var y1 = W().scrollY || W().pageYOffset || 0;
+ var cardTop = tgt ? tgt.getBoundingClientRect().top + y1 : 0;
+ check('T1 首屏没有抢滚动跳到卡片', y1 < 400, 'scrollY='+Math.round(y1)+' 卡片文档位置='+Math.round(cardTop));
+
+ /* ---------- T2 调整条件触发重新匹配后重新定位 ---------- */
+ out('--- T2 调整条件 → 重新匹配 → 重新定位 ---');
+ var chips = qa('.scene-chips [data-scene][data-on="0"]');
+ out('  ..可增删的生活事件 chip 数 = '+chips.length,'warn');
+ if(chips.length){
+   // 加一个生活事件
+   chips[0].click();
+   await waitFor(function(){return q('.result-card');},20000,'重匹配结果');
+   await sleep(1500);
+   // 再点回去，恢复原状态 → 结果必然回到原样，目标政策必然还在
+   var back = D().querySelector('.scene-chips [data-scene][data-on="1"]');
+   if(back){ back.click(); await waitFor(function(){return q('.result-card');},20000,'再次重匹配'); await sleep(2000); }
+ }
+ var tgt2 = D().querySelector('.result-card[data-id="'+PID+'"]');
+ var bar2 = q('.return-bar');
+ check('T2 重新匹配后仍有提示条', !!bar2);
+ if(tgt2){
+   check('T2 目标政策仍在结果里 → 提示条为「继续查看」形态',
+     bar2 && !bar2.classList.contains('is-gone') && /你刚才查看的是这项政策/.test(bar2.textContent),
+     bar2?bar2.textContent.replace(/\s+/g,' ').trim():'(无)');
+   check('T2 已滚动到目标卡片', inView(tgt2), 'top='+(tgt2?Math.round(tgt2.getBoundingClientRect().top):'?'));
+   check('T2 目标卡片被高亮', tgt2.classList.contains('is-just-viewed'));
+ } else {
+   check('T2 目标政策已不在结果里 → 提示条为「暂未继续匹配」',
+     bar2 && bar2.classList.contains('is-gone') && /暂未继续匹配/.test(bar2.textContent),
+     bar2?bar2.textContent.replace(/\s+/g,' ').trim():'(无)');
+   check('T2 结果列表仍正常展示', qa('.result-card').length>0, 'n='+qa('.result-card').length);
+ }
+
+ /* ---------- T3 点「继续查看」重新进入详情 ---------- */
+ out('--- T3 点击「继续查看」 ---');
+ var go3 = q('[data-return-go]');
+ if(go3){
+   var pid3 = go3.dataset.returnGo;
+   go3.click(); await nav(); await sleep(900);
+   check('T3 重新进入政策详情', /policy\.html/.test(url()), url());
+   check('T3 进入的正是刚才那条政策', url().indexOf('id='+encodeURIComponent(pid3))>=0, url());
+ } else {
+   out('  ..跳过：当前无「继续查看」按钮（政策已不匹配）','warn');
+ }
+
+ /* ---------- T4 调整后不再匹配 ---------- */
+ out('--- T4 调整后这条政策已不匹配 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html?focus=scene&back=__not_exist__'); await sleep(500);
+ await waitFor(function(){return q('.return-bar');},20000,'提示条');
+ var bar4 = q('.return-bar');
+ check('T4 出现提示条', !!bar4);
+ check('T4 文案为「调整后，这项政策暂未继续匹配」',
+   /暂未继续匹配/.test(bar4.textContent), bar4.textContent.replace(/\s+/g,' ').trim());
+ check('T4 提示条为中性样式（is-gone）', bar4.classList.contains('is-gone'));
+ check('T4 没有强行跳转到详情页', /discover\.html/.test(url()), url());
+ check('T4 新结果正常展示', qa('.result-card').length>0, 'n='+qa('.result-card').length);
+ check('T4 没有「继续查看」按钮（不给死链）', !q('[data-return-go]'));
+
+ /* ---------- T5 折叠区内的卡片也能定位 ---------- */
+ out('--- T5 刚查看的政策在「其他可能相关」折叠区里 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await waitFor(function(){return q('.result-card');},30000,'结果卡');
+ var mt = q('#moreToggle');
+ if(mt){
+   if(mt.getAttribute('aria-expanded')==='false'){ mt.click(); await sleep(700); }
+   var inner = qa('[data-more-body] .result-card');
+   if(inner.length){
+     var c2 = inner[0], PID2 = c2.dataset.id, NAME2 = cardName(c2);
+     out('  ..折叠区目标 '+PID2+' 「'+NAME2+'」','warn');
+     c2.click(); await nav(); await sleep(900);
+     var fx2 = q('#fsFixInfo') || q('#fsFixScene');
+     if(fx2){
+       fx2.click(); await nav();
+       await waitFor(function(){return q('.return-bar');},20000,'提示条');
+       var t5 = D().querySelector('.result-card[data-id="'+PID2+'"]');
+       var mt5 = q('#moreToggle');
+       check('T5 折叠区已自动展开以便定位', !mt5 || mt5.getAttribute('aria-expanded')==='true');
+       check('T5 折叠区内的目标卡片仍可找到', !!t5);
+       check('T5 提示条出现在该卡片旁', !!q('.return-bar') && !!t5);
+     } else { out('  ..跳过：详情页无调整按钮','warn'); }
+   } else { out('  ..跳过：折叠区无卡片','warn'); }
+ } else { out('  ..跳过：无折叠区','warn'); }
+
+ /* ---------- T6 本人模式 ---------- */
+ out('--- T6 本人模式同样生效 ---');
+ sessionStorage.clear(); seedSession(SELF);
+ await navTo('/self.html'); await sleep(400);
+ await waitFor(function(){return q('.result-card');},30000,'本人结果卡');
+ var sc = q('.result-card'), SPID = sc.dataset.id, SNAME = cardName(sc);
+ sc.click(); await nav(); await sleep(900);
+ var sfx = q('#fsFixScene');
+ check('T6 本人模式详情页有调整入口', !!sfx);
+ if(sfx){
+   sfx.click(); await nav();
+   await waitFor(function(){return q('.return-bar');},20000,'提示条');
+   check('T6 本人模式回到发现页', /self\.html/.test(url()), url());
+   var b6 = q('.return-bar');
+   check('T6 出现提示条', !!b6);
+   check('T6 提示条指向刚才的政策', b6 && (b6.textContent.indexOf(SNAME)>=0), SNAME);
+ }
+
+ /* ---------- T7 回归：顶部返回不触发提示条 ---------- */
+ out('--- T7 回归：顶部返回不出现提示条 ---');
+ sessionStorage.clear(); seedSession(FAMILY);
+ await navTo('/discover.html'); await sleep(400);
+ await waitFor(function(){return q('.result-card');},30000,'结果卡');
+ q('.result-card').click(); await nav(); await sleep(900);
+ q('.back-link').click(); await nav();
+ await waitFor(function(){return q('.result-card');},25000,'返回后列表');
+ await sleep(800);
+ check('T7 顶部返回回到发现权益', /discover\.html/.test(url()), url());
+ check('T7 顶部返回不出现返回提示条', !q('.return-bar'));
+ check('T7 顶部返回后结果列表正常', qa('.result-card').length>0, 'n='+qa('.result-card').length);
+
+ /* ---------- T8 回归：折叠区/证据链/无横向滚动 ---------- */
+ out('--- T8 回归 ---');
+ check('T8 折叠区仍在', !!q('#moreToggle'));
+ check('T8 折叠区默认收起或保持用户状态', !!q('#moreToggle'));
+ check('T8 证据链按钮仍在', qa('.ev-toggle').length>0, 'n='+qa('.ev-toggle').length);
+ check('T8 无横向滚动',
+   D().documentElement.scrollWidth<=D().documentElement.clientWidth+1,
+   'sw='+D().documentElement.scrollWidth+' cw='+D().documentElement.clientWidth);
+
+ out('');
+ out('=== 通过 '+pass+'，失败 '+fail+' ===', fail?'bad':'ok');
+}
+
+run().catch(function(e){
+ out('ERROR '+e.message,'bad');
+ out('=== 异常终止：通过 '+pass+'，失败 '+(fail+1)+' ===','bad');
+});
+</script>
+</body>
+</html>

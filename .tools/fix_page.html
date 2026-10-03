@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fix · 交互修正验收</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1200px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">390 × 844 · 三个交互问题修正验收</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+/*
+ * 验收：问题1 操作者可取消 / 问题2 移除「本人」 / 问题3 返回层级
+ * 断言经 /__e2e_log 回传（mode=fix）。
+ */
+var log=document.getElementById('log'), f=document.getElementById('f');
+var lines=[], pass=0, fail=0;
+function out(s,cls){ lines.push(cls?'<span class="'+(cls||'')+'">'+s+'</span>':s);
+  log.innerHTML=lines.join('\n');
+  try{fetch('/__e2e_log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:'fix',line:String(s),cls:cls||''})});}catch(e){} }
+function check(n,c,x){ if(c){pass++;out('  ok   '+n,'ok');} else {fail++;out('  FAIL '+n+(x?'  -> '+x:''),'bad');} }
+function D(){ return f.contentDocument; }
+function W(){ return f.contentWindow; }
+function q(s){ try{return D().querySelector(s);}catch(e){return null;} }
+function qa(s){ try{return Array.prototype.slice.call(D().querySelectorAll(s));}catch(e){return[];} }
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function waitFor(fn,ms,lb){ var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{if(fn())return true;}catch(e){} await sleep(120);}
+  if(lb)out('  ..超时: '+lb,'warn'); return false; }
+function page(){ try{return W().location.pathname.split('/').pop()+W().location.search;}catch(e){return '?';} }
+// 监听先挂再改 src，避免竞态
+function navTo(url){ return new Promise(function(res){
+  f.addEventListener('load',function h(){f.removeEventListener('load',h);res(true);},{once:true});
+  f.src=url; setTimeout(function(){res(false);},15000);}); }
+function nav(ms){ return new Promise(function(res){
+  var to=setTimeout(function(){res(false);},ms||15000);
+  f.addEventListener('load',function h(){clearTimeout(to);f.removeEventListener('load',h);res(true);},{once:true});}); }
+function seedSession(o){ var cur={};
+  try{cur=JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}');}catch(e){}
+  Object.keys(o).forEach(function(k){cur[k]=o[k];});
+  sessionStorage.setItem('policy_finder_session',JSON.stringify(cur)); }
+
+async function run(){
+ out('=== 三项交互修正验收（390×844）===');
+
+ /* ================= 问题1 & 2：家庭协助页 ================= */
+ sessionStorage.clear();
+ seedSession({target:'parents',operator:'',beneficiary:'',confirmed:false,profile:{},demo:false,demoBanner:false});
+ await navTo('/family.html'); await sleep(500);
+
+ var opBtns = qa('#operatorGrid .choice');
+ check('问题2 操作者列表已移除「本人」', !opBtns.some(function(b){return b.dataset.role==='本人';}),
+   opBtns.map(function(b){return b.dataset.role;}).join(','));
+ check('问题2 其余 5 个选项保留', opBtns.length===5, 'n='+opBtns.length);
+ check('问题2 页面提示指向独立本人入口',
+   /首页「我自己」入口/.test(D().body.textContent));
+
+ // 选「女儿」
+ opBtns[0].click(); await sleep(250);
+ check('问题1 点未选中项 → 选中',
+   q('#operatorGrid .choice[data-role="女儿"]').classList.contains('selected'));
+ check('问题1 顶部关系条显示 女儿',
+   (q('.rel-strip')||{textContent:''}).textContent.indexOf('女儿')>=0,
+   (q('.rel-strip')||{textContent:''}).textContent.replace(/\s+/g,' ').trim());
+
+ // 再点一次同一项 → 取消
+ q('#operatorGrid .choice[data-role="女儿"]').click(); await sleep(250);
+ check('问题1 再点同一项 → 取消选中',
+   !q('#operatorGrid .choice[data-role="女儿"]').classList.contains('selected'));
+ var s=JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}');
+ check('问题1 取消后 session.operator 为空', !s.operator, JSON.stringify(s.operator));
+ check('问题1 取消后页面未报错（信息卡显示未选择）',
+   (D().getElementById('operatorVal')||{}).textContent==='未选择',
+   (D().getElementById('operatorVal')||{}).textContent);
+ check('问题1 取消后下一步按钮禁用（空状态被正确感知）',
+   D().getElementById('nextBtn').disabled===true);
+ check('问题1 取消后提示文案更新',
+   /请先选择操作者与帮助对象/.test(D().getElementById('nextHint').textContent),
+   D().getElementById('nextHint').textContent);
+
+ // 再选回来，确认可恢复
+ q('#operatorGrid .choice[data-role="儿子"]').click(); await sleep(250);
+ check('问题1 可重新选择其他项',
+   q('#operatorGrid .choice[data-role="儿子"]').classList.contains('selected'));
+ check('问题1 新选择后下一步仍禁用（缺受益人）',
+   D().getElementById('nextBtn').disabled===true);
+
+ // 选受益人 → 下一步应可用
+ q('#beneficiaryGrid .choice[data-role="父亲"]').click(); await sleep(250);
+ check('问题1 操作者+受益人齐备后下一步可用',
+   D().getElementById('nextBtn').disabled===false);
+
+ // 受益人也能取消（同一套绑定）
+ q('#beneficiaryGrid .choice[data-role="父亲"]').click(); await sleep(250);
+ check('问题1 受益人同样支持取消',
+   !q('#beneficiaryGrid .choice[data-role="父亲"]').classList.contains('selected'));
+ q('#beneficiaryGrid .choice[data-role="父亲"]').click(); await sleep(250);
+
+ // 老会话里存着「本人」时应被纠正，不出现高亮错位
+ seedSession({operator:'本人'});
+ await navTo('/family.html'); await sleep(500);
+ var anyHighlight = qa('#operatorGrid .choice.selected');
+ check('问题2 老会话 operator=本人 被纠正为未选择',
+   anyHighlight.length===0, '高亮数='+anyHighlight.length);
+ check('问题2 纠正后显示未选择',
+   (D().getElementById('operatorVal')||{}).textContent==='未选择',
+   (D().getElementById('operatorVal')||{}).textContent);
+
+ /* ================= 问题3：顶部返回 = 明确父页面 ================= */
+ out('--- 路线A 家庭协助 → 发现权益 → 进一步确定 ---');
+ sessionStorage.clear();
+ await navTo('/index.html'); await sleep(600);
+ await waitFor(function(){return f.contentDocument.querySelector('.choice.entry[data-target="parents"]');},8000,'首页入口');
+ f.contentDocument.querySelector('.choice.entry[data-target="parents"]').click(); await nav(); await sleep(600);
+ check('A0 从首页进入家庭协助', /family\.html/.test(page()), page());
+ f.contentDocument.querySelector('#operatorGrid .choice[data-role="女儿"]').click(); await sleep(200);
+ f.contentDocument.querySelector('#beneficiaryGrid .choice[data-role="父亲"]').click(); await sleep(200);
+ f.contentDocument.getElementById('nextBtn').click(); await nav(); await sleep(500);
+ check('A1 家庭协助 → 发现权益', /discover\.html/.test(page()), page());
+ var ta=f.contentDocument.getElementById('situation');
+ ta.value='我父亲72岁，一个人在广州生活，最近行动不便。';
+ f.contentDocument.getElementById('discoverBtn').click();
+ await waitFor(function(){return f.contentDocument.querySelector('.result-card');},30000,'结果卡');
+ f.contentDocument.querySelector('.result-card').click(); await nav(); await sleep(700);
+ check('A2 发现权益 → 进一步确定', /policy\.html/.test(page()), page());
+
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
+ check('A3 详情页顶部返回 → 发现权益', /discover\.html/.test(page()), page());
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
+ check('A4 发现权益顶部返回 → 家庭协助', /family\.html/.test(page()), page());
+ check('A4 没有回到进一步确定', !/policy\.html/.test(page()), page());
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
+ check('A5 家庭协助顶部返回 → 首页', /index\.html/.test(page()), page());
+ check('A5 仍未出现进一步确定', !/policy\.html/.test(page()), page());
+
+ out('--- 路线B 本人入口 → 发现权益 → 进一步确定 ---');
+ sessionStorage.clear();
+ await navTo('/index.html'); await sleep(600);
+ await waitFor(function(){return f.contentDocument.querySelector('.choice.entry[data-target="self"]');},8000,'本人入口');
+ f.contentDocument.querySelector('.choice.entry[data-target="self"]').click(); await nav(); await sleep(600);
+ check('B0 从首页进入本人发现页', /self\.html/.test(page()), page());
+ var ta2=f.contentDocument.getElementById('situation');
+ ta2.value='我72岁，一个人在广州生活，最近行动不便。';
+ f.contentDocument.getElementById('discoverBtn').click();
+ await waitFor(function(){return f.contentDocument.querySelector('.result-card');},30000,'本人结果卡');
+ f.contentDocument.querySelector('.result-card').click(); await nav(); await sleep(700);
+ check('B1 本人发现 → 进一步确定', /policy\.html/.test(page()), page());
+ check('B1 本人模式下详情父页面为 self.html',
+   (f.contentDocument.querySelector('.back-link')||{getAttribute:function(){return '';}}).getAttribute('href')==='self.html',
+   (f.contentDocument.querySelector('.back-link')||{getAttribute:function(){return '';}}).getAttribute('href'));
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
+ check('B2 详情页顶部返回 → 本人发现页', /self\.html/.test(page()), page());
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
+ check('B3 本人发现页顶部返回 → 首页（本人入口）', /index\.html/.test(page()), page());
+ check('B3 没有回到进一步确定', !/policy\.html/.test(page()), page());
+
+ out('--- 路线C 直接打开政策详情 ---');
+ sessionStorage.clear();
+ seedSession({target:'parents',operator:'女儿',beneficiary:'父亲',confirmed:true,
+   text:'我父亲72岁，一个人在广州生活，最近行动不便。',
+   profile:{},demo:false,demoBanner:false});
+ await navTo('/policy.html?id=gz_elderly_002'); await sleep(1000);
+ check('C0 直接打开详情页可渲染', !!q('.trust-card'));
+ f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(1200);
+ check('C1 详情页顶部返回 → 发现权益（无异常回跳）', /discover\.html/.test(page()), page());
+ // 连续返回，不得出现 policy.html
+ for(var i=1;i<=3;i++){
+   var bl=f.contentDocument.querySelector('.back-link');
+   if(!bl) break;
+   bl.click(); await nav(); await sleep(900);
+   if(/policy\.html/.test(page())){ check('C2 连续返回过程中出现进一步确定（第'+i+'次）', false, page()); break; }
+ }
+ check('C2 连续返回全程未回到进一步确定', !/policy\.html/.test(page()), page());
+
+ out('--- 路线D 详情页内部「回去调整」不受影响 ---');
+ sessionStorage.clear();
+ seedSession({target:'parents',operator:'女儿',beneficiary:'父亲',confirmed:true,
+   text:'我父亲72岁，一个人在广州生活，最近行动不便。',
+   profile:{},demo:false,demoBanner:false});
+ await navTo('/discover.html'); await sleep(500);
+ await waitFor(function(){return f.contentDocument.querySelector('.result-card');},25000,'结果卡');
+ f.contentDocument.querySelector('.result-card').click(); await nav(); await sleep(700);
+ var fx=q('#fsFixScene');
+ if(fx){ fx.click(); await nav(); await sleep(1200);
+   check('D1 「回去调整生活变化」→ 回到发现权益', /discover\.html/.test(page()), page());
+   check('D1 带上了定位区块', /在这里增减生活变化|已按您的确认/.test(D().body.textContent));
+ }
+
+ /* ================= 回归：既有交互不受影响 ================= */
+ out('--- 回归检查 ---');
+ // 卡片详情页仍可进入
+ sessionStorage.clear();
+ seedSession({target:'parents',operator:'女儿',beneficiary:'父亲',confirmed:true,
+   text:'我父亲72岁，一个人在广州生活，最近行动不便。',
+   profile:{},demo:false,demoBanner:false});
+ await navTo('/discover.html'); await sleep(500);
+ await waitFor(function(){return q('.result-card');},25000,'结果卡');
+ check('回归 结果列表正常渲染', qa('.result-card').length>0, 'n='+qa('.result-card').length);
+ check('回归 优先关注分组仍在', !!q('.tier-head.is-focus'));
+ check('回归 折叠区仍在且默认收起',
+   !!q('#moreToggle') && q('#moreToggle').getAttribute('aria-expanded')==='false');
+ q('#moreToggle').click(); await sleep(600);
+ check('回归 折叠区可展开', q('#moreToggle').getAttribute('aria-expanded')==='true');
+ var tgt=qa('[data-more-body] .result-card')[0];
+ tgt.scrollIntoView({block:'center'}); await sleep(400);
+ var y0=W().scrollY||W().pageYOffset||0;
+ tgt.click(); await nav(); await sleep(800);
+ check('回归 折叠区内卡片仍可进详情', /policy\.html/.test(page()), page());
+ q('.back-link').click(); await nav(); await sleep(1200);
+ await waitFor(function(){return q('.result-card');},25000,'返回后列表');
+ var y1=W().scrollY||W().pageYOffset||0;
+ check('回归 返回后恢复滚动位置', Math.abs(y1-y0)<180, 'before='+Math.round(y0)+' after='+Math.round(y1));
+ check('回归 返回后折叠区仍展开', q('#moreToggle').getAttribute('aria-expanded')==='true');
+ check('回归 证据链按钮仍在', qa('.ev-toggle').length>0);
+
+ // 无横向滚动
+ check('回归 详情页无横向滚动',
+   D().documentElement.scrollWidth<=D().documentElement.clientWidth+1,
+   'sw='+D().documentElement.scrollWidth+' cw='+D().documentElement.clientWidth);
+
+ // 本人模式独立入口仍正常
+ sessionStorage.clear();
+ seedSession({target:'self',selfText:'',selfProfile:{},demo:false,demoBanner:false});
+ await navTo('/self.html'); await sleep(600);
+ check('回归 本人模式页面可打开', /self\.html/.test(page()), page());
+ check('回归 本人模式无「返回上一页」式操作者选择',
+   qa('#operatorGrid').length===0, '本人页不应有协助查询选择区');
+
+ out('');
+ out('=== 通过 '+pass+'，失败 '+fail+' ===', fail?'bad':'ok');
+}
+
+run().catch(function(e){
+ out('ERROR '+e.message,'bad');
+ out('=== 异常终止：通过 '+pass+'，失败 '+(fail+1)+' ===','bad');
+});
+</script>
+</body>
+</html>
