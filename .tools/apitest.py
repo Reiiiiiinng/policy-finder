@@ -52,6 +52,21 @@ def main():
     d = call("/api/policy/gz_elderly_001")
     check("详情含 rag_text", bool(d.get("rag_text")))
     check("详情含来源文号", d["source"].get("document_no") == "穗民〔2024〕76号")
+    check("详情原有字段未破坏",
+          d.get("policy_name") == "老年人照护需求综合评估" and isinstance(d.get("conditions"), dict),
+          d.get("policy_name"))
+    # v0.9：详情接口补齐 validity 与 threshold_signal，前端不必再重跑一次匹配
+    dv = d.get("validity") or {}
+    check("详情含 validity（派生对象）", isinstance(dv, dict) and bool(dv), dv)
+    check("validity 含派生字段",
+          set(("status", "level", "message", "expires_at", "effective_from", "verified_at"))
+          <= set(dv.keys()), sorted(dv.keys()))
+    check("广州库 validity=active/normal 且 message 为空",
+          dv.get("status") == "active" and dv.get("level") == "normal" and dv.get("message") == "",
+          dv)
+    check("详情含 threshold_signal 字段", "threshold_signal" in d)
+    check("无画像时 threshold_signal 为 null（不伪造）",
+          d.get("threshold_signal") is None, d.get("threshold_signal"))
     check("404 未知政策", True)
 
     print("== 画像解析 ==")

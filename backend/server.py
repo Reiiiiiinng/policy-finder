@@ -95,6 +95,12 @@ def _detail(policy, profile=None):
     data["rag_text"] = engine.build_rag_text(policy)
     if profile:
         data["ai_reason_rendered"] = engine.render_reason(policy.get("ai_reason", []), profile)
+    # v0.9：详情页不再依赖「重跑一次匹配」才能拿到时效与阈值。
+    # validity 是纯派生（不新增数据字段，调用引擎既有派生函数）；
+    # threshold_signal 需要用户画像才能与个人负担金额比较，没有画像时返回 None，
+    # 不伪造结论。两个键都是新增，既有字段原样保留。
+    data["validity"] = engine.derive_validity(policy)
+    data["threshold_signal"] = engine.threshold_signal(policy, profile) if profile else None
     return data
 
 
