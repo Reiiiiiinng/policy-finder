@@ -16,6 +16,7 @@
 import json
 import os
 import re
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -23,6 +24,9 @@ DATA_DIR = os.path.join(ROOT_DIR, "data")
 
 # 政策库注册表。用环境变量 POLICY_DB 选择：guangzhou / foshan / 任意文件路径。
 # 默认仍为广州库，佛山库需显式切换——避免本轮引擎改造影响既有回归基线。
+# 注意：foshan 是预留的扩展入口。本分支（ui-dev）只携带广州库，
+# data/foshan_medical_assistance_v1.json 未随本分支迁移；
+# 此时 load_database() 会打印明确提示并回退到默认广州库，不会崩溃。
 DATABASES = {
     "guangzhou": os.path.join(DATA_DIR, "guangzhou_elderly_policy_v1.1.json"),
     "foshan": os.path.join(DATA_DIR, "foshan_medical_assistance_v1.json"),
@@ -274,6 +278,20 @@ def profile_missing_fields(profile):
 
 
 def load_database(path=DB_PATH):
+    """
+    读取政策库。path 默认取自 POLICY_DB（未设置时为 guangzhou）。
+
+    保护：若指定的库文件不存在（例如 POLICY_DB=foshan 但本分支未携带佛山库），
+    不抛 FileNotFoundError 让服务起不来，而是打印明确提示并回退到默认广州库。
+    只影响本次实际加载的库，不改变注册表，也不引入任何政策数据。
+    """
+    if not os.path.exists(path):
+        fallback = DATABASES["guangzhou"]
+        sys.stderr.write(
+            "[政策库] 未找到 %s；本分支未携带该政策库，已回退到默认库：%s\n"
+            % (path, fallback)
+        )
+        path = fallback
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
