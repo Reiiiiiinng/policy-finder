@@ -64,58 +64,34 @@ const SITE = {
   loaded: false,
 };
 
-/**
- * 政策库名 → 该库覆盖的城市。
- * 政策库顶层本来就有 region 字段，但接口没有暴露它；而每条政策上的 region
- * 字段在部分库里是空的。所以这里按政策库名兜底，不依赖政策库内容。
- * 新增城市时，在下面加一行，并在 DEMO_PROFILES 里补一个案例即可。
- */
-const SITE_REGION_BY_DB = {
-  '广州养老政策数据库': '广州市',
-  '佛山医疗救助政策数据库': '佛山市',
-};
-
 let _sitePromise = null;
 
 /**
  * 读取站点上下文，同一页面内只请求一次。失败不抛错，用默认值兜底。
- * 取值优先级：
- *   1) 政策库里每条政策的 region 字段（数据层若补齐，自动生效，无需改这里）
- *   2) 政策库名 → 城市的对照表（当前走的这条）
+ * 城市取自政策库里每条政策的 region 字段（政策库是该事实的唯一来源，
+ * 前端不做任何名称映射兜底）。政策库若缺该字段，页面退回默认值，
+ * 同时说明数据层有缺口——这是有意为之，不掩盖。
  */
 function loadSiteContext() {
   if (_sitePromise) return _sitePromise;
   _sitePromise = (async () => {
-    let dbName = '';
-    try {
-      const h = await API.health();
-      dbName = (h && h.database) || '';
-      SITE.policyCount = (h && h.policy_count) || 0;
-    } catch (e) {
-      // 接口不可用：保持默认值，不阻塞页面
-    }
-
-    let region = '';
     try {
       const d = await API.get('/api/policies');
       const list = d.policies || [];
-      // 取政策库里出现次数最多的地区
+      SITE.policyCount = d.total || list.length;
+      // 取政策库里出现次数最多的地区，作为本站点覆盖城市
       const counts = {};
       list.forEach((p) => {
         if (p.region) counts[p.region] = (counts[p.region] || 0) + 1;
       });
-      region = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || '';
-      if (!SITE.policyCount) SITE.policyCount = d.total || list.length;
+      const region = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      if (region) {
+        SITE.region = region;
+        SITE.regionShort = String(region).replace(/市$/, '');
+      }
     } catch (e) {
-      // 同上
+      // 接口不可用：保持默认值，不阻塞页面
     }
-
-    if (!region) region = SITE_REGION_BY_DB[dbName] || '';
-    if (region) {
-      SITE.region = region;
-      SITE.regionShort = String(region).replace(/市$/, '');
-    }
-
     SITE.loaded = true;
     return SITE;
   })();
@@ -415,6 +391,40 @@ function showToast(msg, ms) {
   el.hidden = false;
   clearTimeout(el.__timer);
   el.__timer = setTimeout(() => { el.hidden = true; }, ms || 1900);
+}
+
+/* ==========================================================================
+   局部刷新的「进行中」状态
+   场景：用户点确认台的「是 / 否 / 不确定」或增删生活事件后，结果区要重新匹配。
+   这段时间结果区仍显示上一次的内容——必须让用户知道两件事：
+     1) 你的输入已经收到了
+     2) 下方看到的还是旧的
+   否则用户会对着过期结果做判断。
+
+   实现：固定定位的窄条，不参与文档流，因此不改变页面高度，
+   不会干扰「局部刷新锁高」与「返回后恢复滚动位置」两套既有逻辑。
+   形态是机械式的进行中提示（一条细进度线），不是聊天式思考动画。
+   ========================================================================== */
+function refreshBarHtml(title) {
+  return `<div class="refresh-bar" id="pfRefreshBar" role="status" aria-live="polite">
+    <span class="refresh-line" aria-hidden="true"></span>
+    <div class="refresh-text">
+      <span class="refresh-title">${escapeHtml(title)}</span>
+      <span class="refresh-sub">下方仍是上一次结果，更新后会自动替换</span>
+    </div>
+  </div>`;
+}
+
+/** 显示进行中窄条。title 说明这次收到了什么。 */
+function showRefreshBar(title) {
+  hideRefreshBar();
+  document.body.insertAdjacentHTML('beforeend',
+    refreshBarHtml(title || '正在更新匹配结果'));
+}
+
+function hideRefreshBar() {
+  const el = document.getElementById('pfRefreshBar');
+  if (el) el.remove();
 }
 
 /* ==========================================================================

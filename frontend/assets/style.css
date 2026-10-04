@@ -3918,3 +3918,72 @@ input:focus {
   background: var(--pending-soft);
   border-color: var(--pending-line);
 }
+
+/* ==========================================================================
+   局部刷新的进行中窄条
+   固定定位、不参与文档流，因此不改变页面高度，不会干扰
+   「补充信息局部刷新锁高」与「返回后恢复滚动位置」两套逻辑。
+   只做机械式进行中提示（一条细进度线），不做聊天式思考动画。
+   ========================================================================== */
+.refresh-bar {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  padding: 13px 18px 12px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  z-index: 70;
+  animation: pf-toast-in 0.22s ease both;
+}
+
+.refresh-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--brand-soft);
+  overflow: hidden;
+}
+
+.refresh-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 38%;
+  height: 100%;
+  background: var(--brand);
+  animation: pf-refresh-line 1.1s linear infinite;
+}
+
+@keyframes pf-refresh-line {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(264%); }
+}
+
+.refresh-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refresh-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.refresh-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-bar { animation: none; }
+  .refresh-line::after { animation: none; width: 100%; opacity: 0.55; }
+}

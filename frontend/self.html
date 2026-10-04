@@ -130,7 +130,9 @@
     }
     const isRefresh = !!opts.keepHeight;
 
-    if (isRefresh) showToast('已更新，正在重新匹配…');
+    // 局部刷新：结果区仍显示上一次内容，用固定窄条说明「已收到输入、正在更新」
+    // 首次匹配：走 AI 流程（renderAiFlow），每一步都对应一次真实请求
+    if (isRefresh) showRefreshBar(opts.busyTitle);
     else area.innerHTML = renderAiFlow(0);
 
     const saved = store.read();
@@ -149,6 +151,7 @@
       if (!isRefresh) updateAiFlow(4);
     } catch (e) {
       area.style.minHeight = '';
+      hideRefreshBar();
       area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
       return;
     }
@@ -180,6 +183,7 @@
     });
 
     if (isRefresh) showToast('已根据您的确认重新匹配');
+    hideRefreshBar();
 
     if (!returnTookOver) {
       if (opts.restore) restorePosition(opts.restore);
@@ -237,7 +241,17 @@
         btn.disabled = true;
         const profile = Object.assign({}, current.profile, { [key]: value });
         store.write({ selfProfile: profile });
-        runMatch({ restore: { key: key, value: raw, viewportY: viewportY }, keepHeight: true });
+        // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
+        // 去掉问句前缀（「您是否具有…」→「…」），避免状态条被撑长。
+        const condEl = btn.closest('.board-cond');
+        const condText = condEl && condEl.querySelector('.bc-label')
+          ? condEl.querySelector('.bc-label').textContent.trim() : '';
+        const short = condText.replace(/^(老人|您)是否(具有|参加|属于)?/, '').trim();
+        runMatch({
+          restore: { key: key, value: raw, viewportY: viewportY },
+          keepHeight: true,
+          busyTitle: short ? '已记录「' + short + '」的确认' : '已记录您的确认',
+        });
       });
     });
   }
@@ -256,6 +270,7 @@
       runMatch({
         restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
         keepHeight: true,
+        busyTitle: '已按您调整的生活变化重新匹配',
       });
     });
   }
