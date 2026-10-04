@@ -28,6 +28,10 @@
       "policy_id": "fs_med_001",
       "policy_name": "佛山市医疗救助实施办法",
       "policy_level": "市级",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "医疗救助",
       "target_people": [
         "收入型医疗救助对象：特困人员、孤儿、事实无人抚养儿童、最低生活保障对象、最低生活保障边缘家庭成员",
@@ -237,6 +241,10 @@
       "policy_id": "fs_med_002",
       "policy_name": "广东省最低生活保障边缘家庭和支出型困难家庭救助办法",
       "policy_level": "省级",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "前置认定",
       "target_people": [
         "最低生活保障边缘家庭",
@@ -426,6 +434,10 @@
       "policy_id": "fs_med_003",
       "policy_name": "佛山市大病保险管理办法（2023年版）",
       "policy_level": "市级",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "大病保险",
       "target_people": [
         "本市职工基本医疗保险和城乡居民基本医疗保险参保人员"
@@ -586,6 +598,10 @@
       "policy_id": "fs_med_004",
       "policy_name": "佛山市基本医疗保险门诊特定病种管理办法",
       "policy_level": "市级",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "门诊保障",
       "target_people": [
         "佛山市基本医疗保险参保人员"
@@ -699,6 +715,10 @@
       "policy_id": "fs_med_005",
       "policy_name": "佛山市临时救助办法",
       "policy_level": "市级",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "临时救助",
       "target_people": [
         "支出型救助对象：因教育、医疗、护理等生活必需支出突然增加超出家庭承受能力，导致基本生活一定时期内出现严重困难的家庭",
@@ -911,6 +931,10 @@
       "policy_id": "fs_med_006",
       "policy_name": "健康·佛医保",
       "policy_level": "商业",
+      "region": {
+        "scope": "佛山市",
+        "level": "市级"
+      },
       "category": "商业补充",
       "target_people": [
         "佛山市基本医疗保险参保人员"
