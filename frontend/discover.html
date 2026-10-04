@@ -24,7 +24,7 @@
     <div class="card">
       <div class="field">
         <label for="situation">说一说这位长辈最近的生活变化</label>
-        <textarea id="situation" placeholder="例如：我父亲72岁，一个人在广州生活，最近行动不方便。"></textarea>
+        <textarea id="situation" placeholder="用一句话说说这位长辈最近发生了什么"></textarea>
       </div>
       <div class="btn-row">
         <button type="button" class="btn ghost" id="fillExample">填入示例</button>
@@ -61,15 +61,16 @@
   const session = store.read();
   // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
   const RETURN_PID = consumeReturnParam();
-  const EXAMPLE = '我父亲72岁，一个人在广州生活，最近行动不方便。';
 
   const input = document.getElementById('situation');
   const area = document.getElementById('resultArea');
 
-  // 固定演示案例：称谓跟随家庭页选择的受益人，避免「选了母亲却说父亲」
+  // 演示案例：称谓跟随家庭页选择的受益人，避免「选了母亲却说父亲」；
+  // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。
   const CALL = { '配偶': '老伴' };
-  const CASE_WHO = CALL[session.beneficiary] || session.beneficiary || '父亲';
-  const CASE_TEXT = '我' + CASE_WHO + '72岁，一个人在广州生活，最近行动不方便。';
+  const CASE_WHO = CALL[session.beneficiary] || session.beneficiary || demoProfile().who;
+  const caseText = () => demoText(CASE_WHO);
+  const exampleText = () => demoText('父亲');
 
   function clearOldAnswers() {
     // 演示案例是一次全新场景：清掉上一轮留存的事实答案，
@@ -78,7 +79,7 @@
   }
 
   document.getElementById('fillExample').addEventListener('click', () => {
-    input.value = EXAMPLE;
+    input.value = exampleText();
     input.focus();
   });
 
@@ -87,23 +88,32 @@
     runMatch({ scrollToResult: true });
   });
 
-  // 推荐演示案例（保留原有入口，仍需手动点击开始）
-  const caseBox = document.createElement('div');
-  caseBox.className = 'case-card';
-  caseBox.innerHTML = `
-    <div class="case-head">
-      <span class="case-badge">推荐演示案例</span>
-      <span class="case-title">72 岁 · 广州 · 独居 · 行动不便</span>
-    </div>
-    <p class="case-desc">点击后填入这句话，仍需您点「让 AI 读一遍」：<br>「<span class="case-preview"></span>」</p>
-    <button type="button" class="case-btn" id="caseBtn">体验案例：72岁广州老人</button>`;
-  input.closest('.card').insertAdjacentElement('afterend', caseBox);
-  caseBox.querySelector('.case-preview').textContent = CASE_TEXT;
-  caseBox.querySelector('#caseBtn').addEventListener('click', () => {
-    input.value = CASE_TEXT;
-    clearOldAnswers();
-    showToast('已填入案例，点「让 AI 读一遍」继续');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  /** 推荐演示案例卡。文案依赖站点上下文，故在 loadSiteContext 之后再渲染。 */
+  function buildCaseBox() {
+    const p = demoProfile();
+    const caseBox = document.createElement('div');
+    caseBox.className = 'case-card';
+    caseBox.innerHTML = `
+      <div class="case-head">
+        <span class="case-badge">推荐演示案例</span>
+        <span class="case-title">${escapeHtml(p.title)}</span>
+      </div>
+      <p class="case-desc">点击后填入这句话，仍需您点「让 AI 读一遍」：<br>「<span class="case-preview"></span>」</p>
+      <button type="button" class="case-btn" id="caseBtn">体验案例：${escapeHtml(p.short)}</button>`;
+    input.closest('.card').insertAdjacentElement('afterend', caseBox);
+    caseBox.querySelector('.case-preview').textContent = caseText();
+    caseBox.querySelector('#caseBtn').addEventListener('click', () => {
+      input.value = caseText();
+      clearOldAnswers();
+      showToast('已填入案例，点「让 AI 读一遍」继续');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // 城市相关文案等站点上下文就绪后再落笔；接口不可用时用默认值，页面照常可用。
+  loadSiteContext().then(() => {
+    input.placeholder = '例如：' + exampleText();
+    buildCaseBox();
   });
 
   if (session.text) input.value = session.text;
@@ -119,6 +129,9 @@
    */
   async function runMatch(opts) {
     opts = opts || {};
+    // 注意：这里**不** await loadSiteContext()。
+    // 站点上下文在页面加载时就已开始请求，等两次匹配请求回来时必然已就绪；
+    // 若在此 await，会额外推迟渲染，导致详情页返回后的滚动位置恢复错过重试窗口。
     const text = input.value.trim();
     if (!text) {
       area.innerHTML = '<div class="notice warn">请先用一句话描述这位长辈最近的生活变化。</div>';

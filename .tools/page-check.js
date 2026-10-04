@@ -75,6 +75,8 @@ console.log('== 页面调用的自定义函数都存在 ==');
 const KEYWORD = new Set([
   'if', 'for', 'while', 'switch', 'catch', 'return', 'typeof', 'function', 'await',
   'new', 'delete', 'void', 'in', 'of', 'do', 'else', 'try', 'var', 'let', 'const',
+  // async 可以出现在 `addEventListener('click', async () => {` 里，紧邻括号但不是函数调用
+  'async', 'instanceof', 'yield',
 ]);
 const BUILTIN = new Set([
   'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',

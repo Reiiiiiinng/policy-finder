@@ -240,7 +240,7 @@
       (operator || '—') + ' → ' + (beneficiary || '—')));
     rows.push(factRow(!!age, '年龄', age ? age + ' 岁' : '待确认'));
     const h = factState(savedProfile.hukou, '已确认 · 是', '已确认 · 否');
-    rows.push(factRow(h.ok, '广州市户籍', h.text));
+    rows.push(factRow(h.ok, SITE.region + '户籍', h.text));
     const i = factState(savedProfile.insurance, '已确认 · 是', '已确认 · 否');
     rows.push(factRow(i.ok, '医保参保情况', i.text));
     const d = factState(savedProfile.disability, '已确认 · 是', '已确认 · 否');
@@ -280,6 +280,10 @@
   }
   if (session.confirmed) document.getElementById('confirmCheck').checked = true;
   refresh();
+
+  // 信息状态清单里的「XX市户籍」等文案依赖站点上下文，就绪后重绘一次。
+  // 接口不可用时保持默认值，页面照常可用。
+  loadSiteContext().then(refresh);
 
   document.getElementById('nextBtn').addEventListener('click', () => {
     location.href = 'discover.html';

@@ -247,7 +247,7 @@
 
     // v0.9：政策状态提示（时效 / 阈值核对）。
     // 数据取自本次重跑匹配的 matchRow；取不到（画像丢失、政策不在结果里）时保持空白，
-    // 不生成任何 DOM —— 广州库恒为 active + 无阈值，这里必然为空。
+    // 不生成任何 DOM —— 政策库全部为 active 且无阈值时，这里必然为空。
     const statusNotes = renderValidityNote(matchRow && matchRow.validity)
       + renderThresholdNote(matchRow && matchRow.threshold_signal);
 

@@ -86,7 +86,7 @@
             aria-label="进入比赛演示模式，使用预设虚拟案例">
       <span class="demo-entry-body">
         <span class="demo-entry-title">🎬 演示体验</span>
-        <span class="demo-entry-desc">推荐答辩案例 · 72岁广州老人，独居，行动不便</span>
+        <span class="demo-entry-desc" id="demoEntryDesc">推荐答辩案例</span>
       </span>
       <span class="demo-entry-arrow" aria-hidden="true">›</span>
     </button>
@@ -203,22 +203,26 @@
   </div>
 
   <div class="footnote">
-    第一批数据范围：广州市 · 老年人公共服务<br>
-    政策来源：广州市民政局、广州市医疗保障部门等官方公开文件<br>
+    <span id="footScope">数据范围：公共服务政策试点数据</span><br>
+    <span id="footSource">政策来源：各主管部门官方公开文件，详见每条政策的「政策来源」区</span><br>
     <span class="theme-foot">参赛主题 · 绿智共生</span>
   </div>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
-  // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程
-  const DEMO_TEXT = '我父亲72岁，一个人在广州生活，最近行动不方便。';
-  document.getElementById('demoEntry').addEventListener('click', () => {
+  // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程。
+  // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。
+  document.getElementById('demoEntry').addEventListener('click', async () => {
+    await loadSiteContext();
     showDemoConfirm();
   });
 
   function showDemoConfirm() {
     if (document.getElementById('demoOverlay')) return;
+    const p = demoProfile();
+    const rows = p.rows.map((r) => '<div class="dc-row"><span class="k">'
+      + escapeHtml(r[0]) + '</span><span class="v">' + escapeHtml(r[1]) + '</span></div>').join('');
     const overlay = document.createElement('div');
     overlay.id = 'demoOverlay';
     overlay.className = 'demo-overlay';
@@ -228,13 +232,7 @@
           <span class="demo-confirm-badge">演示案例</span>
           <span class="demo-confirm-title">虚拟案例信息</span>
         </div>
-        <div class="demo-confirm-rows">
-          <div class="dc-row"><span class="k">年龄</span><span class="v">72 岁</span></div>
-          <div class="dc-row"><span class="k">地区</span><span class="v">广州</span></div>
-          <div class="dc-row"><span class="k">家庭关系</span><span class="v">女儿帮助父亲查询</span></div>
-          <div class="dc-row"><span class="k">居住情况</span><span class="v">独居</span></div>
-          <div class="dc-row"><span class="k">身体情况</span><span class="v">行动不便</span></div>
-        </div>
+        <div class="demo-confirm-rows">${rows}</div>
         <p class="demo-confirm-note">以下为虚拟案例，不代表真实个人情况。</p>
         <p class="demo-confirm-desc">确认后将进入家庭协助页，每一步都由您手动操作体验。</p>
         <div class="demo-confirm-actions">
@@ -248,16 +246,25 @@
       store.write({
         target: 'parents',
         operator: '女儿',
-        beneficiary: '父亲',
+        beneficiary: p.who,
         confirmed: true,
         demo: true,
         demoBanner: true,
         profile: {},
-        text: DEMO_TEXT,
+        text: demoText(p.who),
       });
       location.href = 'family.html';
     });
   }
+
+  // 与城市有关的静态文案，等站点上下文就绪后再落笔（接口不可用时保持占位文案）
+  loadSiteContext().then(() => {
+    document.getElementById('demoEntryDesc').textContent = demoProfile().desc;
+    document.getElementById('footScope').textContent =
+      '数据范围：' + SITE.region + ' · ' + SITE.policyCount + ' 条政策，逐条标注责任部门与文号';
+    document.getElementById('footSource').textContent =
+      '政策来源：各主管部门官方公开文件；每条政策的「政策来源」区可查看文号与原文链接';
+  });
 
   // 入口分流：帮他人（父母/长辈）走家庭协助模式，为自己走本人模式
   // 正常入口清除演示标记，避免正常使用时误显示演示提示

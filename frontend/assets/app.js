@@ -51,6 +51,111 @@ function escapeHtml(str) {
   }[c]));
 }
 
+/* ==========================================================================
+   站点上下文（SITE）
+   目的：页面里不再写死城市名。当前政策库覆盖哪个城市，文案就跟着变。
+   数据来源：/api/policies 每条政策都带 region 字段（后端既有字段，无需改动后端）。
+   取不到时保持默认值（广州），保证任何情况下页面都能正常渲染，v1.0 行为不变。
+   ========================================================================== */
+const SITE = {
+  region: '广州市',
+  regionShort: '广州',
+  policyCount: 0,
+  loaded: false,
+};
+
+let _sitePromise = null;
+
+/** 读取站点上下文，同一页面内只请求一次。失败不抛错，用默认值兜底。 */
+function loadSiteContext() {
+  if (_sitePromise) return _sitePromise;
+  _sitePromise = (async () => {
+    try {
+      const d = await API.get('/api/policies');
+      const list = d.policies || [];
+      // 取政策库里出现次数最多的地区，作为本站点覆盖城市
+      const counts = {};
+      list.forEach((p) => {
+        if (p.region) counts[p.region] = (counts[p.region] || 0) + 1;
+      });
+      const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      if (top) {
+        SITE.region = top;
+        SITE.regionShort = String(top).replace(/市$/, '');
+      }
+      SITE.policyCount = d.total || list.length;
+    } catch (e) {
+      // 接口不可用：保持默认值，不阻塞页面
+    }
+    SITE.loaded = true;
+    return SITE;
+  })();
+  return _sitePromise;
+}
+
+/**
+ * 演示案例档案：按政策库覆盖城市取对应案例。
+ * 广州条目与 v1.0 完全一致（不破坏现有 Demo）；其他城市缺失时用通用兜底。
+ */
+const DEMO_PROFILES = {
+  '广州市': {
+    text: '我{who}72岁，一个人在广州生活，最近行动不方便。',
+    selfText: '我72岁，一个人在广州生活，最近行动不方便。',
+    who: '父亲',
+    short: '72岁广州老人',
+    title: '72 岁 · 广州 · 独居 · 行动不便',
+    tags: ['72岁广州老人', '独居', '行动不便'],
+    banner: '72岁广州老人 · 独居 · 行动不便',
+    desc: '推荐答辩案例 · 72岁广州老人，独居，行动不便',
+    rows: [['年龄', '72 岁'], ['地区', '广州'], ['家庭关系', '女儿帮助父亲查询'],
+           ['居住情况', '独居'], ['身体情况', '行动不便']],
+  },
+  '佛山市': {
+    text: '我{who}78岁，在佛山，上个月住院花了6万多，自付了3万。',
+    selfText: '我78岁，在佛山，上个月住院花了6万多，自付了3万。',
+    who: '母亲',
+    short: '78岁佛山老人',
+    title: '78 岁 · 佛山 · 住院自付 3 万',
+    tags: ['78岁佛山老人', '住院', '自付 3 万'],
+    banner: '78岁佛山老人 · 住院自付 3 万',
+    desc: '推荐答辩案例 · 78岁佛山老人，住院自付 3 万',
+    rows: [['年龄', '78 岁'], ['地区', '佛山'], ['家庭关系', '女儿帮助母亲查询'],
+           ['就医情况', '住院'], ['自付金额', '3 万元']],
+  },
+};
+
+/** 取当前政策库对应的演示案例；未登记的城市按站点上下文生成中性案例。 */
+function demoProfile() {
+  if (DEMO_PROFILES[SITE.region]) return DEMO_PROFILES[SITE.region];
+  const r = SITE.regionShort;
+  return {
+    text: `我{who}72岁，在${r}生活，最近行动不方便。`,
+    selfText: `我72岁，在${r}生活，最近行动不方便。`,
+    who: '父亲',
+    short: `72岁${r}老人`,
+    title: `72 岁 · ${r} · 行动不便`,
+    tags: [`72岁${r}老人`, '行动不便'],
+    banner: `72岁${r}老人 · 行动不便`,
+    desc: `推荐答辩案例 · 72岁${r}老人，行动不便`,
+    rows: [['年龄', '72 岁'], ['地区', r], ['家庭关系', '女儿帮助父亲查询'],
+           ['身体情况', '行动不便']],
+  };
+}
+
+/** 把演示案例模板里的 {who} 换成实际受益人称呼。 */
+function demoText(who) {
+  const p = demoProfile();
+  return String(p.text).replace('{who}', who || p.who);
+}
+
+/** 地区名比较：容忍「广州」与「广州市」写法差异。 */
+function regionMatches(value, target) {
+  const norm = (s) => String(s || '').trim().replace(/市$/, '');
+  const a = norm(value);
+  const b = norm(target);
+  return !!a && !!b && a === b;
+}
+
 /**
  * 比赛演示模式：在页面顶部插入一条「演示案例」提示，避免评委误认为是真实用户数据。
  * 仅当 sessionStorage 里 demoBanner=true 时显示。各页面加载后调用 mountDemoBanner() 即可。
@@ -58,7 +163,7 @@ function escapeHtml(str) {
 function renderDemoBanner() {
   return `<div class="demo-banner" role="status" aria-live="polite">
     <span class="demo-banner-badge">演示案例</span>
-    <span class="demo-banner-text">72岁广州老人 · 独居 · 行动不便</span>
+    <span class="demo-banner-text">${escapeHtml(demoProfile().banner)}</span>
     <span class="demo-banner-note">以下为虚拟案例，不代表真实个人情况</span>
     <button type="button" class="demo-banner-reset" id="demoResetBtn">重新体验</button>
   </div>`;
@@ -150,7 +255,7 @@ function personalize(text, profile) {
 function explainMissing(text) {
   const t = String(text || '');
   if (/户籍/.test(t)) return '为什么需要确认？部分养老服务政策以户籍或参保地为准，未确认前无法判断是否适用。';
-  if (/医保|参保|保险/.test(t)) return '为什么需要确认？长期护理保险等待遇以是否参加广州市社会医疗保险为前提。';
+  if (/医保|参保|保险/.test(t)) return `为什么需要确认？长期护理保险等待遇以是否参加${SITE.region}社会医疗保险为前提。`;
   if (/失能|评估|照护需求/.test(t)) return '为什么需要确认？该类服务通常需要在完成照护需求或失能等级评估后，才能确定适用等级。';
   if (/年龄|周岁/.test(t)) return '为什么需要确认？年龄是多数老年人公共服务的基础门槛。';
   if (/补贴|标准|档次|费用/.test(t)) return '为什么需要确认？补贴与发放标准可能由各区确定，需要向受理单位核实本人适用的口径。';
@@ -203,7 +308,7 @@ function sourceBlock(r) {
  *
  * 空内容一律不生成 DOM：
  * - validity 为 null/undefined（旧数据、非三层库）→ ''
- * - level=normal 且 message 为空（广州库恒为这种状态）→ ''
+ * - level=normal 且 message 为空（政策库全部为 active 时恒为这种状态）→ ''
  * 只表达「政策状态变化提醒」，不做任何资格判断，也不承诺办理结果。
  */
 function renderValidityNote(validity) {
@@ -243,7 +348,7 @@ function renderValidityNote(validity) {
  * 阈值提示（起付标准核对）。
  *
  * 纯展示：只读后端 threshold_signal() 算好的三态结论。
- * - threshold_signal 为 null（该政策没有起付线，如广州库全部政策）→ ''
+ * - threshold_signal 为 null（该政策没有起付线，如纯养老服务类政策）→ ''
  * - message 与 action 都为空 → ''
  * 红线：绝不输出阈值数值，也不做「能报多少」的承诺；后端文案已写成
  * 「具体标准请向医保部门核实」，前端原样展示即可。
@@ -504,16 +609,16 @@ function renderEmptyState(data, opts) {
   const scenes = profile.scenes || [];
 
   let state;
-  if (!region || !/广州/.test(region)) {
+  if (!region || !regionMatches(region, SITE.region)) {
     // 状态1：地区不匹配
     state = {
       title: '暂未发现相关公共服务权益',
-      sub: `这次只识别到所在地区「${region || '未写明'}」。本批次为广州市的试点数据，当前地区暂无对应服务数据。`,
+      sub: `这次只识别到所在地区「${region || '未写明'}」。本批次为${SITE.region}的试点数据，当前地区暂无对应服务数据。`,
       reasons: [
         '当前地区暂无对应服务数据',
         '可以尝试修改地区信息，或在描述里写明所在城市',
       ],
-      next: '把「广州 + 所在区或街道」写进描述，再点「开始发现」重新匹配',
+      next: `把「${SITE.regionShort} + 所在区或街道」写进描述，再点「开始发现」重新匹配`,
     };
   } else if (!profile.age || !scenes.length) {
     // 状态2：信息不足
@@ -523,7 +628,7 @@ function renderEmptyState(data, opts) {
     lack.push('家庭情况不足');
     state = {
       title: '还需要更多生活情况信息',
-      sub: `已识别到所在地区为广州市，但${lack.join('、')}，AI 暂时无法据此判断可能相关的服务。`,
+      sub: `已识别到所在地区为${SITE.region}，但${lack.join('、')}，AI 暂时无法据此判断可能相关的服务。`,
       reasons: lack,
       next: '补充年龄、家庭情况或具体身体变化后，重新匹配',
     };
@@ -531,7 +636,7 @@ function renderEmptyState(data, opts) {
     // 状态3：暂无相关服务
     state = {
       title: '当前数据库中暂未发现匹配服务',
-      sub: `已了解到：${profile.age} 岁 · ${region} · ${scenes.join('、')}。本批次为广州市老年人公共服务的试点数据，范围仍在扩充。`,
+      sub: `已了解到：${profile.age} 岁 · ${region} · ${scenes.join('、')}。本批次为${SITE.region}公共服务政策的试点数据，范围仍在扩充。`,
       reasons: [
         '本批次政策范围有限，描述的变化可能暂时没有对应条目',
         '可以换一种说法描述同一件事再试',
@@ -574,12 +679,12 @@ function renderConfirmCard(profile) {
   const items = [
     {
       key: 'hukou',
-      label: self ? '您是否具有广州市户籍' : '老人是否具有广州市户籍',
+      label: self ? `您是否具有${SITE.region}户籍` : `老人是否具有${SITE.region}户籍`,
       why: '为什么需要确认？因为部分养老服务政策涉及户籍条件，未确认前无法判断是否适用。',
     },
     {
       key: 'insurance',
-      label: self ? '您是否参加广州市社会医疗保险' : '老人是否参加广州市社会医疗保险',
+      label: self ? `您是否参加${SITE.region}社会医疗保险` : `老人是否参加${SITE.region}社会医疗保险`,
       why: '为什么需要确认？因为长期护理保险等待遇以参保情况为前提。',
     },
     {
@@ -1111,12 +1216,12 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
   const items = [
     {
       key: 'hukou',
-      label: self ? '您是否具有广州市户籍' : '老人是否具有广州市户籍',
+      label: self ? `您是否具有${SITE.region}户籍` : `老人是否具有${SITE.region}户籍`,
       why: '部分养老服务政策以户籍为准，未确认前无法判断是否适用。',
     },
     {
       key: 'insurance',
-      label: self ? '您是否参加广州市社会医疗保险' : '老人是否参加广州市社会医疗保险',
+      label: self ? `您是否参加${SITE.region}社会医疗保险` : `老人是否参加${SITE.region}社会医疗保险`,
       why: '长期护理保险等待遇以是否参保为前提。',
     },
     {
