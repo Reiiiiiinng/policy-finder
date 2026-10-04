@@ -70,6 +70,12 @@
   const input = document.getElementById('situation');
   const area = document.getElementById('resultArea');
 
+  // 「还有一些情况」的展示状态（纯展示层，不参与任何匹配）：
+  // 预览名单在一次分析内保持稳定，不因点击某个情况而重新洗牌。
+  const OPTIONAL_PREVIEW_COUNT = 6;
+  let optionalPreview = null;
+  let optionalExpanded = false;
+
   // 本人模式：称谓用「我」，与被查询对象无关；案例内容随政策库覆盖城市变化
   const selfText = () => demoProfile().selfText;
 
@@ -160,12 +166,24 @@
     mountFlow(2);
     mountRelationStrip();
 
+    // 新一轮分析才重置预览与展开状态；点击某个情况触发的局部刷新沿用原状态。
+    if (!isRefresh) {
+      optionalPreview = null;
+      optionalExpanded = false;
+    }
+    const optionalNames = optionalScenesOf(data.profile, data.scene_library).map((x) => x.name);
+    optionalPreview = optionalPreview
+      ? optionalPreview.filter((n) => optionalNames.indexOf(n) >= 0)
+      : optionalNames.slice(0, OPTIONAL_PREVIEW_COUNT);
+
     // 局部刷新时锁定容器高度，保证替换前后文档总高度不变，避免跳顶
     if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
 
     area.innerHTML =
       renderSituationBoard(data.profile, data.scene_library, {
         title: '第二步：确认 AI 的理解对不对',
+        optionalPreview: optionalPreview,
+        optionalExpanded: optionalExpanded,
       }) +
       renderResultCards(data, {
         heading: '第三步：AI 发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
@@ -206,12 +224,20 @@
     }
   }
 
+  /**
+   * 局部刷新后把页面放回点击前的位置，避免跳顶。
+   * chip 会在「已识别 / 可选」两组之间移动，不再锚定 chip 本身；
+   * 关键条件按钮位置不动，仍锚定它自己的视口位置。
+   */
   function restorePosition(restore) {
-    const sel = restore.key
-      ? '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]'
-      : '[data-scene="' + restore.scene + '"]';
+    if (restore && typeof restore.scrollY === 'number') {
+      window.scrollTo(0, restore.scrollY);
+      return;
+    }
+    if (!restore || !restore.key) return;
+    const sel = '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]';
     const el = document.querySelector(sel);
-    if (!el) return;
+    if (!el || el.getBoundingClientRect().height === 0) return;
     const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
     window.scrollTo(0, Math.max(0, top));
   }
@@ -258,9 +284,8 @@
 
   function bindScenes(current) {
     bindSceneChips(current, function (scenes) {
-      const btn = document.querySelector('[data-scene="' + CSS.escape(
-        (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
-      const viewportY = btn ? btn.getBoundingClientRect().top : 0;
+      // 点击瞬间记下滚动位置：chip 会在两组之间移动，锚定它本身会把页面拽走。
+      const scrollY = window.scrollY;
       // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
       const profile = Object.assign({}, current.profile, {
         confirmed_scenes: scenes,
@@ -268,7 +293,7 @@
       });
       store.write({ selfProfile: profile });
       runMatch({
-        restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
+        restore: { scrollY: scrollY },
         keepHeight: true,
         busyTitle: '已按您调整的生活变化重新匹配',
       });
@@ -290,6 +315,7 @@
     bindScenes(data);
     bindEvidence(data);
     bindResultGroups();
+    bindSceneMoreToggle(function (open) { optionalExpanded = open; });
   }
 
   // 从详情页「回去调整」带 focus 参数回来时的定位

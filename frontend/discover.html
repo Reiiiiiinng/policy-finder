@@ -65,6 +65,13 @@
   const input = document.getElementById('situation');
   const area = document.getElementById('resultArea');
 
+  // 「还有一些情况」的展示状态（纯展示层，不参与任何匹配）：
+  // optionalPreview 是稳定的预览名单（按场景名），只在全新分析时重建；
+  // 点击某个情况只会让它从名单里自然消失，不会补位，避免「点掉一个又冒出一个」。
+  const OPTIONAL_PREVIEW_COUNT = 6;
+  let optionalPreview = null;
+  let optionalExpanded = false;
+
   // 演示案例：称谓跟随家庭页选择的受益人，避免「选了母亲却说父亲」；
   // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。
   const CALL = { '配偶': '老伴' };
@@ -176,11 +183,24 @@
     mountFlow(2);
     mountRelationStrip();
 
+    // 新一轮分析才重置预览与展开状态；点击某个情况触发的局部刷新沿用原状态，
+    // 否则列表会重新洗牌（点掉一个又冒出一个），展开后也会被自动收起。
+    if (!isRefresh) {
+      optionalPreview = null;
+      optionalExpanded = false;
+    }
+    const optionalNames = optionalScenesOf(data.profile, data.scene_library).map((x) => x.name);
+    optionalPreview = optionalPreview
+      ? optionalPreview.filter((n) => optionalNames.indexOf(n) >= 0) // 已确认的项不再占位，也不补位
+      : optionalNames.slice(0, OPTIONAL_PREVIEW_COUNT);
+
     if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
 
     area.innerHTML =
       renderSituationBoard(data.profile, data.scene_library, {
         title: '第二步：确认 AI 的理解对不对',
+        optionalPreview: optionalPreview,
+        optionalExpanded: optionalExpanded,
       }) +
       renderResultCards(data, {
         heading: '第三步：AI 发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
@@ -223,13 +243,24 @@
     }
   }
 
-  /** 把某个按钮放回它点击前所在的视口位置（局部刷新不跳顶） */
+  /**
+   * 局部刷新后把页面放回点击前的位置，避免跳顶。
+   * - key/value（关键条件按钮）：按钮位置不变，锚定它自己的视口位置最准。
+   * - scrollY（生活事件 chip）：chip 会在「已识别 / 可选」两组之间移动，
+   *   锚定它本身会把页面拽走（旧实现取不到被点元素时视口偏移为 0，
+   *   等于把 chip 顶到屏幕最上方，这才是「点一下往上跳」的根因）。
+   *   这里改为还原点击瞬间的滚动量——位置与点击前一致，不算补偿性跳转。
+   */
   function restorePosition(restore) {
-    const sel = restore.key
-      ? '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]'
-      : '[data-scene="' + restore.scene + '"]';
+    if (restore && typeof restore.scrollY === 'number') {
+      window.scrollTo(0, restore.scrollY);
+      return;
+    }
+    if (!restore || !restore.key) return;
+    const sel = '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]';
     const el = document.querySelector(sel);
-    if (!el) return;
+    // 目标不在当前视图（例如落到折叠区里）时不硬滚，避免滚到错误位置
+    if (!el || el.getBoundingClientRect().height === 0) return;
     const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
     window.scrollTo(0, Math.max(0, top));
   }
@@ -280,16 +311,15 @@
   /** 生活事件 chip：用户纠正 AI 的场景识别 */
   function bindScenes(current) {
     bindSceneChips(current, function (scenes) {
-      const btn = document.querySelector('[data-scene="' + CSS.escape(
-        (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
-      const viewportY = btn ? btn.getBoundingClientRect().top : 0;
+      // 点击瞬间就记下滚动位置：重匹配是异步的，等回来时页面可能已经被别的原因挪动。
+      const scrollY = window.scrollY;
       const profile = Object.assign({}, current.profile, {
         confirmed_scenes: scenes,
         scenes_edited: true,
       });
       store.write({ profile: profile });
       runMatch({
-        restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
+        restore: { scrollY: scrollY },
         keepHeight: true,
         busyTitle: '已按您调整的生活变化重新匹配',
       });
@@ -312,6 +342,7 @@
     bindScenes(data);
     bindEvidence(data);
     bindResultGroups();
+    bindSceneMoreToggle(function (open) { optionalExpanded = open; });
   }
 
   // 从详情页「回去调整」带 focus 参数回来时，滚动到对应区块

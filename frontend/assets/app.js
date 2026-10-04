@@ -1184,6 +1184,18 @@ function mountFlow(current) {
 }
 
 /**
+ * 「可能还有这些情况」的候选清单（纯展示层分组，不改任何匹配规则）。
+ * 规则与确认台原有写法一致：从场景库里剔除 AI 已识别、或用户已确认的事件；
+ * 顺序沿用后端 build_scene_library 的排序（其余项按关联权益数降序）。
+ * 抽成函数，是为了让页面在重渲染之间能沿用同一份候选名单，
+ * 避免「点掉一个又补上一个」的错位观感。
+ */
+function optionalScenesOf(profile, sceneLibrary) {
+  const scenes = (profile && profile.scenes) || [];
+  return (sceneLibrary || []).filter((x) => !(x.detected || scenes.indexOf(x.name) >= 0));
+}
+
+/**
  * 情况确认台（本轮核心交互）
  * ---------------------------------------------------------------
  * 把「AI 到底认出了什么」变成用户可见、可点击、可纠正的东西。
@@ -1205,7 +1217,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
   const lib = sceneLibrary || [];
   const scenes = profile.scenes || [];
   const detected = lib.filter((x) => x.detected || scenes.indexOf(x.name) >= 0);
-  const optional = lib.filter((x) => !detected.some((d) => d.name === x.name));
+  const optional = optionalScenesOf(profile, lib);
 
   // ---- 1. 基础事实
   const facts = [
@@ -1234,6 +1246,18 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
       ${x.related_count ? `<span class="sc-rel">关联 ${x.related_count} 项权益方向</span>` : ''}
     </button>`).join('');
 
+  // 「还有一些情况」默认只露出关联权益最多的前几项，其余折叠。
+  // 折叠只影响视觉：候选数据始终完整保留在 DOM 里（展开容器内），点开即可看到全部。
+  const OPTIONAL_PREVIEW = 6;
+  const optionalExpanded = !!opts.optionalExpanded;
+  // 预览名单由页面在重渲染之间持有：点击某个情况后名单只减不补，
+  // 因此不会出现「点掉一个，列表又冒出一个」。未传入时退化为前 N 项，保证纯函数可直接调用。
+  const previewNames = Array.isArray(opts.optionalPreview) ? opts.optionalPreview : null;
+  const preview = previewNames
+    ? optional.filter((x) => previewNames.indexOf(x.name) >= 0)
+    : optional.slice(0, OPTIONAL_PREVIEW);
+  const extra = optional.filter((x) => preview.indexOf(x) < 0);
+
   const sceneBlock = lib.length ? `
     <div class="board-sec">
       <div class="board-sec-head">
@@ -1247,8 +1271,18 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
       ${profile.scenes_edited ? '<p class="board-edited">已按您的确认调整过，下面是调整后的情况。</p>' : ''}
       <div class="scene-chips is-on">${chips(detected, 'on')}</div>
       ${optional.length ? `
-        <div class="board-sub">可能还有这些情况，如果符合请点一下</div>
-        <div class="scene-chips">${chips(optional.slice(0, 10), 'off')}</div>` : ''}
+        <div class="board-sub">还有一些情况可能帮助发现更多权益</div>
+        ${preview.length ? `<div class="scene-chips">${chips(preview, 'off')}</div>` : ''}
+        ${extra.length ? `
+          <div class="scene-chips" id="scene-extra" data-scene-extra ${optionalExpanded ? '' : 'hidden'}>
+            ${chips(extra, 'off')}
+          </div>
+          <button type="button" class="scene-more-btn" data-scene-more
+                  data-more-label="查看全部 ${optional.length} 个情况"
+                  aria-expanded="${optionalExpanded ? 'true' : 'false'}" aria-controls="scene-extra">
+            <span class="smb-label">${optionalExpanded ? '收起' : `查看全部 ${optional.length} 个情况`}</span>
+            <span class="smb-chev" aria-hidden="true">${optionalExpanded ? '▴' : '▾'}</span>
+          </button>` : ''}` : ''}
     </div>` : '';
 
   // ---- 3. 关键条件（三值，沿用 data-confirm 协议）
@@ -1613,6 +1647,28 @@ function bindSceneChips(currentData, onChange) {
       const unique = Array.from(new Set(next));
       if (onChange) onChange(unique);
     });
+  });
+}
+
+/**
+ * 「还有一些情况」的展开 / 收起。
+ * 纯展示层交互：只切换 DOM 的 hidden 与按钮文案，不请求接口、不重渲染整个确认台，
+ * 所以展开动作本身不会打断滚动位置。展开状态由页面回传保存，
+ * 点击某个情况触发重渲染后会原样带回，不会被自动收起。
+ */
+function bindSceneMoreToggle(onToggle) {
+  const btn = document.querySelector('[data-scene-more]');
+  const box = document.querySelector('[data-scene-extra]');
+  if (!btn || !box) return;
+  btn.addEventListener('click', () => {
+    const next = btn.getAttribute('aria-expanded') !== 'true';
+    box.hidden = !next;
+    btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+    const label = btn.querySelector('.smb-label');
+    if (label) label.textContent = next ? '收起' : (btn.dataset.moreLabel || '查看全部情况');
+    const chev = btn.querySelector('.smb-chev');
+    if (chev) chev.textContent = next ? '▴' : '▾';
+    if (onToggle) onToggle(next);
   });
 }
 

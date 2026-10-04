@@ -2657,9 +2657,13 @@ input:focus {
   gap: 1px;
 }
 
-.scene-chip:hover {
-  border-color: var(--brand-line);
-  background: var(--brand-wash);
+/* 只在真正支持悬停的指针设备上给 hover：触屏点击后 :hover 会粘住，
+   重渲染/滚动后手指下方的另一颗 chip 会莫名变浅绿，造成「点 A 亮 B」的误导。 */
+@media (hover: hover) and (pointer: fine) {
+  .scene-chip:hover {
+    border-color: var(--brand-line);
+    background: var(--brand-wash);
+  }
 }
 
 .scene-chip.is-on {
@@ -2695,6 +2699,47 @@ input:focus {
 }
 
 .scene-chip.is-on .sc-rel { color: var(--brand-mid); }
+
+/* ---- 「还有一些情况」折叠区 ----
+   .scene-chips 是 flex，会盖掉 [hidden] 的 UA display:none，必须显式关掉。 */
+.scene-chips[hidden] { display: none; }
+
+.scene-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
+  color: var(--brand-dark);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .scene-more-btn:hover {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+  }
+}
+
+.scene-more-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.smb-chev {
+  font-size: 11px;
+  line-height: 1;
+}
 
 /* ---- 关键条件三值 ---- */
 .board-conds {
