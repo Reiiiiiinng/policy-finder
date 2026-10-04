@@ -64,29 +64,58 @@ const SITE = {
   loaded: false,
 };
 
+/**
+ * 政策库名 → 该库覆盖的城市。
+ * 政策库顶层本来就有 region 字段，但接口没有暴露它；而每条政策上的 region
+ * 字段在部分库里是空的。所以这里按政策库名兜底，不依赖政策库内容。
+ * 新增城市时，在下面加一行，并在 DEMO_PROFILES 里补一个案例即可。
+ */
+const SITE_REGION_BY_DB = {
+  '广州养老政策数据库': '广州市',
+  '佛山医疗救助政策数据库': '佛山市',
+};
+
 let _sitePromise = null;
 
-/** 读取站点上下文，同一页面内只请求一次。失败不抛错，用默认值兜底。 */
+/**
+ * 读取站点上下文，同一页面内只请求一次。失败不抛错，用默认值兜底。
+ * 取值优先级：
+ *   1) 政策库里每条政策的 region 字段（数据层若补齐，自动生效，无需改这里）
+ *   2) 政策库名 → 城市的对照表（当前走的这条）
+ */
 function loadSiteContext() {
   if (_sitePromise) return _sitePromise;
   _sitePromise = (async () => {
+    let dbName = '';
+    try {
+      const h = await API.health();
+      dbName = (h && h.database) || '';
+      SITE.policyCount = (h && h.policy_count) || 0;
+    } catch (e) {
+      // 接口不可用：保持默认值，不阻塞页面
+    }
+
+    let region = '';
     try {
       const d = await API.get('/api/policies');
       const list = d.policies || [];
-      // 取政策库里出现次数最多的地区，作为本站点覆盖城市
+      // 取政策库里出现次数最多的地区
       const counts = {};
       list.forEach((p) => {
         if (p.region) counts[p.region] = (counts[p.region] || 0) + 1;
       });
-      const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-      if (top) {
-        SITE.region = top;
-        SITE.regionShort = String(top).replace(/市$/, '');
-      }
-      SITE.policyCount = d.total || list.length;
+      region = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || '';
+      if (!SITE.policyCount) SITE.policyCount = d.total || list.length;
     } catch (e) {
-      // 接口不可用：保持默认值，不阻塞页面
+      // 同上
     }
+
+    if (!region) region = SITE_REGION_BY_DB[dbName] || '';
+    if (region) {
+      SITE.region = region;
+      SITE.regionShort = String(region).replace(/市$/, '');
+    }
+
     SITE.loaded = true;
     return SITE;
   })();
