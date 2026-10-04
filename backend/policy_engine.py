@@ -37,7 +37,8 @@ DB_PATH = DATABASES.get(DB_KEY, DB_KEY)
 # 关键词 -> 生活场景标签（与数据库的 scene_tag_library / match.scene_signals 对齐）
 SCENE_KEYWORDS = {
     "独居": ["独居", "一个人住", "一个人生活", "自己住", "独自居住", "单独居住", "一个人"],
-    "行动不便": ["行动不便", "行动不方", "走路困难", "腿脚不便", "不能走", "走不动",
+    "行动不便": ["行动不便", "行动不方", "走路困难", "腿脚不便", "腿脚不好", "腿脚不方便",
+                 "腿脚不灵活", "不能走", "走不动",
                  "坐轮椅", "轮椅", "行动困难", "不方便行动", "出门困难"],
     "吃饭困难": ["做饭困难", "吃饭困难", "吃饭难", "买菜", "没饭吃", "做不了饭", "吃饭问题"],
     "需要照护": ["需要照护", "需要照顾", "要人照顾", "需要人照顾", "要人陪", "照护",
@@ -118,6 +119,28 @@ def parse_age(text):
         age = _cn_to_int(m.group(1))
         if age and 0 < age <= 130:
             return age
+    return None
+
+
+def parse_age_approx(text):
+    """
+    「70多岁」「七十多岁」这类**不确定**表达，只返回年龄下限（如 70），
+    绝不当作精确年龄。
+
+    用途仅限判断「是否已进入老年」（据此补「年龄增长」标签）：
+    它不会写进 profile["age"]（那里保持 None），因此年龄门槛该待确认的仍然待确认，
+    不确定性留给用户在情况确认台补答。
+    """
+    m = re.search(r"(\d{1,3})\s*多\s*(?:岁|周岁)", text)
+    if m:
+        n = int(m.group(1))
+        if 0 < n <= 130:
+            return n
+    m = re.search(r"([零一二两三四五六七八九十]+)\s*多\s*(?:岁|周岁)", text)
+    if m:
+        n = _cn_to_int(m.group(1))
+        if n and 0 < n <= 130:
+            return n
     return None
 
 
@@ -217,11 +240,15 @@ def build_profile(text="", relation=None, operator=None, age=None, region=None, 
     """
     text = text or ""
     age = age if age is not None else parse_age(text)
+    # 「70多岁」这类不确定表达：只留下限，不写进 age（保留不确定性）
+    age_approx = parse_age_approx(text) if age is None else None
     region = region or parse_region(text)
     scenes = detect_scenes(text)
 
-    # 年龄本身就是一种生活变化：达到 60/65/70 后自动补充「年龄增长」标签
-    if age and age >= 60 and "年龄增长" not in scenes:
+    # 年龄本身就是一种生活变化：达到 60 后自动补充「年龄增长」标签。
+    # 不确定表达（70多岁）不写死成精确年龄，只用下限判断「已进入老年」。
+    elder_age = age if age is not None else age_approx
+    if elder_age and elder_age >= 60 and "年龄增长" not in scenes:
         scenes.append("年龄增长")
     scenes = sorted(set(scenes))
 
@@ -255,6 +282,9 @@ def build_profile(text="", relation=None, operator=None, age=None, region=None, 
         "who": who,
         "mode": mode or "family",
         "raw_text": text,
+        # 年龄不确定表达的下限（如「70多岁」→ 70）。仅供展示与「已进入老年」判断，
+        # age 仍为 None，年龄门槛不会被当作已满足。
+        "age_approx": age_approx,
         # ---- 佛山医疗救助场景新增（旧库用不到，恒为 None，不影响既有输出）
         # self_paid_amount 仅用于与政策起付标准做内部比较，不对外输出数值
         "self_paid_amount": parse_self_paid(text),
