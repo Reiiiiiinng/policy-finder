@@ -58,6 +58,18 @@ python backend/server.py
 
 服务同时提供静态页面与接口。修改端口：`PORT=8080 python backend/server.py`。
 
+**选择政策库**：默认加载广州养老库。切换佛山医疗救助库：
+
+```bash
+POLICY_DB=foshan python backend/server.py
+```
+
+可选值：`guangzhou`（默认）/ `foshan` / 任意政策库文件路径。新增城市时在
+`backend/policy_engine.py` 的 `DATABASES` 注册表里加一项即可。
+
+**新增政策前请先读 `docs/policy-data-spec.md`**（政策数据规范），它定义了
+三层数字模型、validity 结构与数据字典，是数据层与引擎的共同契约。
+
 ## 五、页面流程
 
 产品主流程分四步，页面顶部常驻流程指示器，让用户始终知道自己在哪一步：
@@ -115,6 +127,13 @@ curl -X POST http://127.0.0.1:8000/api/match \
    - 官方依据：责任部门、文件名、文号、发布时间、核验状态。
    三段内容全部从数据库已有字段派生，**不新增字段、不改写政策表述**；`to_verify` 条目的文件名/文号/链接一律留空。
 6. **结果分层**（`assign_tier`）：`强相关`（有场景命中且无关键缺口）/ `可能相关`（有场景命中但有待确认项）/ `待确认`（仅年龄门槛命中）。仅用于展示分组，不改变推荐与否。
+7. **三层数字模型**（佛山库，见 `docs/policy-data-spec.md`）：政策条件按**用途**分三层，不按形式分——
+   - 第 1 层 **资格条件**（`conditions.qualify`）：决定用户是否符合，入库并参与判定。支持 `boolean` 三值、`enum` 有限枚举、`ratio_condition` 比例型条件。**比例作为条件时归本层入库**（如支出型困难家庭刚性支出占年收入 60%、临时救助必需支出超 30%）。
+   - 第 2 层 **阈值**（`conditions.thresholds`）：起付线与封顶线，入库但**只做内部比较**。引擎拿用户自述的个人负担金额与起付线比较后，只输出「你可能已触及门槛，具体标准请向医保部门核实」——**任何页面渲染路径都不得输出阈值数值**。
+   - 第 3 层 **结果参数**（`conditions.result_params`）：报销比例、救助比例、金额结果，**不入库、不做承诺**，页面统一显示「具体比例与金额以医保部门核算为准」。
+   划线依据：**这个数字变了，会改变「用户是否符合」的结论吗？** 会 → 入库；不会，只改变「能拿多少」→ 不入库。
+8. **政策时效**（`derive_validity`）：数据层只存 `active` / `expired` / `superseded`；`expiring` 由 `expires_at` 与当天日期计算（180 天阈值），**不写死在数据里**。已失效政策不静默删除，显式提示替代文件并给新文件入口。
+9. **地区归一化**（`normalize_region`）：比较时把「佛山」「深圳」等统一成「XX市」，避免「佛山」与政策 scope「佛山市」被全等比较判死。只用于比较，不改变对外返回的展示值。
 
 ## 八、产品红线（不可违反）
 
@@ -214,3 +233,9 @@ python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：43 项（结�
 | 2026-10-03 | `frontend/assets/app.js`、`frontend/assets/style.css` | 第七阶段：结果展示减负——顶部显示「共发现 N 项可能相关权益」+「建议优先了解其中 N 项」；引擎的「强相关」档在界面上改称「优先关注」并直接展示；其余两档合并为「其他可能相关 N 项」默认折叠；移除单卡上重复的分层色条 `.tier-strip`；生活场景归纳移到列表之后（功能未删，仅换位置） | 只改展示层：`backend/`、`data/`、`policy.html` 与 API 契约零改动，匹配结果与评分规则不变；单卡状态徽章（可能相关/待确认/已核验/来源待核验）与「为什么推荐/还需确认/政策来源」全部保留 |
 | 2026-10-03 | `frontend/assets/app.js` | 第七阶段折叠区实现：展开状态存sessionStorage（返回详情页后仍保持展开），高度由 JS 按真实内容测量后写 `max-height` | 曾用 `grid-template-rows: 0fr→1fr` 做动画，但那是把「能不能看见内容」押在一个动画属性上，解析不出高度就会永久看不见；改为 JS 测高 + max-height，任何环境都能展开。收起用同步强制回流而非 requestAnimationFrame（后台标签页 rAF 可能不触发，会导致收不起来） |
 | 2026-10-03 | `.tools/phase7-e2e.py`、`.tools/phase7_page.html` | 第七阶段测试：390×844 实测 43 项，覆盖顶部文案、优先关注 6 项、折叠区默认收起/展开/再收起、展开后点卡片进详情、返回恢复滚动位置与展开状态、无横向滚动 | 注意：无头环境下 **CSS transition 不推进**，`rect.height` 会停在动画起始值。断言必须针对「目标状态」（`style.maxHeight`、`aria-expanded`、`visibility`/`pointer-events`），不能断言动画中间值 |
+| 2026-10-03 | `docs/foshan-policy-verification.md`（新增） | 佛山医疗救助 6 条政策的官方原文核验记录：逐条核对 foshan.gov.cn / gd.gov.cn 原文，确认文号、印发日期、施行日期与有效期 | 仅文档，不影响运行时。6 条政策全部真实存在，5 份政府文件文号逐字一致；项目引用的 3 处原文经逐字核对全部正确；发现三份文件在 2027 年上半年集中到期 |
+| 2026-10-03 | `docs/policy-data-spec.md`（新增） | 政策数据规范：三层数字模型、validity 五字段与四态、页面文案三档、数据字典 | **数据层与引擎的共同契约**，新增或修改政策前必读 |
+| 2026-10-03 | `data/foshan_medical_assistance_v1.json`（新增） | 佛山医疗救助政策库（6 条）。条件按三层模型拆分，带 `source_ref` 精确到条款号；`validity` 五字段齐全；`green_note` 含 8 处官方原文引用；`materials` 含 9 项收件清单 | 新增文件，不改动广州养老库，两条线并存 |
+| 2026-10-03 | `backend/policy_engine.py` | 新增 `DATABASES` 注册表与 `POLICY_DB` 切换；`parse_region` 支持佛山、新增 `normalize_region`；`SCENE_KEYWORDS` 扩 7 个医疗救助域场景；新增 `_check_qualify`（第1层）、`threshold_signal`/`threshold_rows`（第2层）、`derive_validity`（时效派生）、`parse_self_paid`；`_hard_condition_check` 与 `build_evidence_chain` 按新旧两种条件模型分流；画像新增 `self_paid_amount` / `family_economic` | **向后兼容**：广州库走原路径，baseline 12/12、apitest 41/41、render-test 62/62、page-check 103/103 全部保持通过。佛山「住院自付 3 万」用例从 0 命中变为 5 命中 |
+| 2026-10-03 | `backend/server.py` | **修复**：改描述后旧画像残留——`/api/match` 曾把 `age`/`region` 从上一轮画像沿用、并对 `scenes` 取并集，导致用户改完描述后「AI 分析依据」仍显示上一次的年龄与地区（实测 age 仍为 72、region 仍为广州市、命中 10 条而非 4 条）。改为按来源区分：文本解析类字段一律以本次 text 为准，仅沿用用户明确作答的事实（`hukou`/`insurance`/`disability`/`family_economic`）；删除 `scenes` 并集，用户编辑过事件时仍走 `confirmed_scenes` 的 replace 语义 | 修复后改描述即正确重算（10→4），用户答过的 `hukou=False` 仍保留；回归全绿（baseline 12/12、apitest 41/41、render-test 62/62、page-check 103/103、e2e 总失败 0） |
+| 2026-10-03 | `docs/README.md` | 补充 `POLICY_DB` 用法、三层数字模型与政策时效说明 | 仅文档 |
