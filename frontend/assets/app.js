@@ -1446,6 +1446,30 @@ function renderEvidenceChain(ev, opts) {
 }
 
 /**
+ * v6 视觉迁移：权益分类图标（纯展示，不参与任何业务判断）。
+ * 4 组线性 SVG 与 v6 定稿一致；未知分类回退为首字，保证不渲染空白。
+ * 数据字段仍是生产的 r.category，不改数据、不新增判断。
+ */
+const CAT_ICONS = {
+  '养老服务': '<path d="M7 20V9.5A2.5 2.5 0 0 1 9.5 7h1A2.5 2.5 0 0 1 13 9.5V20"/>'
+    + '<path d="M7 14h6"/><path d="M13 20h3.2a1.8 1.8 0 0 0 1.75-1.38l.9-3.6A1.8 1.8 0 0 0 17 12.8a1.8 1.8 0 0 0-1.75 1.24L14.6 16"/>'
+    + '<circle cx="10" cy="4.4" r="1.7"/>',
+  '养老保障': '<path d="M12 3.2 19 6v5.4c0 4.1-2.8 7.6-7 9.4-4.2-1.8-7-5.3-7-9.4V6l7-2.8Z"/>'
+    + '<path d="m8.9 12 2.3 2.3 4-4.4"/>',
+  '健康服务': '<path d="M3.2 12.4h4l2-4.6 3.4 9 2.2-6 1.6 1.6h4.4"/>'
+    + '<path d="M20.6 8.6a4 4 0 0 0-6.9-3.1L12 7.1 10.3 5.5a4 4 0 0 0-6.6 1.1"/>',
+  '医疗保障': '<circle cx="12" cy="12" r="8.6"/>'
+    + '<path d="M12 8.2v7.6"/><path d="M8.2 12h7.6"/>',
+};
+
+function catSvgIcon(cat) {
+  const p = CAT_ICONS[cat];
+  if (!p) return `<span class="rc-ic-fb">${escapeHtml(String(cat || '').slice(0, 1))}</span>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"`
+    + ` stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+
+/**
  * 结果卡：第七阶段改为「优先关注 N 项 + 其他可能相关 N 项（默认折叠）」。
  *
  * 分组口径（只改展示，不改匹配）：
@@ -1465,7 +1489,7 @@ function renderResultCards(data, opts) {
 
   const profile = data.profile || {};
 
-  const oneCard = (r) => {
+  const oneCard = (r, isLead) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
     const reasons = (r.ai_reason || [])
       .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`).join('');
@@ -1490,9 +1514,49 @@ function renderResultCards(data, opts) {
 
     // 分组标题已经说明了「优先关注 / 其他可能相关」，
     // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
+
+    /* ---- v6 主权益卡（仅 focus[0]）：统一左基线 + 主次按钮 ----
+       主按钮复用本卡已有的 data-ev-toggle 内联展开（不新增抽屉、
+       不新增接口）；次按钮走既有 policy.html 详情路由（与整卡
+       点击同路），并先记录列表位置以保住返回定位。 */
+    if (isLead) {
+      return `
+      <article class="result-card is-lead" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
+        <div class="lead-top">
+          <span class="lead-ic" aria-hidden="true">${catSvgIcon(r.category)}</span>
+          <span class="lead-flag">建议先看这一项</span>
+          <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
+        </div>
+        <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
+        <p class="result-meta">${meta}</p>
+
+        ${renderValidityNote(r.validity)}
+        ${renderThresholdNote(r.threshold_signal)}
+
+        <div class="rc-block is-lead-why">
+          <div class="rc-label">为什么推荐</div>
+          <ul class="reason-list">${reasons || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>'}</ul>
+        </div>
+
+        ${missingHtml}
+        ${sourceBlock(r)}
+
+        <button type="button" class="ev-toggle" data-ev-toggle="${escapeHtml(r.policy_id)}"
+                aria-expanded="false">看证据链（依据什么 · 要求什么 · 出自哪里）</button>
+        <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
+
+        <div class="lead-actions">
+          <button type="button" class="lead-btn is-primary" data-lead-why="${escapeHtml(r.policy_id)}">看看为什么推荐</button>
+          <a type="button" class="lead-btn is-secondary" data-lead-detail="${escapeHtml(r.policy_id)}"
+             href="policy.html?id=${encodeURIComponent(r.policy_id)}">看怎么办理</a>
+        </div>
+      </article>`;
+    }
+
     return `
       <article class="result-card" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
         <div class="result-head">
+          <span class="rc-ic" aria-hidden="true">${catSvgIcon(r.category)}</span>
           <div class="result-head-main">
             <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
             <p class="result-meta">${meta}</p>
@@ -1520,16 +1584,19 @@ function renderResultCards(data, opts) {
   };
 
   // 分组：引擎的「强相关」档展示为「优先关注」，其余两档合并为「其他可能相关」
+  // v6 定稿：focus[0] 升级为主权益卡（统一左基线 + 主次按钮），其余为普通列表卡
   const focus = list.filter((r) => r.tier === '强相关');
   const others = list.filter((r) => r.tier !== '强相关');
 
   const focusHtml = focus.length
-    ? `<div class="tier-head is-focus">
-         <span class="th-name">优先关注</span>
-         <span class="th-count">${focus.length} 项</span>
-         <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
-       </div>
-       <div class="tier-items">${focus.map(oneCard).join('')}</div>`
+    ? `<div class="tier-block is-focus-block">
+         <div class="tier-head is-focus">
+           <span class="th-name">优先关注</span>
+           <span class="th-count">${focus.length} 项</span>
+           <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
+         </div>
+         <div class="tier-items is-focus-items">${focus.map((r, i) => oneCard(r, i === 0)).join('')}</div>
+       </div>`
     : '';
 
   // 折叠区：默认收起，展开状态由 bindResultGroups 恢复
@@ -1542,8 +1609,8 @@ function renderResultCards(data, opts) {
          </button>
          <div class="more-body" id="moreItems" data-more-body>
            <div class="more-inner">
-             <p class="more-tip">这些项目前缺少关键信息或仅有年龄等基础线索，是否适用还需进一步确认。</p>
-             <div class="tier-items">${others.map(oneCard).join('')}</div>
+             <p class="more-tip">这几项也可能和您的情况有关。目前还差一些关键信息，暂时不能确定是否适用——可以先了解，办理前建议再向受理单位确认。</p>
+             <div class="tier-items">${others.map((r) => oneCard(r, false)).join('')}</div>
            </div>
          </div>
        </div>`
@@ -1554,12 +1621,18 @@ function renderResultCards(data, opts) {
     ? `建议优先了解其中 ${focusCount} 项`
     : '暂未识别到优先关注项，以下均需进一步确认';
 
-  // 生活场景归纳保留，但放到结果列表之后：
-  // 它与「优先关注 / 其他可能相关」是同一批信息的两种归纳，
-  // 放在列表前面会把重点卡片挤出首屏。功能未删，只是换了位置。
+  // V1.1 文案（本轮确认）：三套视觉方案共用同一主标题
+  // 「AI 为您发现了这些可能遗漏的权益」，真实数量移入副题；
+  // .hl / .result-hero 为语义化包装，供皮肤层做版式强调，不影响数据与匹配。
+  const subLine = profile.mode === 'self'
+    ? `共发现 ${list.length} 项可能相关权益 · 基于您确认的情况整理`
+    : `共发现 ${list.length} 项可能相关权益 · 基于您确认的家庭情况整理`;
   return `
     <div class="section">
-      <h2 class="section-title" id="resultAnchor">共发现 ${list.length} 项可能相关权益</h2>
+      <div class="result-hero">
+        <h2 class="section-title result-title" id="resultAnchor">AI 为您发现了这些<span class="hl">可能遗漏的权益</span></h2>
+        <p class="result-sub">${escapeHtml(subLine)}</p>
+      </div>
       ${renderAiFlowDone()}
       <p class="result-summary">${escapeHtml(summary)}</p>
       <p class="hint" style="margin:-4px 0 10px">
@@ -1699,6 +1772,31 @@ function bindEvidenceToggles(resultsById) {
       slot.hidden = false;
       btn.setAttribute('aria-expanded', 'true');
       btn.textContent = '收起证据链';
+    });
+  });
+
+  /* ---- v6 主权益卡按钮：复用既有机制，不新增业务行为 ----
+     主按钮（看看为什么推荐）：触发本卡 data-ev-toggle 的既有点击，
+     走同一条懒渲染通道，展开状态由 ev-toggle 自己维护（单一事实源）。
+     次按钮（看怎么办理）：原生 <a> 跳 policy.html?id=（与整卡点击
+     同路），仅先记录列表位置，保住「详情返回后回到原位」的体验；
+     不 preventDefault，保留中键/新窗口兜底。 */
+  document.querySelectorAll('[data-lead-why]').forEach((btn) => {
+    if (btn.__bound) return;
+    btn.__bound = true;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = btn.closest('.result-card');
+      const t = card && card.querySelector('[data-ev-toggle]');
+      if (t) t.click();
+    });
+  });
+  document.querySelectorAll('[data-lead-detail]').forEach((a) => {
+    if (a.__bound) return;
+    a.__bound = true;
+    a.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveListPosition(a.dataset.leadDetail);
     });
   });
 }

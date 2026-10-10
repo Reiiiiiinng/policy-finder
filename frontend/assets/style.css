@@ -4032,3 +4032,658 @@ input:focus {
   .refresh-bar { animation: none; }
   .refresh-line::after { animation: none; width: 100%; opacity: 0.55; }
 }
+
+/* ================================================================
+   v6 视觉迁移层（2026-10-10 定稿 · 只追加，不覆盖上方任何规则）
+   ----------------------------------------------------------------
+   来源：设计基线 结果页A1精修候选-v6（经模拟评审通过）。
+   迁移内容：主权益卡统一左基线、主次按钮、分类图标、分组语义、
+   长名称/理由截断口径统一。
+   配色沿用本文件既有的品牌绿变量；字号/行高沿用 v6 定稿；
+   不动折叠区 JS 量高机制、不动 [hidden] 安全网、不改业务结构。
+   ================================================================ */
+
+/* ---- 1) 「优先关注」组头：v6 语义（品牌实心点；计数右置） ---- */
+.tier-head.is-focus .th-name::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.tier-head.is-focus .th-count {
+  margin-left: auto;
+}
+
+/* 「其他可能相关」保持按钮形态（视觉权重天然低一级），
+   不加圆点、不加短杠——与 v6 的「次组无强调」语义一致。 */
+
+/* ---- 2) 列表卡头部：分类图标 + 稳定栅格 ---- */
+.result-head {
+  align-items: flex-start;
+}
+
+.rc-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  color: var(--brand-dark);
+}
+
+.rc-ic svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.rc-ic .rc-ic-fb {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.result-head .result-head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---- 3) 截断口径统一（评审建议①）：
+   普通列表卡：名称单行省略、理由逐条两行封顶；
+   主权益卡：名称完整展示、理由全量（可读性优先）。 ---- */
+.result-card:not(.is-lead) .result-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result-card:not(.is-lead) .reason-list li {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- 4) 主权益卡（focus[0]）：v6 统一左基线 ----
+   配色按 v6 定稿原型恢复：--a-brand 青蓝实色 #1B6E8C（dirs.css .a-lead-card，
+   原型为实色无渐变）；deep #14556D 用于按钮文字与投影基调。
+   （第九阶段曾误用品牌绿渐变，2026-10-10 视觉回归修正） ---- */
+.result-card.is-lead {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  color: #fff;
+  background: #1B6E8C;
+  box-shadow: 0 14px 32px -14px rgba(20, 85, 109, 0.5), 0 3px 10px rgba(20, 85, 109, 0.14);
+}
+
+.result-card.is-lead:active {
+  transform: none;
+  border-color: transparent;
+  box-shadow: 0 14px 32px -14px rgba(20, 85, 109, 0.5), 0 3px 10px rgba(20, 85, 109, 0.14);
+}
+
+/* 顶部信息组：图标 + 推荐标记 + 状态徽章，一行一组 */
+.lead-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lead-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.lead-ic svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.lead-flag {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* 深色底上的状态徽章：改为半透明白，三态文字原样保留 */
+.result-card.is-lead .badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.result-card.is-lead .result-badges {
+  margin-left: auto;
+  align-items: flex-end;
+}
+
+/* 名称/副标题：与下方理由、来源、按钮共享同一条左基线 */
+.result-card.is-lead .result-name {
+  margin: 12px 0 0;
+  font-size: 24px;
+  line-height: 1.28;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  color: #fff;
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.result-card.is-lead .result-meta {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+/* 「为什么推荐」区：深色上改为透明 + 白字（v6 处理），
+   圆点、行高与普通卡一致 */
+.result-card.is-lead .rc-block.is-lead-why {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-top: 16px;
+}
+
+.result-card.is-lead .rc-block.is-lead-why .rc-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.result-card.is-lead .rc-block.is-lead-why .reason-list li {
+  color: rgba(255, 255, 255, 0.97);
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.result-card.is-lead .rc-block.is-lead-why .reason-list li::before {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* 「还需确认 / 来源」浅色信息块在深色卡上保留原样式（信任区不弱化），
+   仅收敛外边距使整体衔接自然 */
+.result-card.is-lead .rc-block.is-warm,
+.result-card.is-lead .rc-block.is-trust {
+  margin-top: 12px;
+}
+
+/* 证据链开关：深色底上改半透明白 */
+.result-card.is-lead .ev-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.result-card.is-lead .ev-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* 次按钮已承担「查看详情与办理」职责，result-foot 在主卡上重复，隐藏 */
+.result-card.is-lead .result-foot {
+  display: none;
+}
+
+/* ---- 5) 主次按钮：看看为什么推荐（主）/ 看怎么办理（次） ---- */
+.lead-actions {
+  display: flex;
+  gap: 11px;
+  margin-top: 14px;
+}
+
+.lead-btn {
+  flex: 1 1 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.lead-btn.is-primary {
+  background: #fff;
+  color: #14556D; /* v6 原型 --a-brand-deep */
+  border: 1px solid #fff;
+  box-shadow: 0 4px 12px -3px rgba(0, 0, 0, 0.26);
+}
+
+.lead-btn.is-secondary {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.lead-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+/* ---- 6) 皮肤层适配（重要）：skins.css 在本文件之后加载，
+   其「skin-c 头条卡 / skin-b 行式条目」规则会盖住上面的主权益卡——
+   默认皮肤 C 会把主卡变成米白底（.is-lead 的白字变成白底白字）。
+   这里用更高特异性把 v6 主权益卡在三态皮肤下的视觉统一固定住，
+   语义与数据完全不动，只是层叠顺序补偿。 ---- */
+body.skin-c .tier-block .is-focus-items .result-card.is-lead,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead {
+  background: #1B6E8C;
+  border: 0;
+  border-top: 0;
+  border-radius: var(--radius);
+  box-shadow: 0 14px 32px -14px rgba(20, 85, 109, 0.5), 0 3px 10px rgba(20, 85, 109, 0.14);
+  padding: 16px;
+  overflow: hidden;
+  color: #fff;
+}
+
+/* skin-c 头条卡的橙色竖条在深色主卡上不再需要 */
+body.skin-c .tier-block .is-focus-items .result-card.is-lead::before {
+  content: none;
+}
+
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .result-name,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .result-name {
+  color: #fff;
+  font-size: 24px;
+  line-height: 1.28;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+}
+
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .result-meta,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .result-meta {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+/* 「为什么推荐」标签与条目：深色底上保持白字（盖过 skin-b 的 muted 墨色） */
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .rc-label,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .rc-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li {
+  color: rgba(255, 255, 255, 0.97);
+}
+
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li::before,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li::before {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* 「还需确认 / 来源」信任区：skin-b 会把 rc-block 拆成透明行式，
+   在深色主卡上会失去对比——这里恢复原有浅色块样式 */
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-top: 1px solid var(--warn-line);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust {
+  background: var(--trust);
+  border: 1px solid var(--trust-line);
+  border-top: 1px solid var(--trust-line);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm .rc-label {
+  color: var(--warn);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .rc-label {
+  color: var(--trust-ink);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm .mi-q,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm .mi-why,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .src-row .src-k,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .src-row .src-v {
+  color: inherit;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm .mi-q {
+  color: var(--ink);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .src-k {
+  color: var(--muted);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .src-v {
+  color: var(--ink);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .ev-toggle,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .ev-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .ev-toggle:hover,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .ev-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* 证据链展开体（.evidence）在深色主卡内：skin-b 的白底块保持，
+   证据链本身是浅色自绘区，无需反色 */
+
+/* ================================================================
+   v6 分区式主权益卡 + 证据链配色统一（2026-10-10 定稿，用户验收通过）
+   ----------------------------------------------------------------
+   取代本文件上方「4) 主权益卡深色底 / 6) 皮肤适配深色底」的整块深蓝方案：
+   - 主卡 = 白卡 + 顶部有限高度青蓝色带（识别区）+ 白色内容区 + 淡橙待确认区
+   - 色带三段（lead-top / result-name / result-meta）零垂直 margin 拼接，
+     间距全部走 padding——margin 不绘制背景，会露出白底形成白色横线
+   - 证据链：白/极浅蓝灰底，标题白底深字 + 青蓝竖条，标签浅蓝底深蓝字，
+     语义色只保留条件卡左侧细线（绿=已确认 / 橙=待确认 / 灰=不符合）
+   - 本段选择器与 skins.css 的皮肤规则同形或更高特异性，皮肤 C/B 均已覆盖
+   ================================================================ */
+
+/* ---- 容器：白卡细边框轻阴影 ---- */
+.result-card.is-lead,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  padding: 16px;
+  overflow: hidden;
+}
+
+.result-card.is-lead:active,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead:active,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead:active {
+  transform: none;
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow);
+}
+
+body.skin-c .tier-block .is-focus-items .result-card.is-lead::before {
+  content: none;
+}
+
+/* ---- 顶部识别区：完整连贯的青蓝色带 ---- */
+.result-card.is-lead .lead-top,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .lead-top,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .lead-top {
+  margin: -16px -16px 0;
+  padding: 14px 16px 10px;
+  background: #1B6E8C;
+}
+
+.result-card.is-lead .result-name,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .result-name,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .result-name {
+  margin: 0 -16px;
+  padding: 0 16px;
+  background: #1B6E8C;
+  color: #FFFFFF;
+  font-size: 24px;
+  line-height: 1.28;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.result-card.is-lead .result-meta,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .result-meta,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .result-meta {
+  margin: 0 -16px;
+  padding: 5px 16px 13px;
+  background: #1B6E8C;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.result-card.is-lead .lead-ic {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #FFFFFF;
+}
+
+.result-card.is-lead .lead-flag {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #FFFFFF;
+}
+
+.result-card.is-lead .badge {
+  background: rgba(255, 255, 255, 0.14);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.30);
+}
+
+/* ---- 白色内容区：理由正文深色 + 青蓝点缀 ---- */
+.result-card.is-lead .rc-block.is-lead-why,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-top: 15px;
+}
+
+.result-card.is-lead .rc-block.is-lead-why .rc-label,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .rc-label,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .rc-label {
+  color: #14556D;
+}
+
+.result-card.is-lead .rc-block.is-lead-why .reason-list li,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li {
+  color: var(--ink-2);
+}
+
+.result-card.is-lead .rc-block.is-lead-why .reason-list li::before,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li::before,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-lead-why .reason-list li::before {
+  background: rgba(27, 110, 140, 0.55);
+}
+
+.result-card.is-lead .rc-block.is-warm,
+.result-card.is-lead .rc-block.is-trust {
+  margin-top: 12px;
+}
+
+/* skin-b 拆块行为的恢复（浅色块在白卡上正常显示） */
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust {
+  background: var(--trust);
+  border: 1px solid var(--trust-line);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-warm .rc-label {
+  color: var(--warn);
+}
+
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .rc-block.is-trust .rc-label {
+  color: var(--trust-ink);
+}
+
+/* ---- 证据链开关：浅蓝细描边 ---- */
+.result-card.is-lead .ev-toggle,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .ev-toggle,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .ev-toggle {
+  background: rgba(27, 110, 140, 0.07);
+  border: 1px solid rgba(27, 110, 140, 0.24);
+  color: #14556D;
+}
+
+.result-card.is-lead .ev-toggle:hover,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .ev-toggle:hover,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .ev-toggle:hover {
+  background: rgba(27, 110, 140, 0.13);
+  border-color: rgba(27, 110, 140, 0.38);
+}
+
+/* ---- 主次按钮：主按钮青蓝实底；次按钮白底描边 ---- */
+.lead-btn.is-primary,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .lead-btn.is-primary,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .lead-btn.is-primary {
+  background: #1B6E8C;
+  color: #FFFFFF;
+  border: 1px solid #1B6E8C;
+  box-shadow: 0 4px 12px -3px rgba(27, 110, 140, 0.35);
+}
+
+.lead-btn.is-secondary,
+body.skin-c .tier-block .is-focus-items .result-card.is-lead .lead-btn.is-secondary,
+body.skin-b .tier-block .is-focus-items .result-card.is-lead .lead-btn.is-secondary {
+  background: #FFFFFF;
+  color: #14556D;
+  border: 1px solid rgba(27, 110, 140, 0.45);
+}
+
+.lead-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(27, 110, 140, 0.30);
+}
+
+/* ---- 证据链配色统一（全站生效，含结果页与详情页） ---- */
+.evidence {
+  background: #F7FAFC;
+  border-color: #DCE7ED;
+}
+
+.ev-head {
+  background: #FFFFFF;
+  border-bottom: 1px solid #E3ECF1;
+  color: var(--ink);
+}
+
+.ev-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+}
+
+.ev-title::before {
+  content: "";
+  width: 4px;
+  height: 13px;
+  border-radius: 2px;
+  background: #1B6E8C;
+}
+
+.ev-pending {
+  background: #E7F2F6;
+  color: #14556D;
+}
+
+.ev-step-t {
+  color: var(--ink);
+}
+
+.ev-num {
+  background: #E7F2F6;
+  color: #14556D;
+}
+
+.ev-step.is-trust .ev-num {
+  background: #FFFFFF;
+  color: var(--trust-ink);
+}
+
+.ev-tag {
+  background: #E7F2F6;
+  color: #14556D;
+}
+
+.ev-cond {
+  background: #FFFFFF;
+  border: 1px solid #E3ECF1;
+  border-left: 3px solid var(--line);
+}
+
+.ev-cond.met { border-left-color: var(--brand); }
+.ev-cond.unknown { border-left-color: var(--warn); }
+.ev-cond.failed { border-left-color: var(--pending); }
+
+/* ================================================================
+   普通权益卡配色统一（2026-10-10 批准的最小修复）
+   ----------------------------------------------------------------
+   目标：普通卡的信息块/图标/证据链入口从旧品牌绿系转为青蓝系，
+   与分区式主卡同一套视觉。语义色不动：
+   - 已核验徽章保留绿色标识
+   - 待确认区保留淡橙（用 :not(.is-warm):not(.is-trust) 精确排除）
+   - 来源区保留浅蓝信任底
+   影响范围：仅结果页权益卡（.rc-ic 只在 app.js oneCard 中输出）。
+   ================================================================ */
+
+/* ---- 1) 普通卡「为什么推荐」信息块：浅绿 → 浅蓝灰 ----
+   仅默认视觉与 skin-c（暖纸底）适用；skin-b 是「去色块行式」排版，
+   理由区必须保持透明，不参与本条（布局意图保护）。 */
+body:not(.skin-b) .result-card:not(.is-lead) .rc-block:not(.is-warm):not(.is-trust) {
+  background: #F7FAFC;
+  border-color: #DCE7ED;
+}
+
+body:not(.skin-b) .result-card:not(.is-lead) .rc-block:not(.is-warm):not(.is-trust) .rc-label {
+  color: #14556D;
+}
+
+/* ---- 2) 分类图标芯片（全站仅结果页权益卡使用）：浅蓝底青蓝图标 ---- */
+.result-card .rc-ic {
+  background: #E7F2F6;
+  border-color: #CFE3EA;
+  color: #14556D;
+}
+
+/* ---- 3) 普通卡证据链入口：浅蓝描边（与主卡一致） ---- */
+.result-card:not(.is-lead) .ev-toggle,
+body.skin-b .result-card:not(.is-lead) .ev-toggle {
+  background: rgba(27, 110, 140, 0.07);
+  border-color: rgba(27, 110, 140, 0.24);
+  color: #14556D;
+}
+
+.result-card:not(.is-lead) .ev-toggle:hover {
+  background: rgba(27, 110, 140, 0.13);
+  border-color: rgba(27, 110, 140, 0.38);
+}

@@ -105,8 +105,10 @@ async function run(){
 
   /* ---------- 顶部文案 ---------- */
   var anchor = (q('#resultAnchor')||{}).textContent || '';
-  check('顶部显示「共发现 10 项可能相关权益」',
-    /共发现\s*10\s*项可能相关权益/.test(anchor), anchor);
+  check('顶部显示「AI 为您发现了这些可能遗漏的权益」',
+    /AI\s*为您发现了这些可能遗漏的权益/.test(anchor), anchor);
+  check('副题显示真实总数 10 项',
+    /共发现\s*10\s*项可能相关权益/.test((q('.result-sub')||{}).textContent || ''), (q('.result-sub')||{}).textContent || '');
   var summary = (q('.result-summary')||{}).textContent || '';
   check('顶部显示「建议优先了解其中 6 项」',
     /建议优先了解其中\s*6\s*项/.test(summary), summary);

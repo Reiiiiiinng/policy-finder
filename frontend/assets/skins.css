@@ -1,0 +1,608 @@
+/* ================================================================
+   《政策找人》双视觉方案皮肤层（V1.1 · 第二轮重构）
+   ----------------------------------------------------------------
+   - 不加任何 skin 类 = 原版，style.css 保持原样、零影响
+   - body.skin-c：方案 C —— 温暖简报式
+     权益发现被组织成一份「给家庭的简报」：
+     大标题是首屏重心，优先关注是一块完整的暖色版面，
+     首条重点权益是头条卡（更大、更醒目），其余条目次级排布。
+     配色：沙色暖底 #F6EEDD + 深松绿 #175843 + 编辑感橙 #E8792B。
+   - body.skin-b：方案 B —— 极简行式排版
+     拆掉卡片盒子：权益列表是「分组标题 + 行」的形态，
+     靠发丝线、对齐、字重与留白分层，几乎不用色块与阴影。
+     配色：纯白底 + 近黑墨色 #1B2430 + 深绿 #0A3D2E 只做状态标识。
+
+   原则：
+   1. 只覆盖设计变量与展示样式，不改布局机制：
+      折叠区 max-height 由 JS 量高、[hidden] 语义、局部刷新锁高
+      等行为一概不碰。
+   2. 文案、数据、接口与两个方案完全一致，只有视觉与信息密度不同。
+   3. 适老化底线不动：正文 16px 起步，不靠缩小字号做「简洁」。
+   ================================================================ */
+
+/* ---- 通用安全网：任何皮肤下 [hidden] 必须真实生效 ----
+   （.scene-chips / .choice-grid 都踩过「display 规则盖掉 hidden」的坑） */
+[hidden] { display: none !important; }
+
+/* ---- 通用：本轮新增的语义化结构（三态共用，默认不影响原版观感） ---- */
+.result-hero { margin: 0; }
+
+.result-hero .hl {
+  color: inherit;
+  font-weight: inherit;
+}
+
+/* section-title 原为 flex（竖条 + 单行文字），
+   结果主标题含 .hl 强调 span，flex 会把它排成不可换行的横排导致溢出。
+   这里改回块级排版，竖条改为行内小块，三态共用。 */
+.result-hero .result-title {
+  display: block;
+}
+
+.result-hero .result-title::before {
+  display: inline-block;
+  vertical-align: 4px;
+  margin-right: 8px;
+}
+
+/* ---- 切换器（三态通用，仅方案对比期使用） ---- */
+.skin-switch {
+  position: fixed;
+  right: 12px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 90;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(28, 37, 33, 0.84);
+  box-shadow: 0 6px 20px rgba(28, 37, 33, 0.25);
+}
+
+.skin-switch .ss-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font: 600 12px/1 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  padding: 7px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.skin-switch .ss-btn.is-on {
+  background: #ffffff;
+  color: #1c2521;
+}
+
+.skin-switch .ss-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+/* ================================================================
+   方案 C：温暖 · 简报式 · 有辨识度
+   ================================================================ */
+body.skin-c {
+  /* 沙色暖底 —— 与原版的冷白底拉开明显色温差 */
+  --cream: #F6EEDD;
+  --cream-2: #EFE4CC;
+  --card: #FFFCF5;
+  --line: #E4D6BB;
+  --line-soft: #EDE2CC;
+
+  /* 深松绿主色 */
+  --brand: #175843;
+  --brand-mid: #1F6B52;
+  --brand-dark: #114232;
+  --brand-deep: #0C3226;
+  --brand-soft: #E7F0E8;
+  --brand-wash: #F1F7F1;
+  --brand-line: #CBDECF;
+
+  /* 文字：暖调深棕墨 */
+  --ink: #33291E;
+  --ink-2: #4A3E2F;
+  --muted: #857763;
+  --muted-2: #A79A85;
+
+  /* 待确认橙（文字级，保证对比度） */
+  --warn: #B55A0C;
+  --warn-soft: #FCEFD9;
+  --warn-line: #EFDAB6;
+
+  /* 编辑感强调橙：只点「头条卡」「优先关注」等关键位置 */
+  --accent: #E8792B;
+  --accent-soft: #FBEEDD;
+
+  /* 信任蓝沿用，色温微调 */
+  --trust: #F1F6FC;
+  --trust-ink: #1D55C8;
+  --trust-line: #D8E5F8;
+
+  /* 形态：饱满圆角 + 暖阴影 */
+  --radius: 18px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --shadow: 0 6px 20px rgba(78, 61, 38, 0.10);
+  --shadow-sm: 0 2px 6px rgba(78, 61, 38, 0.06);
+  --shadow-lg: 0 14px 36px rgba(78, 61, 38, 0.14);
+  --ring: 0 0 0 3px rgba(232, 121, 43, 0.30);
+
+  background: var(--cream);
+}
+
+@media (min-width: 560px) {
+  body.skin-c { background: #EDE1C8; }
+}
+
+/* ---- 首屏：大标题是视觉重心，说明文字退居辅助 ---- */
+body.skin-c .result-hero {
+  padding: 6px 0 2px;
+}
+
+/* 眉题：给首屏一个「简报」身份标识 */
+body.skin-c .result-hero::before {
+  content: '权益发现简报';
+  display: inline-block;
+  font: 700 12px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 3px;
+  color: var(--brand-mid);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  border-radius: 999px;
+  padding: 5px 12px 4px;
+  margin-bottom: 12px;
+}
+
+body.skin-c .result-hero .result-title {
+  font-size: 25px;
+  line-height: 1.42;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+/* 关键词强调：深绿字 + 橙色底衬笔触，克制但一眼可见 */
+body.skin-c .result-hero .hl {
+  color: var(--brand-dark);
+  background: linear-gradient(transparent 68%, rgba(232, 121, 43, 0.28) 68%, rgba(232, 121, 43, 0.28) 94%, transparent 94%);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+body.skin-c .result-hero .result-sub {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  margin: 0 0 6px;
+}
+
+/* ---- 优先关注：一块完整的暖色版面，与折叠区形成明确的节奏差 ---- */
+body.skin-c .tier-groups { gap: 14px; }
+
+body.skin-c .tier-block.is-focus-block {
+  background: linear-gradient(180deg, #FBF3E0 0%, #F8EFDC 100%);
+  border: 1px solid #EBDCC0;
+  border-radius: var(--radius-lg);
+  padding: 14px 12px 12px;
+}
+
+body.skin-c .is-focus-items { background: transparent; }
+
+body.skin-c .tier-head.is-focus {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0 2px 10px;
+}
+
+body.skin-c .tier-head.is-focus .th-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+
+/* 「优先关注」前的橙色圆点标记 —— 橙色的第一个落点 */
+body.skin-c .tier-head.is-focus .th-name::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 8px;
+  vertical-align: 2px;
+}
+
+body.skin-c .tier-head.is-focus .th-count {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-radius: 999px;
+}
+
+body.skin-c .tier-head.is-focus .th-desc {
+  color: var(--muted);
+}
+
+/* ---- 头条卡：第一条重点权益明显大于其余条目（非对称节奏） ---- */
+body.skin-c .is-focus-items .result-card:first-child {
+  background: #FFFCF5;
+  border: 1px solid #EBDCC0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 18px 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 头条卡左侧的橙色竖条 —— 橙色的第二个落点 */
+body.skin-c .is-focus-items .result-card:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+
+body.skin-c .is-focus-items .result-card:first-child .result-name {
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 900;
+}
+
+body.skin-c .is-focus-items .result-card:first-child .rc-label {
+  font-weight: 800;
+}
+
+/* 头条之后的重点权益： quieter 的次级卡 */
+body.skin-c .is-focus-items .result-card:first-child ~ .result-card {
+  background: rgba(255, 252, 245, 0.72);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+/* ---- 折叠区：退为安静的次级信息 ---- */
+body.skin-c .more-toggle {
+  background: rgba(255, 252, 245, 0.8);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+
+body.skin-c .more-tip { color: var(--muted); }
+
+/* ---- 卡片内部分层：理由易读、证据链入口清楚 ---- */
+body.skin-c .rc-label {
+  color: var(--brand-mid);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+body.skin-c .result-name { font-weight: 800; }
+
+body.skin-c .result-foot {
+  border-top: 1px dashed var(--line);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+body.skin-c .ev-toggle {
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+/* 橙色确认 / 提醒徽章在暖底上的区分度 */
+body.skin-c .badge.confirm {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* 顶栏：暖沙纸感 + 橙调微光晕 */
+body.skin-c .topbar {
+  background: linear-gradient(180deg, #FBF5E8 0%, #F6EDDA 100%);
+}
+
+body.skin-c .topbar::after {
+  background: radial-gradient(circle at 35% 35%, rgba(232, 121, 43, 0.12), rgba(232, 121, 43, 0) 70%);
+}
+
+/* 小节标题符号：绿橙双色短棒 —— 全站记忆点 */
+body.skin-c .section-title {
+  font-size: 17px;
+  letter-spacing: 0.2px;
+}
+
+body.skin-c .section-title::before {
+  width: 4px;
+  height: 18px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand) 62%, var(--accent) 62%, var(--accent) 100%);
+}
+
+/* ================================================================
+   方案 B：极简 · 行式排版 · 产品感
+   ================================================================ */
+body.skin-b {
+  /* 冷白主底 + 浅灰分层 */
+  --cream: #FFFFFF;
+  --cream-2: #F5F7FA;
+  --card: #FFFFFF;
+  --line: #E4E9F0;
+  --line-soft: #EEF1F6;
+
+  /* 深绿只做重点状态与关键标识 */
+  --brand: #0A3D2E;
+  --brand-mid: #0F4C39;
+  --brand-dark: #0A3D2E;
+  --brand-deep: #072B20;
+  --brand-soft: #EDF4F0;
+  --brand-wash: #F6F9F7;
+  --brand-line: #D7E3DC;
+
+  /* 近黑墨色文字层级 */
+  --ink: #1B2430;
+  --ink-2: #333E50;
+  --muted: #647488;
+  --muted-2: #8B97A9;
+
+  --warn: #9A5B12;
+  --warn-soft: #FAF4E8;
+  --warn-line: #EADFCA;
+
+  --trust: #F5F8FC;
+  --trust-ink: #1D4FD7;
+  --trust-line: #DEE7F6;
+
+  --pending: #5D7280;
+  --pending-soft: #F1F4F8;
+  --pending-line: #DFE5EC;
+
+  /* 形态：小圆角、近乎无阴影、发丝线分层 */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --shadow: none;
+  --shadow-sm: none;
+  --shadow-lg: 0 10px 28px rgba(27, 36, 48, 0.10);
+  --ring: 0 0 0 3px rgba(10, 61, 46, 0.35);
+
+  background: var(--cream);
+  line-height: 1.62;
+}
+
+@media (min-width: 560px) {
+  body.skin-b { background: #EEF1F5; }
+}
+
+/* ---- 首屏：排版驱动，大而紧的黑字标题 ---- */
+body.skin-b .result-hero { padding: 4px 0 0; }
+
+body.skin-b .result-hero .result-title {
+  font-size: 23px;
+  line-height: 1.4;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+/* 关键词不换色不描边，只加重 —— 靠字重立层级 */
+body.skin-b .result-hero .hl {
+  color: var(--ink);
+  font-weight: 900;
+  border-bottom: 3px solid var(--brand);
+  padding-bottom: 1px;
+}
+
+body.skin-b .result-hero .result-sub {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+  margin: 0 0 4px;
+}
+
+/* ---- 权益列表 = 分组标题 + 行，拆掉卡片盒子 ---- */
+body.skin-b .tier-head,
+body.skin-b .tier-head.is-focus {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 14px 0 4px;
+}
+
+body.skin-b .tier-head .th-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+body.skin-b .tier-head .th-count {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0;
+}
+
+body.skin-b .tier-head .th-desc {
+  color: var(--muted-2);
+}
+
+/* 优先关注组标题：深绿短横线 + 深绿标题，克制但清楚 */
+body.skin-b .tier-head.is-focus .th-name {
+  color: var(--brand);
+}
+
+body.skin-b .tier-head.is-focus .th-name::before {
+  content: '';
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  border-radius: 0;
+  background: var(--brand);
+  margin-right: 8px;
+  vertical-align: 4px;
+}
+
+/* 行式条目：去背景、去边框、去阴影，行间只留发丝线 */
+body.skin-b .result-card,
+body.skin-b .is-focus-items .result-card:first-child,
+body.skin-b .is-focus-items .result-card:first-child ~ .result-card {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 16px 0 14px;
+}
+
+body.skin-b .is-focus-items .result-card:first-child {
+  border-top: 0;
+}
+
+body.skin-b .is-focus-items .result-card:first-child .result-name {
+  font-size: inherit;
+}
+
+body.skin-b .result-card:active {
+  transform: none;
+  background: var(--cream-2);
+}
+
+body.skin-b .result-card:focus-visible {
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+body.skin-b .result-name {
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  color: var(--ink);
+}
+
+body.skin-b .result-meta { color: var(--muted); }
+
+/* 卡内分段：去色块，改成「细分隔线 + 小号标签」的编辑式排版 */
+body.skin-b .rc-block {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: 11px 0 2px;
+}
+
+body.skin-b .rc-label,
+body.skin-b .rc-block.is-warm .rc-label,
+body.skin-b .rc-block.is-trust .rc-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+body.skin-b .mi-why { color: var(--warn); }
+
+/* 「查看详情」行：右对齐的箭头行，代替按钮感 */
+body.skin-b .result-foot {
+  border-top: 0;
+  color: var(--brand);
+  font-weight: 700;
+  justify-content: flex-end;
+}
+
+/* 徽章：扁平描边，仅「已核验」用深绿实底做关键标识 */
+body.skin-b .badge.maybe {
+  background: transparent;
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px var(--brand-line);
+}
+
+body.skin-b .badge.confirm {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+body.skin-b .badge.verified {
+  background: var(--brand);
+  color: #FFFFFF;
+  border-color: var(--brand);
+}
+
+body.skin-b .badge.pending {
+  background: transparent;
+  color: var(--muted);
+}
+
+/* 折叠区与证据链按钮：安静的描边 / 文字按钮 */
+body.skin-b .more-toggle {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 14px 0;
+}
+
+body.skin-b .more-toggle:hover { background: transparent; }
+body.skin-b .more-toggle .mt-label { color: var(--ink-2); font-weight: 700; }
+
+body.skin-b .more-tip {
+  background: transparent;
+  padding: 4px 2px;
+  color: var(--muted-2);
+}
+
+body.skin-b .ev-toggle {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+body.skin-b .ev-toggle:hover {
+  background: var(--cream-2);
+}
+
+body.skin-b .evidence {
+  background: #FFFFFF;
+  border-radius: var(--radius-sm);
+}
+
+/* 顶栏：去渐变与光晕，纯白 + 发丝线 */
+body.skin-b .topbar {
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--line);
+}
+
+body.skin-b .topbar::after { display: none; }
+
+body.skin-b .topbar h1 { letter-spacing: 0; }
+
+/* 小节标题符号：绿色小方块，锐利克制 */
+body.skin-b .section-title { letter-spacing: 0; }
+
+body.skin-b .section-title::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+
+/* 状态条 / 演示条 / 流程条：跟随平面化基调 */
+body.skin-b .rel-strip,
+body.skin-b .demo-banner,
+body.skin-b .demo-progress,
+body.skin-b .case-card {
+  box-shadow: none;
+}

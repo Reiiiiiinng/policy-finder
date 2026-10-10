@@ -185,7 +185,8 @@ console.log('== 结果分层 ==');
     ],
   };
   const h = sandbox.renderResultCards(data, {});
-  check('顶部显示总数', has(h, '共发现 4 项可能相关权益'), '');
+  check('顶部显示固定主标题', has(h, 'AI 为您发现了这些') && has(h, '可能遗漏的权益'), '');
+  check('副题显示真实总数', has(h, '共发现 4 项可能相关权益'), '');
   check('顶部显示建议优先了解数', has(h, '建议优先了解其中 2 项'), '');
   check('分组标题为「优先关注」', has(h, '优先关注'));
   check('折叠区标题为「其他可能相关 2 项」', has(h, '其他可能相关 2 项'), '');
@@ -227,7 +228,7 @@ console.log('== 结果分层 ==');
     results: [mk('p8', '社区养老服务', '强相关', '可能相关')],
   }, {});
   check('全部优先时不出现折叠区', !has(allFocus, 'more-toggle'), '');
-  check('全部优先时计数正确', has(allFocus, '共发现 1 项可能相关权益'), '');
+  check('全部优先时主标题正确', has(allFocus, 'AI 为您发现了这些') && has(allFocus, '共发现 1 项可能相关权益'), '');
 }
 
 console.log('== v0.9 政策状态与阈值提示 ==');
@@ -320,9 +321,11 @@ console.log('== v0.9 政策状态与阈值提示 ==');
   }, {});
   check('有数据时卡片出现状态提示',
     has(fs, 'policy-validity-warn') && has(fs, 'policy-threshold-note'), '');
+  // v6 迁移后：单条结果会渲染为「主权益卡」（is-lead），主按钮文案为「看怎么办理」；
+  // 多条结果里非焦点卡仍是普通卡，foot 为「查看详情与办理方式」。两种结构都算通过。
   check('新提示不破坏卡片原有结构',
     has(fs, 'result-card') && has(fs, '为什么推荐') && has(fs, '政策来源')
-    && has(fs, '查看详情与办理方式'), '');
+    && (has(fs, '查看详情与办理方式') || has(fs, '看怎么办理')), '');
   const fsNoNeg = fs.replace(/不代表[^，。]*资格|不构成[^，。]*结论|不作为[^，。]*认定/g, '');
   check('新增内容不引入资格断言', !/已符合资格|最符合/.test(fsNoNeg), '');
 }

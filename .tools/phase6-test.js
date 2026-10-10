@@ -244,20 +244,31 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
   // 卡片顺序：名称 → 为什么推荐 → 还需确认 → 来源 → 证据链 → 详情
   // （第七阶段已移除单卡上的 tier-strip 分层色条，改由分组标题承担，
   //   所以这里不再检查 tier-strip）
-  // 只取真正拼 HTML 的模板片段（oneCard 的 return `...`），
-  // 否则会误把模板之前声明的 missingHtml / sourceBlock 等变量当成渲染顺序。
-  const tplAt = card.indexOf('return `');
-  const tpl = tplAt >= 0 ? card.slice(tplAt) : card;
+  // v6 迁移后 oneCard 有两个分支：焦点卡（is-lead，无 result-foot，
+  // 用 lead-actions 主次按钮）与普通卡。分别截取两个 <article> 模板校验顺序，
+  // 避免再从第一个 return ` 截取（会混入注释与 missingHtml 定义导致误判）。
+  const a1 = card.indexOf('<article');
+  const a1End = card.indexOf('</article>', a1);
+  const a2 = card.indexOf('<article', a1End);
+  const leadTpl = a1 >= 0 && a1End > a1 ? card.slice(a1, a1End + 10) : '';
+  const normTpl = a2 >= 0 ? card.slice(a2, card.indexOf('</article>', a2) + 10) : '';
 
-  const order = ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot'];
-  let last = -1, ok = true, missing = [];
-  order.forEach((k) => {
-    const at = tpl.indexOf(k);
-    if (at < 0) { missing.push(k); ok = false; }
-    else if (at < last) { ok = false; }
-    last = at;
-  });
-  check('结果卡信息层级顺序合理', ok, '缺失=' + missing.join(','));
+  const checkOrder = (tpl, order) => {
+    let last = -1, ok = tpl.length > 0, missing = [];
+    order.forEach((k) => {
+      const at = tpl.indexOf(k);
+      if (at < 0) { missing.push(k); ok = false; }
+      else if (at < last) { ok = false; }
+      last = at;
+    });
+    return { ok, missing: missing.join(',') };
+  };
+  const norm = checkOrder(normTpl,
+    ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot']);
+  const lead = checkOrder(leadTpl,
+    ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'lead-actions']);
+  check('普通卡信息层级顺序合理', norm.ok, '缺失=' + norm.missing);
+  check('焦点主权益卡信息层级顺序合理', lead.ok, '缺失=' + lead.missing);
 
   check('政策名称在最前',
     card.indexOf('result-name') < card.indexOf('result-meta'),
@@ -270,8 +281,9 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
     !/加载更多|查看更多|showMore|pageSize/.test(card));
   // 第七阶段：不再「全部平铺」，但也不能丢结果——两组都要渲染进 DOM，
   // 「其他可能相关」只是默认折叠（收起状态由 CSS 控制高度，不是移除节点）。
-  check('优先关注组全量渲染', /focus\.map\(oneCard\)\.join/.test(card));
-  check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(oneCard\)\.join/.test(card));
+  // v6 迁移后：focus[0] 渲染为主权益卡（isLead = i === 0），其余为普通卡
+  check('优先关注组全量渲染', /focus\.map\(\(r, i\) => oneCard\(r, i === 0\)\)\.join/.test(card));
+  check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(\(r\) => oneCard\(r, false\)\)\.join/.test(card));
   check('折叠区保留全部卡片节点', /more-toggle/.test(card) && /data-more-body/.test(card));
 }
 
