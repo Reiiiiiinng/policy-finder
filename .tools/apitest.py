@@ -151,7 +151,11 @@ def main():
     check("008 存在", len(r008) == 1)
     if r008:
         check("008 标记来源待核验", r008[0]["source_pending"] is True)
-        check("008 依据不含文件名", r008[0]["evidence"]["citation"]["document"] == "")
+        # 2026-10-11 口径更新：008 保留已核实的国家级依据（国卫老龄发〔2024〕42号），
+        # 广州本地服务点/预约方式仍未核实，因此 verified 必须保持 False。
+        check("008 依据为国家级文件", "应对老年期痴呆国家行动计划" in r008[0]["evidence"]["citation"]["document"],
+              r008[0]["evidence"]["citation"]["document"])
+        check("008 依据不含本地实施承诺", "广州" not in r008[0]["evidence"]["citation"]["document"])
         check("008 依据 verified=False", r008[0]["evidence"]["citation"]["verified"] is False)
 
     print("== 本人模式称谓 ==")
