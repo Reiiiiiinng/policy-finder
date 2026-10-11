@@ -845,9 +845,11 @@ input:focus {
 }
 
 .badge.verified {
-  background: var(--trust);
-  color: var(--trust-ink);
-  border: 1px solid var(--trust-line);
+  /* 绿色状态标识（设计规范：绿=已核验/已确认，与证据链条件「已确认」同源）。
+     信任蓝 --trust 仍保留给来源信息区等可信容器，不在此处使用。 */
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  border: 1px solid var(--brand-line);
 }
 
 /* ================================================================

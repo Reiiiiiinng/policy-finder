@@ -766,6 +766,10 @@ function renderConfirmCard(profile) {
  * 「填信息的人 ≠ 享受权益的人」。本人模式下不显示。
  */
 function renderRelationStrip() {
+  // 页面模式优先：本人模式页面（self.html）永不显示家庭代查关系条。
+  // 即使 sessionStorage 残留上一次家庭会话的 operator/beneficiary/profile，
+  // 也不能在本人模式顶部呈现「家人代查」。家庭页面（family/discover）不受影响。
+  if (/self\.html$/i.test(location.pathname)) return '';
   const s = store.read();
   const p = s.profile || s.selfProfile;
   if (p && p.mode === 'self') return '';
