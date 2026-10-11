@@ -228,14 +228,15 @@ function mountDemoProgress(current) {
 }
 
 /** 状态徽章：可能相关 / 待确认 + 核验状态 */
-function statusBadge(status, sourcePending) {
+function statusBadge(status, sourcePending, sourceVerified) {
   let cls = 'maybe';
   let text = status || '可能相关';
   if (status === '待确认') cls = 'confirm';
   let html = `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
-  // 来源核验状态始终显式呈现：有 ✓ 已核验，没有就是来源待核验，不做模糊处理
+  // 来源核验状态：已核验 ✓；待核验时区分「有官方一手来源（国家依据已核，本地待确认）」与「来源未核验」
   html += sourcePending
-    ? ' <span class="badge pending">来源待核验</span>'
+    ? (sourceVerified ? ' <span class="badge pending">本地待确认</span>'
+                      : ' <span class="badge pending">来源待核验</span>')
     : ' <span class="badge verified">✓ 已核验</span>';
   return html;
 }
@@ -291,7 +292,7 @@ function sourceBlock(r) {
   if (r.source_document_no) rows.push(['政策文号', r.source_document_no]);
   if (r.source_publish_date) rows.push(['发布时间', r.source_publish_date]);
   const verifiedState = r.source_pending
-    ? '来源待核验'
+    ? (r.source_official_url ? '国家依据已核验 · 本地待确认' : '来源待核验')
     : '已核验' + (r.source_checked_at ? ' · ' + r.source_checked_at : '');
   rows.push(['核验状态', verifiedState]);
 
@@ -1416,7 +1417,8 @@ function renderEvidenceChain(ev, opts) {
     : '<p class="ev-none">尚未核到一手文件，暂不列出来源信息，避免指向错误出处。</p>';
   const citBadge = cit.verified
     ? '<span class="badge verified">✓ 已核验</span>'
-    : '<span class="badge pending">来源待核验</span>';
+    : (cit.official_url ? '<span class="badge pending">本地待确认</span>'
+                        : '<span class="badge pending">来源待核验</span>');
 
   const pending = ev.pending_count || 0;
 
@@ -1529,7 +1531,7 @@ function renderResultCards(data, opts) {
         <div class="lead-top">
           <span class="lead-ic" aria-hidden="true">${catSvgIcon(r.category)}</span>
           <span class="lead-flag">建议先看这一项</span>
-          <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
+          <div class="result-badges">${statusBadge(r.status, r.source_pending, r.source_official_url)}</div>
         </div>
         <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
         <p class="result-meta">${meta}</p>
@@ -1565,7 +1567,7 @@ function renderResultCards(data, opts) {
             <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
             <p class="result-meta">${meta}</p>
           </div>
-          <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
+          <div class="result-badges">${statusBadge(r.status, r.source_pending, r.source_official_url)}</div>
         </div>
 
         ${renderValidityNote(r.validity)}

@@ -816,6 +816,7 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
         "quote": _quote_source(policy),
         "verified": not pending,
         "checked_at": ver.get("checked_at", ""),
+        "official_url": src.get("official_url", ""),
     }
 
     return {
@@ -904,6 +905,7 @@ def score_policy(policy, profile):
         # 透传字段（展示用，不影响匹配结果）
         "source_department": policy_source.get("department", ""),
         "source_document_no": policy_source.get("document_no", ""),
+        "source_official_url": policy_source.get("official_url", ""),
         "source_publish_date": policy_source.get("publish_date", ""),
         "source_checked_at": policy_verification.get("checked_at", ""),
         "service_note": policy.get("service_note", ""),

@@ -185,7 +185,7 @@
     if (clean(src.document_no)) rows.push(['文号', clean(src.document_no), '']);
     if (clean(src.publish_date)) rows.push(['发布时间', clean(src.publish_date), '']);
     if (clean(src.related_document)) rows.push(['相关依据', clean(src.related_document), '']);
-    rows.push(['核验状态', pending ? '来源待核验' : '已核验', '']);
+    rows.push(['核验状态', pending ? (clean(src.official_url) ? '国家依据已核验 · 本地待确认' : '来源待核验') : '已核验', '']);
     rows.push(['核验时间', clean(ver.checked_at) || '未提供', '']);
 
     const rowsHtml = rows.map((r) => {
@@ -204,13 +204,16 @@
            <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
 
     const verBadge = pending
-      ? '<span class="badge pending">来源待核验</span>'
+      ? (clean(src.official_url) ? '<span class="badge pending">本地待确认</span>'
+                                 : '<span class="badge pending">来源待核验</span>')
       : '<span class="badge verified">✓ 已核验</span>';
     const tcStatus = `
       <div class="tc-status">
         ${verBadge}
         <span>${pending
-          ? '这条政策的一手文件尚未核到，以下内容仅供参考，请以主管部门发布的正式信息为准。'
+          ? (clean(src.official_url)
+             ? '国家政策依据已核验，本地具体服务及预约方式仍待确认，请以主管部门发布的正式信息为准。'
+             : '这条政策的一手文件尚未核到，以下内容仅供参考，请以主管部门发布的正式信息为准。')
           : '政策名称、对象、服务内容与依据文件已核对。'}</span>
       </div>`;
 
@@ -228,8 +231,8 @@
 
     // 顶部概要：状态徽章用真实匹配结果，不再一律写「可能相关」
     const statusLine = matchRow
-      ? statusBadge(matchRow.status, pending)
-      : statusBadge('可能相关', pending);
+      ? statusBadge(matchRow.status, pending, clean(src.official_url))
+      : statusBadge('可能相关', pending, clean(src.official_url));
     const tierLine = matchRow && matchRow.tier
       ? `<div class="tier-strip ${matchRow.tier === '强相关' ? 'tier-strong'
           : (matchRow.tier === '可能相关' ? 'tier-mid' : 'tier-low')}" style="margin-top:10px">
