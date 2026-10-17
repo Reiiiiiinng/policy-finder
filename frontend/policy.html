@@ -151,19 +151,26 @@
     // ④ 去哪里核实（不是「怎么办理」——本平台不代办，只告诉用户去哪问）
     //
     // P1：把这一步做成「出门前清单」——用户真正能照着准备、照着打电话的东西。
-    // 材料只从申请条件（户口 / 参保 / 失能评估）推导，绝不编造具体证件名目；
-    // 每一行都声明「以受理单位告知为准」，因为广州库里没有逐条材料清单。
+    // 材料信息分两路：
+    //   1) 库里已有带 source_ref 的官方 materials（佛山库）→ 原样展示件目与依据，不添不减；
+    //   2) 没有官方材料清单的库（广州库）→ 不推导具体证件名，
+    //      只把申请条件涉及的证明类型转成「问清」条目，具体件目以受理单位告知为准。
     // 低碳不靠绿色装饰：少跑一趟就是少一次出行，说服力来自这份清单本身。
     const srcDept = clean((p.source || {}).department);
     const cond = p.conditions || {};
     const who = selfMode ? '您本人' : '这位长辈';
     const procSteps = (p.application_process || []);
 
-    // 建议携带：条件里写明了什么，就提示准备什么
-    const docItems = ['身份证件'];
-    if (cond.hukou_required) docItems.push('户口簿（申请条件涉及本市户籍）');
-    if (cond.insurance_required) docItems.push('医保参保凭证（申请条件涉及参保状态）');
-    if (cond.disability_required) docItems.push('失能等级评估结论（申请条件涉及失能认定）');
+    // 官方收件要求：库里已核到就原样展示（含条款出处），缺失或为空一律走核实事项
+    const officialMaterials = (Array.isArray(p.materials) ? p.materials : [])
+      .filter((m) => m && m.item);
+
+    // 无官方清单时：条件写明涉及哪类要求，就提示问清哪类证明——
+    // 是「要问什么」，不是「官方要什么证件」；不能仅凭条件标志断言具体材料。
+    const condAsks = [];
+    if (cond.hukou_required) condAsks.push('申请条件涉及本市户籍：需要哪种户籍类证明，请一并问清');
+    if (cond.insurance_required) condAsks.push('申请条件涉及参保状态：需要哪种参保类证明，请一并问清');
+    if (cond.disability_required) condAsks.push('申请条件涉及失能认定：需要哪种评估结论或证明，请一并问清');
 
     // 建议问清：固定四问 + 库里标了 to_verify 的步骤（那一步是否还适用要当场问）
     const askItems = [
@@ -178,14 +185,28 @@
       }
     });
 
+    const docCol = officialMaterials.length
+      ? `
+        <div class="trip-h">出门前要带的材料</div>
+        <ul class="trip-items">
+          ${officialMaterials.map((m) => `<li>${escapeHtml(m.item)}`
+            + (m.source_ref ? `<span class="trip-ref">（依据：${escapeHtml(m.source_ref)}）</span>` : '')
+            + (m.note ? `<span class="trip-ref">（${escapeHtml(m.note)}）</span>` : '')
+            + `</li>`).join('')}
+          <li>受理单位可能另有补充材料要求，先打电话确认再准备</li>
+        </ul>`
+      : `
+        <div class="trip-h">出门前建议核实的材料</div>
+        <ul class="trip-items">
+          <li>${escapeHtml(who)}的身份证件（是否必须、是否要原件，请电话问清）</li>
+          ${condAsks.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}
+          <li>受理单位另行要求的其他材料，先打电话确认再准备</li>
+        </ul>`;
+
     const tripList = `
       <div class="trip-list">
         <div class="trip-col">
-          <div class="trip-h">出门前要带的材料</div>
-          <ul class="trip-items">
-            ${docItems.map((x) => `<li>${escapeHtml(who)}的${escapeHtml(x)}</li>`).join('')}
-            <li>受理单位另行要求的其他材料，先打电话确认再准备</li>
-          </ul>
+          ${docCol}
         </div>
         <div class="trip-col">
           <div class="trip-h">要问清的问题</div>

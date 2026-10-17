@@ -163,18 +163,22 @@ curl -X POST http://127.0.0.1:8000/api/match \
 ## 十一、测试与回归
 
 改动前先跑基线，改完再跑一遍。以下命令需先启动服务（`python backend/server.py`）。
+括号内是通过数为 **2026-10-17 在当前代码上实际运行的结果**（不是静态源码里 `check(` 的出现次数——
+两者口径不同：静态计数含未执行的辅助分支，运行数才是真实通过/失败）。
 
 ```bash
-python .tools/baseline.py check   # 引擎回归：12 个用例与基线快照逐字段比对
-python .tools/apitest.py          # 接口冒烟：41 项（含硬条件三值、to_verify、双模式）
-node .tools/render-test.js        # 渲染单测：62 项（vm 里跑 app.js 纯函数）
-node .tools/page-check.js         # 页面接线：103 项（内联脚本语法、函数引用、红线文案）
-python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程，家庭 38 / 本人 37 项
-node .tools/phase6-test.js        # 第六阶段交互修正专项：86 项
-python .tools/phase6-e2e.py       # 第六阶段 390×844 实测：45 项（对应需求里的测试1~6）
-python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：43 项（结果展示减负）
+python .tools/baseline.py check   # 引擎回归：12 个用例与基线快照逐字段比对（实测 12/12）
+python .tools/apitest.py          # 接口冒烟：含硬条件三值、to_verify、双模式（实测 48/48）
+node .tools/render-test.js        # 渲染单测：vm 里跑 app.js 纯函数（实测 152/152）
+node .tools/page-check.js         # 页面接线：内联脚本语法、函数引用、红线文案（实测 180/180）
+python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程（实测家庭 46 / 本人 45，失败 0）
+node .tools/phase6-test.js        # 第六阶段交互修正专项（实测 98/98）
+python .tools/phase6-e2e.py       # 第六阶段 390×844 实测（对应需求里的测试1~6，实测 45/45）
+python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：结果展示减负（实测 43/43）
+python .tools/fold-e2e.py         # D2 专项：结果卡折叠/理由/键盘与整卡导航不冲突（实测 17/17）
 ```
 
+- 数量随测试文件演进而变化；若你的运行数与上表不一致，以实际输出为准并先查差异原因，不要改断言凑数。
 - `baseline.py` 只比对**不应被改动**的部分（结果条数、顺序、status、score、理由文本、待确认项），新增字段不参与比对。
   基线快照在 `.tools/baseline_snapshot.json`；若有意修改匹配逻辑，用 `python .tools/baseline.py save` 更新，并在修改记录里说明。
 - `e2e.py` 会把 `.tools/e2e_page.html` 临时复制为 `frontend/_e2e.html`，跑完自动删除。断言结果经 `/__e2e_log` 回传，因此不受无头浏览器截图时机限制。
@@ -183,7 +187,7 @@ python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：43 项（结�
 - **无头模式下的两个坑**（写浏览器实测时务必注意）：
   1. `iframe.src` 不会随页面导航及时刷新，**不能用来判断是否已跳转**。判断跳转请用 iframe 的 `load` 事件。
   2. `--virtual-time-budget` 用完浏览器立刻退出。页面里 `await sleep(n)` 走的是虚拟时间（瞬间过去），但 `fetch`、页面导航要等真实网络——固定 sleep 之后立刻断言会误判"没跳转"。要么给足预算，要么改成轮询等待。
-- `phase6-e2e.py` 会把 `.tools/phase6_page.html` 临时复制为 `frontend/_phase6.html`，跑完自动删除。
+- `phase6-e2e.py` 会把 `.tools/phase6_page.html` 临时复制为 `frontend/_phase6.html`，跑完自动删除；`fold-e2e.py`/`d1-e2e.py` 同理分别复制 `_fold.html`/`_d1.html`。
 
 ## 十二、修改记录
 
@@ -239,3 +243,8 @@ python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：43 项（结�
 | 2026-10-03 | `backend/policy_engine.py` | 新增 `DATABASES` 注册表与 `POLICY_DB` 切换；`parse_region` 支持佛山、新增 `normalize_region`；`SCENE_KEYWORDS` 扩 7 个医疗救助域场景；新增 `_check_qualify`（第1层）、`threshold_signal`/`threshold_rows`（第2层）、`derive_validity`（时效派生）、`parse_self_paid`；`_hard_condition_check` 与 `build_evidence_chain` 按新旧两种条件模型分流；画像新增 `self_paid_amount` / `family_economic` | **向后兼容**：广州库走原路径，baseline 12/12、apitest 41/41、render-test 62/62、page-check 103/103 全部保持通过。佛山「住院自付 3 万」用例从 0 命中变为 5 命中 |
 | 2026-10-03 | `backend/server.py` | **修复**：改描述后旧画像残留——`/api/match` 曾把 `age`/`region` 从上一轮画像沿用、并对 `scenes` 取并集，导致用户改完描述后「AI 分析依据」仍显示上一次的年龄与地区（实测 age 仍为 72、region 仍为广州市、命中 10 条而非 4 条）。改为按来源区分：文本解析类字段一律以本次 text 为准，仅沿用用户明确作答的事实（`hukou`/`insurance`/`disability`/`family_economic`）；删除 `scenes` 并集，用户编辑过事件时仍走 `confirmed_scenes` 的 replace 语义 | 修复后改描述即正确重算（10→4），用户答过的 `hukou=False` 仍保留；回归全绿（baseline 12/12、apitest 41/41、render-test 62/62、page-check 103/103、e2e 总失败 0） |
 | 2026-10-03 | `docs/README.md` | 补充 `POLICY_DB` 用法、三层数字模型与政策时效说明 | 仅文档 |
+| 2026-10-03 | `frontend/assets/app.js` | **返回机制再演进**（取代上方 `backOrFallback()` 行，现行实现）：返回不再优先 `history.back()`，改为**层级写死**——每页渲染时用 `registerNavParent()` 把父页面登记进 sessionStorage，点击返回走 `goToParent()` 明确跳父页（`location.replace`，栈深不增长）；支持 `?from=` 显式覆盖 | 返回结果与入口层级一致，不受用户乱点历史栈影响；中键/无 JS 仍可走 `<a href>` 兜底 |
+| 2026-10-17 | `frontend/assets/app.js`、`frontend/policy.html`、`.tools/render-test.js`（提交 `777161a`） | **步骤指示改为单一数据源**：顶栏「第 N 步」徽章一律由 `mountFlow → syncFlowStepBadge` 写入，消除顶栏与流程条各说各话；卡片状态改为 `renderAxes` 双维度（匹配结论 / 来源核验分行呈现，`role="group"` 标注两个独立判断） | 解决「可能相关」与「已核验」两枚同款药丸并排、被误读为"已审核通过"的问题；`e2e_page.html` 断言同步 |
+| 2026-10-17 | `frontend/*`、`docs/design-process/*`、`.tools/page-check.js`、`.tools/render-test.js`（提交 `fac3c9c`） | **P1 出门前清单**（材料/要问清双栏）、**P2** 一句话产品定义 + 三亮点因果链、**P5** 视觉母题「一线」（生活线索→权益，含任一端为空退回纯文字的降级规则）、**P6** 结果卡信息层级重排（服务简介首屏、首条理由 + 「另外 N 条理由」折叠、「还需确认/政策来源」收进原生 `<details>`）、**P7-B** 全局一致性 | **不引入** theme-cb 线的 skins 皮肤层（`skins.css`/`skin-switcher.js` 不在本分支，主卡方案对比见 `docs/design-process/AIGC设计过程材料.md`）；触达面积改为真实盒高（`min-height:48px`，伪元素不改 `getBoundingClientRect`）；测试同步扩充 |
+| 2026-10-17 | `.gitignore`（提交 `b2441b7`） | 忽略 e2e 脚本每次运行都会重写的 `*-run.png` 当前帧截图（phase6/phase7/fix/backnav/return） | 已入库的人工挑选截图（`s-results.png` 等，设计过程材料引用的对照证据）不受影响 |
+| 2026-10-17 | `data/guangzhou_elderly_policy_v1.1.json`、`backend/policy_engine.py`、`.tools/apitest.py`、`.tools/baseline_snapshot.json`、`docs/policy-data-notes.md`（**本轮工作区修改，尚未提交**） | 移植 theme-cb 线已核验的广州数据修正（`0bd79be`+`82b93ec`）：①居家适老化改造现行依据更新为穗民规字〔2025〕1号（2025-02-01 施行，2021 版已废止），办理流程按方案原文录入；②老年人健康管理/认知功能筛查标注国家依据（国卫基层发〔2017〕13号 / 国卫老龄发〔2024〕42号）并保持"本地服务待核验"口径；③引擎补 `official_url`/`source_official_url` 透传（当前界面未使用，仅补全数据链路） | baseline 快照与 apitest 008 期望随数据同步更新；匹配逻辑零改动（baseline 12/12 通过）；依据与官方链接见 `docs/policy-data-notes.md` |

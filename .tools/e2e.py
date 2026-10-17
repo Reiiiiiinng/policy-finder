@@ -48,7 +48,9 @@ def run_mode(edge, mode, shots_dir):
     # 1) 重置日志
     OPENER.open(BASE + "/__e2e_log", timeout=10).read()
 
-    out_png = os.path.join(shots_dir, "e2e-%s.png" % mode)
+    # 输出名带 -run 后缀：这是每次运行都会重写的当前帧，匹配 .gitignore 的
+    # *-run.png 忽略规则，不再污染受跟踪的 .ui-shots/v2/ 截图（基线证据另存）。
+    out_png = os.path.join(shots_dir, "e2e-%s-run.png" % mode)
     profile = tempfile.mkdtemp(prefix="e2e_")
     url = "%s/_e2e.html?mode=%s" % (BASE, mode)
     subprocess.run([

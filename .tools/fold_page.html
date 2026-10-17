@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fold · 390×844</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  #log{padding:10px;white-space:pre-wrap;word-break:break-word;max-height:1100px;overflow:auto}
+  .ok{color:#5fd38d}.bad{color:#ff7b72}.warn{color:#e3b341}
+  iframe{width:390px;height:844px;border:0;background:#fff;display:block;margin:0 auto}
+  .bar{padding:4px 10px;background:#1c232b;color:#9fb0c0}
+</style>
+</head>
+<body>
+<div class="bar">视口 390 × 844 · 结果卡折叠与键盘交互（D2）</div>
+<div id="log">running…</div>
+<iframe id="f"></iframe>
+<script>
+/*
+ * D2 专项实测：结果卡内嵌控件与整卡导航的事件冲突。
+ * 背景：整卡 click / keydown 会冒泡，修复前点折叠摘要、理由展开，
+ * 或在它们身上按 Enter/Space，都会被整卡监听器抢走并跳详情。
+ * 断言经 /__e2e_log 回传（mode=fold）。
+ */
+var log = document.getElementById('log');
+var f = document.getElementById('f');
+var lines = [], pass = 0, fail = 0;
+
+function out(s, cls) {
+  lines.push(cls ? '<span class="' + cls + '">' + s + '</span>' : s);
+  log.innerHTML = lines.join('\n');
+  try {
+    fetch('/__e2e_log', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'fold', line:String(s), cls:cls||'' }) });
+  } catch(e){}
+}
+function check(name, cond, extra) {
+  if (cond) { pass++; out('  ok   ' + name, 'ok'); }
+  else { fail++; out('  FAIL ' + name + (extra ? '  -> ' + extra : ''), 'bad'); }
+}
+function D(){ return f.contentDocument; }
+function Wn(){ return f.contentWindow; }
+function q(s){ try { return D().querySelector(s); } catch(e){ return null; } }
+function qa(s){ try { return Array.prototype.slice.call(D().querySelectorAll(s)); } catch(e){ return []; } }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+async function waitFor(fn, ms, label){
+  var t0=Date.now();
+  while(Date.now()-t0<(ms||9000)){ try{ if(fn()) return true; }catch(e){} await sleep(100); }
+  out('  ..超时: '+label, 'warn'); return false;
+}
+function load(url){
+  return new Promise(function(res){
+    f.addEventListener('load', function h(){ f.removeEventListener('load', h); res(); }, {once:true});
+    f.src = url;
+  });
+}
+function waitForEvent(ms){
+  return new Promise(function(res){
+    var to = setTimeout(function(){ res(false); }, ms||12000);
+    f.addEventListener('load', function h(){
+      clearTimeout(to); f.removeEventListener('load', h); res(true);
+    }, {once:true});
+  });
+}
+function setSession(o){
+  var cur = {};
+  try { cur = JSON.parse(sessionStorage.getItem('policy_finder_session')||'{}'); } catch(e){}
+  Object.keys(o).forEach(function(k){ cur[k]=o[k]; });
+  sessionStorage.setItem('policy_finder_session', JSON.stringify(cur));
+}
+function clearSession(){ try{ sessionStorage.removeItem('policy_finder_session'); }catch(e){}
+  try{ sessionStorage.removeItem('pf_list_pos'); }catch(e){}
+  try{ sessionStorage.removeItem('pf_more_expanded'); }catch(e){} }
+
+/* 导航探测器：resetNav 后若 iframe 发生加载，navHappened 变 true */
+var navHappened = false;
+function resetNav(){ navHappened = false; }
+f.addEventListener('load', function(){ navHappened = true; });
+
+async function run(){
+  out('=== D2 折叠与键盘交互实测（390×844）===');
+
+  clearSession();
+  setSession({ target:'parents', operator:'女儿', beneficiary:'父亲', confirmed:true,
+               text:'我父亲72岁，一个人在广州生活，最近行动不方便。',
+               profile:{}, demo:false, demoBanner:false });
+  await load('/discover.html');
+  var got = await waitFor(function(){ return q('.result-card'); }, 25000, '结果卡');
+  check('结果列表已渲染', got);
+  if (!got) { out('=== 异常终止 ===','bad'); return; }
+
+  var card = q('.result-card');
+  var fold = card.querySelector('.rc-fold');
+  check('结果卡内有原生 details 折叠', !!fold);
+
+  /* ---- 1+2. 点击折叠摘要：开合状态变化，且不触发导航 ---- */
+  var sum = fold.querySelector('.rc-fold-sum');
+  resetNav();
+  sum.click();
+  await sleep(600);
+  check('点击摘要后 details[open] 为 true', fold.open === true, 'open=' + fold.open);
+  check('点击摘要未触发详情页导航', !navHappened);
+  check('摘要展开后仍停留在结果列表', !!q('.result-card') && q('.result-card') === card);
+  resetNav();
+  sum.click();
+  await sleep(400);
+  check('再次点击摘要后 details 收起', fold.open === false, 'open=' + fold.open);
+  check('收起摘要同样未触发导航', !navHappened);
+
+  /* ---- 3. 点击「另外 N 条理由」：展开且不导航 ---- */
+  var moreBtn = null, moreCard = null;
+  for (var i = 0; i < qa('.reason-more').length; i++) {
+    var b = qa('.reason-more')[i];
+    if (b.getBoundingClientRect().height > 0) { moreBtn = b; moreCard = b.closest('.result-card'); break; }
+  }
+  check('结果列表存在「另外 N 条理由」控件', !!moreBtn);
+  if (moreBtn) {
+    moreCard.scrollIntoView({ block:'center' });
+    await sleep(400);
+    var restId = moreBtn.getAttribute('data-reason-toggle');
+    var rest = D().querySelector('[data-reason-rest="' + restId + '"]');
+    var wasHidden = rest ? rest.hidden : null;
+    resetNav();
+    moreBtn.click();
+    await sleep(500);
+    check('点击理由展开后未触发整卡导航', !navHappened);
+    check('点击理由后仍停留在结果列表', !!q('.result-card'));
+    check('其余理由从收起变为展开', wasHidden === true && rest && rest.hidden === false,
+      'wasHidden=' + wasHidden + ' hidden=' + (rest ? rest.hidden : 'n/a'));
+    moreBtn.click();
+    await sleep(300);
+  }
+
+  /* ---- 4. 键盘：焦点在卡内控件上按 Enter/Space 不被整卡抢走 ---- */
+  // 合成 keydown 无法触发浏览器默认行为（无法直接验证 summary 原生开合），
+  // 但足以验证「卡片级监听器不再 preventDefault + 跳转」这一被修的行为：
+  // 修复前这两步会把 iframe 带去 policy.html。
+  var sum2 = q('.rc-fold-sum');
+  sum2.focus();
+  check('摘要可聚焦', D().activeElement === sum2);
+  resetNav();
+  sum2.dispatchEvent(new (Wn().KeyboardEvent)('keydown', { key:'Enter', bubbles:true, cancelable:true }));
+  await sleep(600);
+  check('摘要上按 Enter 未被整卡监听器抢走导航', !navHappened);
+  var evBtn = card.querySelector('.ev-toggle');
+  if (evBtn) {
+    evBtn.focus();
+    resetNav();
+    evBtn.dispatchEvent(new (Wn().KeyboardEvent)('keydown', { key:' ', bubbles:true, cancelable:true }));
+    await sleep(600);
+    check('证据链按钮上按 Space 未被整卡监听器抢走导航', !navHappened);
+    check('焦点仍在证据链按钮上', D().activeElement === evBtn);
+  }
+
+  /* ---- 5. 卡片语义：整卡不再是 button，导航由独立详情链接承担 ---- */
+  check('整卡不再伪装成 button 角色',
+    card.getAttribute('role') !== 'button' && card.getAttribute('tabindex') === null,
+    'role=' + card.getAttribute('role') + ' tabindex=' + card.getAttribute('tabindex'));
+
+  /* ---- 5a. 详情链接：可聚焦、href 正确、点击正常导航 ---- */
+  var footLink = card.querySelector('a.result-foot');
+  check('卡尾有独立详情链接（<a>）', !!footLink);
+  if (footLink) {
+    check('链接 href 指向本条政策详情',
+      footLink.getAttribute('href') === 'policy.html?id=' + encodeURIComponent(card.dataset.id),
+      footLink.getAttribute('href'));
+    footLink.focus();
+    check('详情链接可键盘聚焦', D().activeElement === footLink);
+    var cardName = (card.querySelector('.result-name') || {textContent:''}).textContent.trim();
+    resetNav();
+    footLink.click();
+    var navLink = await waitForEvent(15000);
+    check('点击详情链接正常导航', navLink);
+    await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
+    var detailName = ((q('.card h2') || {textContent:''}).textContent || '').trim();
+    check('详情页就是链接指向的那条', !!detailName && detailName === cardName,
+      '详情=' + detailName + ' 期望=' + cardName);
+
+    /* ---- 5b. 返回列表后，点击卡片普通区域仍正常导航 ---- */
+    var backEl = q('.back-link');
+    check('详情页有返回按钮', !!backEl);
+    backEl.click();
+    await waitForEvent(15000);
+    var backOk = await waitFor(function(){ return q('.result-card'); }, 25000, '返回后的结果列表');
+    check('返回后结果列表已恢复', backOk);
+    if (backOk) {
+      var card2 = q('.result-card');
+      resetNav();
+      (card2.querySelector('.result-name') || card2).click();
+      var nav2 = await waitForEvent(15000);
+      check('点击卡片普通区域仍进入详情', nav2);
+      await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容2');
+      check('详情页内容已加载', !!q('.trust-card'));
+    }
+  }
+
+  out('');
+  out('=== D2 交互实测：通过 ' + pass + '，失败 ' + fail + ' ===', fail ? 'bad' : 'ok');
+}
+run().catch(function(e){
+  out('  FAIL 测试链异常中断: ' + (e && e.message || e), 'bad');
+  out('=== D2 交互实测：通过 ' + pass + '，失败 ' + (fail + 1) + ' ===', 'bad');
+});
+</script>
+</body>
+</html>

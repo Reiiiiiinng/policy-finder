@@ -1284,6 +1284,8 @@ input:focus {
   border-radius: 4px;
 }
 
+/* 卡尾详情链接：承担整卡的导航语义（可聚焦、可 Enter、中键可新开）。
+   外观与原 div 版一致，另补键盘焦点环。 */
 .result-foot {
   margin-top: 12px;
   padding-top: 11px;
@@ -1293,6 +1295,18 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.result-foot:hover {
+  color: var(--brand-dark);
+}
+
+.result-foot:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 4px;
 }
 
 .result-foot .arrow {
@@ -3383,6 +3397,15 @@ input:focus {
   height: 5px;
   border-radius: 50%;
   background: var(--brand);
+}
+
+/* 官方材料条目内的条款出处 / 数据层注释：弱化小字，跟在件目后面 */
+.trip-ref {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 
 .trip-note {

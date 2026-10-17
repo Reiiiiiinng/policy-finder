@@ -223,9 +223,12 @@
         saveListPosition(card.dataset.id);
         location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
       };
-      card.addEventListener('click', go);
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+      // 卡内有真实控件（折叠 summary / 理由展开 / 证据链按钮 / 详情链接）：
+      // 点它们时事件会冒泡到整卡，这里必须让位，否则折叠区在结果页打不开。
+      // 键盘导航由卡尾 <a class="result-foot"> 原生承担，整卡不再监听 keydown。
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, summary, details, input, textarea, select')) return;
+        go();
       });
     });
   }

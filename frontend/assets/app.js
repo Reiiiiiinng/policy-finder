@@ -1589,8 +1589,10 @@ function renderResultCards(data, opts) {
 
     // 分组标题已经说明了「优先关注 / 其他可能相关」，
     // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
+    // 导航语义由卡尾的独立 <a> 承担（原生可聚焦、可 Enter、中键可新开）；
+    // 整卡不再伪装成 button——button 角色里嵌 summary/按钮是无效 ARIA 嵌套。
     return `
-      <article class="result-card" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
+      <article class="result-card" data-id="${escapeHtml(r.policy_id)}">
         <div class="result-head">
           <div class="result-head-main">
             <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
@@ -1619,7 +1621,7 @@ function renderResultCards(data, opts) {
                 aria-expanded="false">为什么推荐？看依据</button>
         <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
 
-        <div class="result-foot">查看详情与办理方式 <span class="arrow">→</span></div>
+        <a class="result-foot" href="policy.html?id=${encodeURIComponent(r.policy_id)}">查看详情与办理方式 <span class="arrow">→</span></a>
       </article>`;
   };
 

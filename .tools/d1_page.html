@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>D1 出门前清单 · 渲染验证</title>
+<style>
+  body{margin:0;font:12px/1.6 monospace;background:#101418;color:#dfe6ec}
+  iframe{width:390px;height:844px;border:0;display:block;margin:0 auto}
+</style>
+</head>
+<body>
+<iframe id="f"></iframe>
+<script>
+/*
+ * D1 专项实测：出门前清单在两种数据形态下的真实渲染。
+ *   ?pid=gz_elderly_010 → 广州库（无官方 materials）→ 应显示「建议核实」中性栏目
+ *   ?pid=fs_med_002     → 佛山库（POLICY_DB=foshan，带官方 materials）→ 应显示官方件目与依据
+ * 断言经 /__e2e_log 回传（mode=d1）。
+ */
+var params = new URLSearchParams(location.search);
+var pid = params.get('pid') || 'gz_elderly_010';
+var isFs = pid.indexOf('fs_') === 0;
+
+var f = document.getElementById('f');
+var lines = [], pass = 0, fail = 0;
+function out(s) {
+  lines.push(s);
+  try {
+    fetch('/__e2e_log', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'d1', line:String(s) }) });
+  } catch(e){}
+}
+function check(name, cond, extra) {
+  if (cond) { pass++; out('  ok   ' + name); }
+  else { fail++; out('  FAIL ' + name + (extra ? '  -> ' + extra : '')); }
+}
+function D(){ return f.contentDocument; }
+function q(s){ try { return D().querySelector(s); } catch(e){ return null; } }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function bodyText(){ return (D().body || {textContent:''}).textContent; }
+
+async function run(){
+  out('=== D1 清单实测 pid=' + pid + ' ===');
+  f.src = '/policy.html?id=' + encodeURIComponent(pid);
+  var t0 = Date.now();
+  while (Date.now() - t0 < 20000) {
+    if (q('.trip-list')) break;
+    await sleep(150);
+  }
+  check('详情页清单已渲染', !!q('.trip-list'));
+  var txt = bodyText();
+
+  if (isFs) {
+    // 佛山三个用例覆盖三种数据形态：
+    //   fs_med_002 = 官方 materials 多条（带 source_ref）
+    //   fs_med_001 = 官方 materials 带 note（办法未列明细目）
+    //   fs_med_003 = materials 为空数组 → 应回落中性核实栏目
+    if (pid === 'fs_med_001') {
+      check('佛山001：展示官方材料栏目', txt.indexOf('出门前要带的材料') >= 0);
+      check('佛山001：如实展示「未列明单独收件清单」',
+        txt.indexOf('本办法未列明单独收件清单') >= 0);
+      check('佛山001：数据层注释一并展示（未逐项列明）', txt.indexOf('未逐项列明') >= 0);
+      check('佛山001：保留条款出处', txt.indexOf('依据：佛医保〔2025〕13号 第二十条') >= 0);
+    } else if (pid === 'fs_med_003') {
+      check('佛山003：materials 为空时回落中性核实栏目',
+        txt.indexOf('出门前建议核实的材料') >= 0);
+      check('佛山003：清单内不出现「依据：」条款引用（无编造官方件目）',
+        ((q('.trip-list') || {textContent:''}).textContent).indexOf('依据：') < 0);
+    } else {
+      check('佛山002：展示官方材料栏目', txt.indexOf('出门前要带的材料') >= 0);
+      check('佛山002：官方件目原样展示（户口簿、身份证等证件原件）',
+        txt.indexOf('所有共同生活的家庭成员的户口簿、身份证等证件原件') >= 0);
+      check('佛山002：第二件目（授权书）也展示', txt.indexOf('经济状况查询核对授权书') >= 0);
+      check('佛山002：保留条款出处（source_ref）', txt.indexOf('依据：粤府办〔2022〕3号 第十六条') >= 0);
+      check('佛山002：无推导出的「医保参保凭证」字样', txt.indexOf('医保参保凭证') < 0);
+      check('佛山002：保留补充确认提示', txt.indexOf('受理单位可能另有补充材料要求') >= 0);
+    }
+  } else {
+    check('广州：中性栏目「出门前建议核实的材料」', txt.indexOf('出门前建议核实的材料') >= 0);
+    check('广州：不再断言具体证件（无「户口簿（申请条件涉及本市户籍）」）',
+      txt.indexOf('户口簿（申请条件涉及本市户籍）') < 0);
+    check('广州：身份证件提示带核实对冲', txt.indexOf('身份证件（是否必须、是否要原件，请电话问清）') >= 0);
+    check('广州：条件转为核实问句', txt.indexOf('需要哪种户籍类证明，请一并问清') >= 0);
+    check('广州：保留兜底提示', txt.indexOf('受理单位另行要求的其他材料，先打电话确认再准备') >= 0);
+  }
+  check('两种形态都保留「以受理单位告知为准」', txt.indexOf('以受理单位告知为准') >= 0);
+  check('两种形态都保留不代办声明', txt.indexOf('不代办、不代为提交材料，也不做资格认定') >= 0);
+
+  out('=== D1 清单实测：通过 ' + pass + '，失败 ' + fail + ' ===');
+}
+run();
+</script>
+</body>
+</html>
