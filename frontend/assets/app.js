@@ -227,17 +227,36 @@ function mountDemoProgress(current) {
   anchor.insertAdjacentHTML('afterend', renderDemoProgress(current));
 }
 
-/** 状态徽章：可能相关 / 待确认 + 核验状态 */
+/**
+ * 两个判断维度分开呈现（P7-A）。
+ *
+ * 「可能相关」是**匹配层**结论：AI 读你描述后觉得可能适用；
+ * 「已核验」是**来源层**结论：政策原文是否已核对到一手文件。
+ * 两者不是一个维度，以前用两个同款药丸并排，读起来像「这条已经审核通过了」。
+ * 现在：各带维度名、上下排列、视觉形态不同（匹配=实心浅底药丸，来源=无底色的方点短句），
+ * 任何一层的措辞都不构成「已符合资格」。
+ */
+function renderAxes(status, sourcePending) {
+  const m = String(status == null ? '' : status).trim() || '可能相关';
+  const mCls = m === '待确认' ? 'is-confirm' : 'is-maybe';
+  const sCls = sourcePending ? 'is-pending' : 'is-verified';
+  const sText = sourcePending ? '待核验' : '已核验';
+  const sMark = sourcePending ? '' : '✓ ';
+  return `<div class="axes" role="group" aria-label="两个独立判断维度：匹配结论与来源核验">
+      <div class="axis is-match">
+        <span class="axis-k">匹配</span>
+        <span class="axis-v ${mCls}">${escapeHtml(m)}</span>
+      </div>
+      <div class="axis is-source">
+        <span class="axis-k">来源</span>
+        <span class="axis-v ${sCls}">${sMark}${sText}</span>
+      </div>
+    </div>`;
+}
+
+/** 旧名兼容：语义上等价于 renderAxes（两个维度分开渲染），新代码请直接用 renderAxes */
 function statusBadge(status, sourcePending) {
-  let cls = 'maybe';
-  let text = status || '可能相关';
-  if (status === '待确认') cls = 'confirm';
-  let html = `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
-  // 来源核验状态始终显式呈现：有 ✓ 已核验，没有就是来源待核验，不做模糊处理
-  html += sourcePending
-    ? ' <span class="badge pending">来源待核验</span>'
-    : ' <span class="badge verified">✓ 已核验</span>';
-  return html;
+  return renderAxes(status, sourcePending);
 }
 
 /**
@@ -293,7 +312,8 @@ function sourceBlock(r) {
   const verifiedState = r.source_pending
     ? '来源待核验'
     : '已核验' + (r.source_checked_at ? ' · ' + r.source_checked_at : '');
-  rows.push(['核验状态', verifiedState]);
+  // 行名点明这是「来源」维度，与卡片上方的「匹配」维度区分开
+  rows.push(['来源核验', verifiedState]);
 
   const rowsHtml = rows.map((x) => `<div class="src-row"><span class="k">${escapeHtml(x[0])}</span>`
     + `<span class="v">${escapeHtml(x[1])}</span></div>`).join('');
@@ -1155,7 +1175,8 @@ function renderFlow(current) {
   const steps = FLOW_STAGES.map((s) => {
     const cls = s.n < current ? 'is-done' : (s.n === current ? 'is-active' : '');
     const mark = s.n < current ? '✓' : String(s.n);
-    return `<li class="flow-step ${cls}">
+    const cur = s.n === current ? ' aria-current="step"' : '';
+    return `<li class="flow-step ${cls}"${cur} data-stage="${s.n}">
       <span class="flow-dot" aria-hidden="true">${mark}</span>
       <span class="flow-text">
         <span class="flow-label">${escapeHtml(s.label)}</span>
@@ -1165,13 +1186,61 @@ function renderFlow(current) {
   }).join('');
 
   return `
-    <nav class="flow" aria-label="使用流程">
+    <nav class="flow" aria-label="使用流程" data-flow-current="${current}">
       <ol class="flow-steps">${steps}</ol>
     </nav>`;
 }
 
-/** 挂载流程指示器。current: 1..4 */
+/**
+ * 当前阶段：唯一数据源。
+ *
+ * 之前顶栏「第 N 步」是页面里写死的静态文案，下方进度条高亮是 mountFlow 的动态状态，
+ * 两处各说各话（policy.html 顶栏写第 3 步、进度条高亮第 4 步；discover.html 匹配后
+ * 进度条进到第 2 步、顶栏还停在第 1 步）。现在只保留这一个数字，两处都从它推导。
+ *
+ * 铁律：步骤文案只能由 mountFlow 写入，页面不得再自己拼「第 N 步」。
+ */
+let _flowStage = 0;
+
+function flowStepText(n) {
+  return '第 ' + n + ' 步';
+}
+
+/** 归一化阶段序号：非数字或越界一律夹到 1..4，避免出现「第 0 步」「第 7 步」 */
+function normalizeFlowStage(n) {
+  const v = parseInt(n, 10);
+  if (!isFinite(v)) return 1;
+  return Math.min(FLOW_STAGES.length, Math.max(1, v));
+}
+
+/**
+ * 顶栏步骤徽章：与进度条同源。
+ * 徽章节点由这里创建/更新，页面不再预置步骤文案，从根上消除两处不一致。
+ */
+function syncFlowStepBadge(step) {
+  const row = document.querySelector('.topbar .brand-row');
+  if (!row) return;
+  let col = row.querySelector('.tag-col');
+  if (!col) {
+    row.insertAdjacentHTML('beforeend', '<div class="tag-col"></div>');
+    col = row.querySelector('.tag-col');
+    if (!col) return;
+  }
+  let badge = col.querySelector('[data-step-badge]');
+  if (!badge) {
+    col.insertAdjacentHTML('beforeend', '<span class="step-tag" data-step-badge></span>');
+    badge = col.querySelector('[data-step-badge]');
+    if (!badge) return;
+  }
+  badge.textContent = flowStepText(step);
+  badge.setAttribute('data-step', String(step));
+}
+
+/** 挂载流程指示器。current: 1..4 —— 同时同步顶栏步骤徽章，两处永远同源 */
 function mountFlow(current) {
+  _flowStage = normalizeFlowStage(current);
+  syncFlowStepBadge(_flowStage);
+
   const app = document.querySelector('.app');
   if (!app) return;
   let el = app.querySelector('.flow');
@@ -1180,7 +1249,7 @@ function mountFlow(current) {
     || app.querySelector('.demo-banner')
     || app.querySelector('.topbar');
   if (!anchor) return;
-  anchor.insertAdjacentHTML('afterend', renderFlow(current));
+  anchor.insertAdjacentHTML('afterend', renderFlow(_flowStage));
 }
 
 /**
@@ -1376,9 +1445,11 @@ function renderEvidenceChain(ev, opts) {
     ? `<div class="ev-cite-rows">${citRows.map((r) => `
         <div class="ecr"><span class="k">${escapeHtml(r[0])}</span><span class="v">${escapeHtml(r[1])}</span></div>`).join('')}</div>`
     : '<p class="ev-none">尚未核到一手文件，暂不列出来源信息，避免指向错误出处。</p>';
+  // ③ 官方依据。这里只有「来源核验」这一层结论（本段不谈匹配层），
+  // 所以用带维度名的方点短句，不再用和匹配层同款的药丸，避免两个维度长得一样。
   const citBadge = cit.verified
-    ? '<span class="badge verified">✓ 已核验</span>'
-    : '<span class="badge pending">来源待核验</span>';
+    ? '<span class="cite-state is-verified">✓ 已核验</span>'
+    : '<span class="cite-state is-pending">来源待核验</span>';
 
   const pending = ev.pending_count || 0;
 
@@ -1651,7 +1722,11 @@ function bindEvidenceToggles(resultsById) {
 function renderTopbar(title, parentHref, sub) {
   const el = document.querySelector('.topbar');
   if (!el) return;
+  // 右上是「标签区」：主题标签（family/self 的操作者关系）在上，步骤徽章在下。
+  // 这里只放主题标签；步骤徽章一律由 mountFlow → syncFlowStepBadge 创建并写入，
+  // 保证「第 N 步」只有一处来源，不会出现顶栏和进度条各说各话。
   const tag = sub ? `<span class="theme-tag">${escapeHtml(sub)}</span>` : '';
+  const tagCol = tag ? `<div class="tag-col">${tag}</div>` : '';
   let back = '';
   if (parentHref) {
     // href 保留：既是无 JS / 中键新窗口的兜底，也让父页面关系可被查看
@@ -1663,7 +1738,7 @@ function renderTopbar(title, parentHref, sub) {
         <h1>${escapeHtml(title)}</h1>
         <div class="sub">政策找人 · AI赋能公共服务权益发现</div>
       </div>
-      ${tag}
+      ${tagCol}
     </div>
     <div style="margin-top:10px">${back}</div>`;
 

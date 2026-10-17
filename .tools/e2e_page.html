@@ -53,6 +53,25 @@ function q(sel) { return D().querySelector(sel); }
 function qa(sel) { return Array.prototype.slice.call(D().querySelectorAll(sel)); }
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+/*
+ * 步骤一致性对账（P4）：顶栏徽章与下方流程条必须是同一个数字。
+ * 这两处以前各写各的 —— 顶栏是页面里的死文案，流程条是运行时状态，
+ * 于是出现过「顶栏第 3 步 / 流程条第 4 步」「匹配完了顶栏还停在第 1 步」。
+ */
+function stepSync() {
+  var badge = q('.topbar [data-step-badge]');
+  var act = q('.flow-step.is-active');
+  if (!badge || !act) {
+    return { ok: false, why: 'badge=' + (badge && badge.textContent) + ' active=' + (act && act.textContent) };
+  }
+  var n = String(badge.getAttribute('data-step') || '');
+  var txt = (badge.textContent || '').replace(/\s+/g, '');
+  return {
+    ok: n !== '' && n === act.dataset.stage && txt === ('第' + n + '步'),
+    why: 'badge=' + txt + '(data-step=' + n + ') flow-stage=' + act.dataset.stage,
+  };
+}
+
 async function waitFor(fn, ms, label) {
   var t0 = Date.now();
   while (Date.now() - t0 < (ms || 8000)) {
@@ -96,6 +115,8 @@ async function run() {
   check('流程已推进到第2步', act && act.textContent.indexOf('发现权益') >= 0,
     act ? act.textContent.replace(/\s+/g, ' ') : 'null');
   check('第1步标记为已完成', !!q('.flow-step.is-done'));
+  var ss1 = stepSync();
+  check('匹配后顶栏与流程条同为第2步', ss1.ok, ss1.why);
   check('生活事件 chip 已渲染', qa('[data-scene]').length > 3, 'n=' + qa('[data-scene]').length);
   var onChips = qa('.scene-chip.is-on').map(function (e) { return e.dataset.scene; });
   check('AI 识别到的事件已选中', onChips.length >= 2, onChips.join(','));
@@ -188,9 +209,16 @@ async function run() {
   check('详情页有「去哪里核实」', D().body.textContent.indexOf('去哪里核实') >= 0);
   check('详情页有来源信息', D().body.textContent.indexOf('责任部门') >= 0);
 
-  // 状态徽章：不再是硬编码「可能相关」
-  var badge = q('.badge');
-  check('状态徽章真实渲染', badge && badge.textContent.length > 0, badge && badge.textContent);
+  // 两个判断维度分开呈现：匹配层（可能相关/待确认）+ 来源层（已核验/待核验）
+  var axes = q('.axes');
+  check('详情页两个维度分开渲染', !!axes);
+  check('匹配维度带名称', !!q('.axes .axis.is-match .axis-k'),
+    q('.axes .axis.is-match .axis-k') && q('.axes .axis.is-match .axis-k').textContent);
+  check('来源维度带名称', !!q('.axes .axis.is-source .axis-k'),
+    q('.axes .axis.is-source .axis-k') && q('.axes .axis.is-source .axis-k').textContent);
+  check('来源层不再复用匹配层药丸', !q('.axes .axis.is-source .badge'));
+  var ss3 = stepSync();
+  check('详情页顶栏与流程条同为第3步', ss3.ok, ss3.why);
 
   // ---------- 7. 第四步：进一步确认 ----------
   var fsOpts = qa('.fs-opt');

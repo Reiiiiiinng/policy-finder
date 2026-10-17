@@ -184,6 +184,30 @@ body {
   flex: none;
 }
 
+/* 顶栏右上「标签区」：主题标签在上、当前步骤徽章在下，390px 也不挤 */
+.tag-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+
+/* 步骤徽章：与下方流程条同源（mountFlow 写入），刻意长得不像主题标签 —— 进度是过程信息 */
+.step-tag {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  background: #fff;
+  border: 1px dashed var(--brand-line);
+  color: var(--brand-dark);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  white-space: nowrap;
+  flex: none;
+}
+
 .back-link {
   color: var(--brand-dark);
   text-decoration: none;
@@ -848,6 +872,128 @@ input:focus {
   background: var(--trust);
   color: var(--trust-ink);
   border: 1px solid var(--trust-line);
+}
+
+/* ================================================================
+   两个判断维度（P7-A）：匹配层 ≠ 来源层
+   匹配层是「AI 觉得可能适用」，来源层是「原文核到没有」，两者不是一个维度，
+   所以各带维度名、上下排列、形态不同：匹配=实心浅底药丸，来源=无底色的方点短句。
+   任何一层的措辞都不构成资格认定。
+   ================================================================ */
+.axes {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.result-badges .axes {
+  align-items: flex-end;
+}
+
+.axis {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.axis-k {
+  flex: none;
+  width: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.result-badges .axis-k {
+  text-align: right;
+}
+
+.axis-v {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+/* 匹配层：浅底药丸 */
+.axis-v.is-maybe {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
+}
+
+.axis-v.is-confirm {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
+}
+
+/* 来源层：无底色、方形小点，形态上与匹配层明显不是同一类标签 */
+.axis-v.is-verified,
+.axis-v.is-pending {
+  position: relative;
+  padding-left: 11px;
+  font-weight: 600;
+}
+
+.axis-v.is-verified {
+  color: var(--trust-ink);
+}
+
+.axis-v.is-pending {
+  color: var(--pending);
+}
+
+.axis-v.is-verified::before,
+.axis-v.is-pending::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+/* 来源核验短句：只出现在「来源」这一层（证据链 / 政策来源卡），
+   用方点 + 文字，不复用匹配层的实心药丸，避免两个维度长得一样 */
+.cite-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding-left: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cite-state::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.cite-state.is-verified {
+  color: var(--trust-ink);
+}
+
+.cite-state.is-pending {
+  color: var(--pending);
 }
 
 /* ================================================================

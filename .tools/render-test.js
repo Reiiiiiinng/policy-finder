@@ -63,6 +63,32 @@ console.log('== 流程指示器 ==');
   check('四阶段文案不夸大', !/保证|一定能|自动办理|已认证/.test(h4));
 }
 
+console.log('== 步骤单一数据源（P4）==');
+{
+  // 顶栏步骤文案与进度条高亮必须同源：文案由 flowStepText 生成，序号由 normalizeFlowStage 归一
+  check('flowStepText 生成步骤文案', typeof sandbox.flowStepText === 'function');
+  check('flowStepText 文案正确',
+    [1, 2, 3, 4].map(sandbox.flowStepText).join('/') === '第 1 步/第 2 步/第 3 步/第 4 步',
+    [1, 2, 3, 4].map(sandbox.flowStepText).join('/'));
+  check('normalizeFlowStage 是函数', typeof sandbox.normalizeFlowStage === 'function');
+  check('normalizeFlowStage 保序', [1, 2, 3, 4].every((n) => sandbox.normalizeFlowStage(n) === n));
+  check('normalizeFlowStage 下越界夹到第 1 步', sandbox.normalizeFlowStage(0) === 1);
+  check('normalizeFlowStage 上越界夹到第 4 步', sandbox.normalizeFlowStage(99) === 4);
+  check('normalizeFlowStage 容错非数字', sandbox.normalizeFlowStage('x') === 1
+    && sandbox.normalizeFlowStage(null) === 1 && sandbox.normalizeFlowStage(undefined) === 1);
+  check('normalizeFlowStage 认字符串数字', sandbox.normalizeFlowStage('3') === 3);
+
+  // 进度条自身带出当前阶段，浏览器测试可据此与顶栏徽章对账
+  const f2 = sandbox.renderFlow(2);
+  check('进度条带 data-flow-current', has(f2, 'data-flow-current="2"'));
+  check('每个步骤带 data-stage',
+    (f2.match(/data-stage="[1-4]"/g) || []).length === 4);
+  check('当前步骤带 aria-current=step',
+    (f2.match(/aria-current="step"/g) || []).length === 1);
+  check('aria-current 落在第 2 步',
+    /<li class="flow-step is-active" aria-current="step" data-stage="2">/.test(f2));
+}
+
 console.log('== 情况确认台 ==');
 {
   const profile = {
@@ -157,6 +183,36 @@ console.log('== 证据链 ==');
   check('to_verify 仍显示责任部门', has(h2, '广州市卫生健康部门'));
   check('to_verify 无文件名不出现旧文号', !has(h2, '穗民'));
   check('ev 为空时不崩', sandbox.renderEvidenceChain(null, {}) === '');
+}
+
+console.log('== 两个判断维度分离（P7-A）==');
+{
+  check('renderAxes 是函数', typeof sandbox.renderAxes === 'function');
+  const a = sandbox.renderAxes('可能相关', false);
+  const b = sandbox.renderAxes('待确认', true);
+
+  // 两个维度都要自报家门，不能靠读者猜
+  check('带匹配维度名', has(a, 'axis-k">匹配'));
+  check('带来源维度名', has(a, 'axis-k">来源'));
+  check('匹配维度值「可能相关」', has(a, '可能相关'));
+  check('待确认走不同色档', has(b, 'is-confirm'));
+
+  // 不同维度不得同款并排：来源层不能再复用匹配层的药丸 class
+  check('来源层不复用 badge 药丸', !/class="badge/.test(a) && !/class="badge/.test(b));
+  check('匹配层用实心浅底', has(a, 'axis-v is-maybe') && has(b, 'axis-v is-confirm'));
+  check('来源层用方点短句', has(a, 'axis-v is-verified') && has(b, 'axis-v is-pending'));
+
+  // 「已核验」只描述来源，不能被读成「已符合资格」
+  check('已核验带勾', has(a, '✓ 已核验'));
+  check('待核验不带勾', has(b, '待核验') && !has(b, '✓'));
+  check('维度标签有序（匹配在前来源在后）',
+    a.indexOf('axis-k">匹配') < a.indexOf('axis-k">来源'));
+  check('两个维度各出现一次',
+    (a.match(/class="axis /g) || []).length === 2);
+  check('不出现资格断言', !/符合资格|已符合|一定能/.test(a + b));
+  // 兼容名仍在（老页面/老测试还在用）
+  check('statusBadge 委托 renderAxes',
+    sandbox.statusBadge('待确认', true) === sandbox.renderAxes('待确认', true));
 }
 
 console.log('== 结果分层 ==');

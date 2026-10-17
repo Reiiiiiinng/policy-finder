@@ -201,5 +201,52 @@ const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8'
   check('CSS 定义 ' + sel, css.indexOf(sel) >= 0);
 });
 
+console.log('== 步骤指示单一数据源（P4）==');
+{
+  // 顶栏「第 N 步」曾经是页面里写死的文案，与进度条各说各话。
+  // 现在只允许 mountFlow 一处写入，页面不得再传步骤字面量。
+  PAGES.forEach((page) => {
+    const s = scripts[page] || '';
+    const m = s.match(/renderTopbar\([^;\n]*第\s*[0-9一二三四]\s*步/);
+    check(page + ' 不向前顶栏传死步骤文案', !m, m && m[0].slice(0, 60));
+  });
+  check('mountFlow 内同步顶栏徽章',
+    /function mountFlow[\s\S]*?syncFlowStepBadge\(/.test(appSrc));
+  check('顶栏徽章由 syncFlowStepBadge 创建',
+    /function syncFlowStepBadge[\s\S]*?data-step-badge/.test(appSrc));
+  check('流程条带 data-flow-current', /data-flow-current=/.test(appSrc));
+  check('步骤文案只由 flowStepText 生成',
+    (appSrc.match(/['"]第\s*['"]\s*\+\s*n/g) || []).length >= 1);
+  // policy 页身份是阶段 3：渲染完成后不得再跳到第 4 步
+  const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  check('详情页不再渲染后跳到第 4 步', !/mountFlow\(\s*4\s*\)/.test(polSrc));
+  check('详情页保留阶段 3', /mountFlow\(3\)/.test(polSrc));
+}
+
+console.log('== 两个判断维度分离（P7-A）==');
+{
+  // 匹配层（可能相关）与来源层（已核验）不是一个维度，不得用同款药丸并排
+  check('statusBadge 不再输出并排药丸',
+    !/badge \$\{cls\}[\s\S]{0,200}badge pending/.test(appSrc));
+  check('两个维度各带维度名',
+    /axis-k">匹配/.test(appSrc) && /axis-k">来源/.test(appSrc));
+  check('app.js 用 renderAxes', /function renderAxes/.test(appSrc));
+  const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  check('详情页顶部用 renderAxes', /renderAxes\(matchRow/.test(polSrc));
+  check('详情页来源核验不再用 badge 药丸',
+    !/<span class="badge (pending|verified)">(✓\s*)?(来源待核验|已核验)</.test(polSrc));
+  check('证据链来源核验不再用 badge 药丸',
+    !/badge verified">✓ 已核验/.test(appSrc) && /cite-state is-verified/.test(appSrc));
+  [
+    '.tag-col', '.step-tag',
+    '.axes', '.axis', '.axis-k', '.axis-v', '.axis-v.is-maybe', '.axis-v.is-confirm',
+    '.axis-v.is-verified', '.axis-v.is-pending', '.cite-state',
+  ].forEach((sel) => {
+    check('CSS 定义 ' + sel, css.indexOf(sel) >= 0);
+  });
+  check('CSS 里来源层与匹配层不同形',
+    /\.axis-v\.is-verified,/.test(css) && /\.axis-v\.is-maybe \{/.test(css));
+}
+
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

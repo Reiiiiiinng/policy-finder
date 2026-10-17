@@ -29,7 +29,8 @@
   const _navSession = store.read();
   const _navProfile = _navSession.profile || _navSession.selfProfile || null;
   const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
-  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html', '第 3 步');
+  // 本页身份 = 阶段 3「查看依据」；步骤文案只由 mountFlow 写，这里不再传字面量
+  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html');
   mountDemoBanner();
   mountDemoProgress(4);
   mountFlow(3);
@@ -203,9 +204,10 @@
       : `<div class="tc-none"><span>⚠</span>
            <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
 
+    // 来源维度单独呈现：带维度名、无药丸底，与顶部的匹配维度明显不同形
     const verBadge = pending
-      ? '<span class="badge pending">来源待核验</span>'
-      : '<span class="badge verified">✓ 已核验</span>';
+      ? '<span class="cite-state is-pending">来源待核验</span>'
+      : '<span class="cite-state is-verified">✓ 已核验</span>';
     const tcStatus = `
       <div class="tc-status">
         ${verBadge}
@@ -226,10 +228,9 @@
         ${verNote}
       </div>`;
 
-    // 顶部概要：状态徽章用真实匹配结果，不再一律写「可能相关」
-    const statusLine = matchRow
-      ? statusBadge(matchRow.status, pending)
-      : statusBadge('可能相关', pending);
+    // 顶部概要：匹配维度与来源维度分开渲染（各带维度名、不同形态），
+    // 不再把「可能相关」和「已核验」两个同款药丸并排放，避免读成「已经审核通过」。
+    const statusLine = renderAxes(matchRow && matchRow.status, pending);
     const tierLine = matchRow && matchRow.tier
       ? `<div class="tier-strip ${matchRow.tier === '强相关' ? 'tier-strong'
           : (matchRow.tier === '可能相关' ? 'tier-mid' : 'tier-low')}" style="margin-top:10px">
@@ -291,7 +292,8 @@
       </div>`;
 
     bindFinalStep(id, selfMode, backHref);
-    mountFlow(4);
+    // 不再在渲染完成后把流程推到第 4 步：本页始终是阶段 3「查看依据」，
+    // 页尾的「进一步确认」是可选收尾动作，不是本页身份。步骤状态一次性由顶部 mountFlow(3) 决定。
     mountRelationStrip();
   }
 

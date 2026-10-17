@@ -52,7 +52,8 @@
 
 <script src="assets/app.js"></script>
 <script>
-  renderTopbar('确认情况', 'family.html', '第 1 步');
+  // 不再在这里写死「第 N 步」：步骤文案由 mountFlow 统一写入顶栏徽章
+  renderTopbar('确认情况', 'family.html');
   mountDemoBanner();
   mountDemoProgress(1);
   mountFlow(1);
