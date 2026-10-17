@@ -14,6 +14,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# e2e 脚本每次运行都会重写的截图（不是留存证据，别入库）
+# 生成处：phase6-e2e.py / phase7-e2e.py / fix-e2e.py / backnav-e2e.py / return-e2e.py
+*-run.png
+
 # WorkBuddy 会话数据（不入库）
 .workbuddy/
 *.genie
