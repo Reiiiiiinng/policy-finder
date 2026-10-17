@@ -41,7 +41,7 @@
 
   <div class="section">
     <div class="btn-row">
-      <button type="button" class="btn ghost" onclick="location.href='family.html'">← 重新确认查询关系</button>
+      <button type="button" class="btn ghost" onclick="location.href='family.html'">← 返回确认查询关系</button>
     </div>
   </div>
 
@@ -60,7 +60,7 @@
   mountRelationStrip();
 
   const session = store.read();
-  // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
+  // 从详情页「返回调整」带回来的政策 id（读完即从地址栏移除）
   const RETURN_PID = consumeReturnParam();
 
   const input = document.getElementById('situation');
@@ -312,10 +312,11 @@
     bindConfirm(data);
     bindScenes(data);
     bindEvidence(data);
+    bindReasonToggles();
     bindResultGroups();
   }
 
-  // 从详情页「回去调整」带 focus 参数回来时，滚动到对应区块
+  // 从详情页「返回调整」带 focus 参数回来时，滚动到对应区块
   function applyFocus() {
     const f = query('focus');
     if (!f) return;
@@ -331,7 +332,7 @@
 
   // 已输入过则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
-  // 带 focus 参数时（从详情页「回去调整」过来）优先按区块定位。
+  // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
   if (session.text && !session.demo) {
     const hinted = !!query('focus');
     const opt = { restorePosition: !hinted, scrollToResult: !hinted };

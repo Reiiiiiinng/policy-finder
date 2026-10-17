@@ -64,7 +64,7 @@
   mountRelationStrip();
 
   const session = store.read();
-  // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
+  // 从详情页「返回调整」带回来的政策 id（读完即从地址栏移除）
   const RETURN_PID = consumeReturnParam();
 
   const input = document.getElementById('situation');
@@ -289,10 +289,11 @@
     bindConfirm(data);
     bindScenes(data);
     bindEvidence(data);
+    bindReasonToggles();
     bindResultGroups();
   }
 
-  // 从详情页「回去调整」带 focus 参数回来时的定位
+  // 从详情页「返回调整」带 focus 参数回来时的定位
   function applyFocus() {
     const f = query('focus');
     if (!f) return;
@@ -308,7 +309,7 @@
 
   // 已有输入则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
-  // 带 focus 参数时（从详情页「回去调整」过来）优先按区块定位。
+  // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
   if (session.selfText) {
     runMatch({ restorePosition: !query('focus') }).then(applyFocus);
   }

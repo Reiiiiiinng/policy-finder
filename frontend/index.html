@@ -28,6 +28,9 @@
   <header class="hero animate-in">
     <h1 class="hero-title">政策找人</h1>
     <p class="hero-sub">说出家里发生了什么，<br>AI 帮您发现可能相关、却没用上的公共服务权益。</p>
+    <!-- 视觉母题：这条线就是这个产品做的事——把生活情况接到权益上 -->
+    <p class="hero-thread" id="heroThread" aria-label="从生活情况指向可能相关的权益"></p>
+    <p class="hero-def">替不能自证的家人发现权益，每条都摊开依据供核对。</p>
     <a class="hero-jump" href="#entry">↓ 我想帮谁查</a>
   </header>
 
@@ -156,6 +159,44 @@
     </ol>
   </section>
 
+  <!-- 三个亮点的因果链：不是三个并列功能，而是一条环环相扣的机制 -->
+  <section class="chain-card animate-in d2" aria-label="这套机制为什么这样设计">
+    <div class="chain-head">
+      <span class="chain-eyebrow">一套机制</span>
+      <h2 class="chain-title">三个亮点，是一条因果链</h2>
+    </div>
+    <ol class="chain-list">
+      <li class="chain-node">
+        <span class="chain-n">1</span>
+        <div class="chain-body">
+          <b class="chain-name">主动发现</b>
+          <span class="chain-txt">您不用知道政策名称，说清生活变化就够了。</span>
+          <span class="chain-because">因为要替您主动找，就必须回答「凭什么推荐」</span>
+        </div>
+      </li>
+      <li class="chain-node">
+        <span class="chain-n">2</span>
+        <div class="chain-body">
+          <b class="chain-name">可解释推荐</b>
+          <span class="chain-txt">每条权益都摊开依据、条件与出处，可以逐条核对。</span>
+          <span class="chain-because">因为结果要给您核对，就必须允许您改它的理解</span>
+        </div>
+      </li>
+      <li class="chain-node">
+        <span class="chain-n">3</span>
+        <div class="chain-body">
+          <b class="chain-name">家庭代查</b>
+          <span class="chain-txt">操作者 ≠ 受益人，关键信息仍由长辈本人确认。</span>
+          <span class="chain-because">因为代查不等于本人认可，就必须把 AI 读懂了什么摊开</span>
+        </div>
+      </li>
+    </ol>
+    <p class="chain-foot">
+      代查带来了「必须可解释」的刚需，主动发现带来了「必须给证据」的刚需。
+      所以这不是三个功能，是一件事的三个环节。
+    </p>
+  </section>
+
   <!-- 数据可信度条：数字全部来自 /api/policies，不写死；接口失败则整条隐藏 -->
   <div class="trust-strip animate-in d2" id="trustStrip" hidden>
     <div class="trust-item">
@@ -211,6 +252,17 @@
 
 <script src="assets/app.js"></script>
 <script>
+  // 首屏视觉母题：把一条真实的生活情况接到一项真实权益上。
+  // 文案不写死——用政策库里当前城市的示例，换城市时这一行跟着换。
+  (function renderHeroThread() {
+    const host = document.getElementById('heroThread');
+    if (!host || typeof renderThread !== 'function') return;
+    host.innerHTML = renderThread('独居 · 行动不便', '社区养老服务', {
+      cls: 'thread-hero',
+      label: '从生活情况「独居、行动不便」指向可能相关的权益「社区养老服务」',
+    });
+  })();
+
   // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程。
   // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。
   document.getElementById('demoEntry').addEventListener('click', async () => {

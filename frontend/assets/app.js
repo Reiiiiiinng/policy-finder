@@ -723,7 +723,7 @@ function renderEmptyState(data, opts) {
           <ul class="reason-list"><li>${escapeHtml(state.next)}</li></ul>
         </div>
         <div class="empty-actions">
-          <button type="button" class="btn ghost" data-empty-act="edit">↑ 回去补充说明</button>
+          <button type="button" class="btn ghost" data-empty-act="edit">↑ 返回补充说明</button>
           <button type="button" class="btn ghost" data-empty-act="demo">用上面的演示案例试试</button>
         </div>
       </div>
@@ -976,7 +976,7 @@ function highlightPolicy(policyId) {
 /* ================================================================
    带着「刚才查看的那条政策」返回
    ----------------------------------------------------------------
-   场景：在详情页点「回去调整生活变化 / 回去补充关键条件」→ 回到发现权益
+   场景：在详情页点「返回调整生活变化 / 返回补充关键条件」→ 回到发现权益
    → 改完条件自动重新匹配 → 结果顺序可能全变了，刚才那条要重新找。
 
    与上面的「恢复滚动位置」是两件事：
@@ -986,7 +986,7 @@ function highlightPolicy(policyId) {
    约定：
      · 唯一标识只用 policy_id，不用政策标题（标题可能重复/改写）；
      · 详情页进入时记录当前 id + 名称；
-     · 只有点「回去调整」才通过 ?back=<policy_id> 触发定位；
+     · 只有点「返回调整」才通过 ?back=<policy_id> 触发定位；
        顶部返回不带这个参数，因此原有返回行为完全不变。
    ================================================================ */
 const RETURN_KEY = 'pf_return_policy';
@@ -1397,6 +1397,38 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
 }
 
 /**
+ * 原创视觉母题：「一线」——从生活线索指向权益的那条线。
+ *
+ * 为什么是这条线：这个产品做的事，本质是把「您随口说的生活情况」接到
+ * 「一项您没听说过的权益」上。这条线就是那件事本身，不是装饰。
+ *
+ * 设计规则（复用时要一致，改这里就全局生效）：
+ *   起点  6×6 空心方块  1px solid --brand-line  —— 生活线索（用户给的、待解释的）
+ *   连线  1.5px 虚线    3px 实 / 3px 空        —— 匹配这一段推断（不是结论）
+ *   终点  6×6 实心圆    --brand               —— 权益（AI 找到的）
+ *   间距  节点与文字 6px；连线长度 14px；行高与正文一致
+ *   尺寸  整条线高 6px，不改变所在行的行高，可以塞进任何一行正文
+ *   语义  方块=输入，圆点=输出；方块空心表示「还没被核对过」
+ *
+ * 用法：renderThread('独居', '社区养老服务')
+ *      线索或权益缺失时降级为纯文字，不画半条线。
+ */
+function renderThread(clue, right, opts) {
+  opts = opts || {};
+  const c = String(clue == null ? '' : clue).trim();
+  const r = String(right == null ? '' : right).trim();
+  if (!c || !r) {
+    return `<span class="thread is-text">${escapeHtml(c || r)}</span>`;
+  }
+  const label = opts.label || `从生活线索「${c}」到权益「${r}」`;
+  return `<span class="thread${opts.cls ? ' ' + opts.cls : ''}" role="img" aria-label="${escapeHtml(label)}">`
+    + `<span class="th-clue">${escapeHtml(c)}</span>`
+    + '<span class="th-path" aria-hidden="true"></span>'
+    + `<span class="th-right">${escapeHtml(r)}</span>`
+    + '</span>';
+}
+
+/**
  * 证据链渲染：三段式，回答「凭什么推荐这条」。
  *   ① 依据什么  —— 用户提供的年龄/地区 + 命中的生活事件
  *   ② 要求什么  —— 该政策��结构化条件，逐条标注 met / unknown / failed
@@ -1453,12 +1485,19 @@ function renderEvidenceChain(ev, opts) {
 
   const pending = ev.pending_count || 0;
 
+  // 视觉母题「一线」在证据链里的用法：把用户给的线索接到这条权益上。
+  // 线索取画像依据里的标签（真实数据），没有就退回「您的描述」。
+  const clueLabels = (ev.profile_basis || []).map((b) => b.label).filter(Boolean);
+  const clueText = clueLabels.length ? clueLabels.slice(0, 2).join(' · ') : '您的描述';
+  const threadHtml = renderThread(clueText, opts.policyName || '这条权益', { cls: 'thread-head' });
+
   return `
     <div class="evidence">
       <div class="ev-head">
         <span class="ev-title">为什么是这一条 · 证据链</span>
         ${pending ? `<span class="ev-pending">${pending} 项条件待确认</span>` : ''}
       </div>
+      ${threadHtml}
 
       <div class="ev-step">
         <div class="ev-step-t"><span class="ev-num">1</span>依据什么（来自您的描述）</div>
@@ -1504,8 +1543,25 @@ function renderResultCards(data, opts) {
 
   const oneCard = (r) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
+
+    // 第一眼三件事之①：这条权益是什么。service_note 是库里已有的服务简介，
+    // 只做两行截断，完整表述仍在详情页「这是什么？」里，不丢信息。
+    const whatLine = r.service_note
+      ? `<p class="result-what">${escapeHtml(r.service_note)}</p>` : '';
+
+    // 第一眼三件事之②：为什么 —— 默认只留最有力的一条理由，其余折叠。
+    // 引擎给的 ai_reason 第一条通常是「年龄/户籍等硬条件命中」，最能说明为什么是它。
     const reasons = (r.ai_reason || [])
-      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`).join('');
+      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`);
+    const reasonFirst = reasons[0]
+      || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>';
+    const reasonRest = reasons.slice(1);
+    // 措辞是「另外 N 条理由」：这不是分页，只是把已经拿到的其余理由收起来。
+    const restReasonHtml = reasonRest.length ? `
+          <button type="button" class="reason-more" data-reason-toggle="${escapeHtml(r.policy_id)}"
+                  aria-expanded="false" aria-controls="reasonRest-${escapeHtml(r.policy_id)}">另外 ${reasonRest.length} 条理由</button>
+          <ul class="reason-list reason-rest" id="reasonRest-${escapeHtml(r.policy_id)}"
+              data-reason-rest="${escapeHtml(r.policy_id)}" hidden>${reasonRest.join('')}</ul>` : '';
 
     const missing = filterAnsweredMissing(r.missing_information, profile);
     const shown = missing.slice(0, 2);
@@ -1525,6 +1581,12 @@ function renderResultCards(data, opts) {
         </ul>
       </div>` : '';
 
+    // 「还需确认」与「政策来源」默认收起：它们要等用户想知道细节时才读，
+    // 一直摊在卡面上会把上面那句理由和下面的动作挤走。用原生 details，
+    // 内容始终在 DOM 里（折叠不等于删除），无需 JS 也能展开。
+    const foldSum = [missing.length ? `还需确认 ${missing.length} 项` : '', '政策来源']
+      .filter(Boolean).join(' · ');
+
     // 分组标题已经说明了「优先关注 / 其他可能相关」，
     // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
     return `
@@ -1537,19 +1599,24 @@ function renderResultCards(data, opts) {
           <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
         </div>
 
-        ${renderValidityNote(r.validity)}
-        ${renderThresholdNote(r.threshold_signal)}
+        ${whatLine}
 
         <div class="rc-block">
           <div class="rc-label">为什么推荐</div>
-          <ul class="reason-list">${reasons || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>'}</ul>
+          <ul class="reason-list">${reasonFirst}</ul>${restReasonHtml}
         </div>
 
-        ${missingHtml}
-        ${sourceBlock(r)}
+        ${renderValidityNote(r.validity)}
+        ${renderThresholdNote(r.threshold_signal)}
+
+        <details class="rc-fold">
+          <summary class="rc-fold-sum">${foldSum}</summary>
+          ${missingHtml}
+          ${sourceBlock(r)}
+        </details>
 
         <button type="button" class="ev-toggle" data-ev-toggle="${escapeHtml(r.policy_id)}"
-                aria-expanded="false">看证据链（依据什么 · 要求什么 · 出自哪里）</button>
+                aria-expanded="false">为什么推荐？看依据</button>
         <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
 
         <div class="result-foot">查看详情与办理方式 <span class="arrow">→</span></div>
@@ -1703,17 +1770,44 @@ function bindEvidenceToggles(resultsById) {
         slot.hidden = true;
         slot.innerHTML = '';
         btn.setAttribute('aria-expanded', 'false');
-        btn.textContent = '看证据链（依据什么 · 要求什么 · 出自哪里）';
+        btn.textContent = '为什么推荐？看依据';
         return;
       }
       const r = (resultsById || {})[id];
       if (!r) return;
       slot.innerHTML = renderEvidenceChain(r.evidence, {
         selfMode: r.__selfMode,
+        policyName: r.policy_name,
       });
       slot.hidden = false;
       btn.setAttribute('aria-expanded', 'true');
       btn.textContent = '收起证据链';
+    });
+  });
+}
+
+/**
+ * 结果卡「另外 N 条理由」的展开开关。
+ * 理由折叠不是分页：第一条最有力的理由始终显示，其余默认收起，
+ * 点开后再把完整列表放出来，信息一条都不删。
+ */
+function bindReasonToggles() {
+  document.querySelectorAll('[data-reason-toggle]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();       // 展开理由不等于进详情
+      const id = btn.dataset.reasonToggle;
+      const rest = document.querySelector('[data-reason-rest="' + CSS.escape(id) + '"]');
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      if (isOpen) {
+        if (rest) rest.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+        const n = rest ? rest.children.length : 0;
+        btn.textContent = '另外 ' + n + ' 条理由';
+        return;
+      }
+      if (rest) rest.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+      btn.textContent = '收起其余理由';
     });
   });
 }

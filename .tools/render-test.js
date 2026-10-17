@@ -185,6 +185,46 @@ console.log('== 证据链 ==');
   check('ev 为空时不崩', sandbox.renderEvidenceChain(null, {}) === '');
 }
 
+console.log('== 原创视觉母题「一线」（P5）==');
+{
+  // 母题必须承载信息，不能是纯装饰：左右两端都要有真实文字
+  const t = sandbox.renderThread('独居', '社区养老服务');
+  check('母题有起点文字', has(t, '独居'));
+  check('母题有终点文字', has(t, '社区养老服务'));
+  check('母题有连线', has(t, 'th-path'));
+  check('母题结构完整', has(t, 'class="thread') && has(t, 'th-clue') && has(t, 'th-right'));
+  check('母题对读屏可读', /role="img"/.test(t) && /aria-label="[^"]*独居[^"]*社区养老服务[^"]*"/.test(t));
+
+  // 缺一端就降级为纯文字，不画半条线（否则视觉上像「无来源的结论」）
+  const onlyClue = sandbox.renderThread('独居', '');
+  check('缺终点时降级为纯文字', !has(onlyClue, 'th-path') && has(onlyClue, '独居'));
+  const onlyRight = sandbox.renderThread('', '社区养老服务');
+  check('缺起点时降级为纯文字', !has(onlyRight, 'th-path') && has(onlyRight, '社区养老服务'));
+  check('两端都空时不崩', sandbox.renderThread('', '') === '<span class="thread is-text"></span>');
+
+  // 转义：母题里的文字来自用户描述与政策名，必须 escapeHtml
+  const xss = sandbox.renderThread('<img src=x onerror=alert(1)>', '正常权益');
+  check('母题转义用户输入', !/<img/.test(xss) && has(xss, '&lt;img'));
+
+  // 证据链顶部用母题把线索接到这条权益上
+  const evT = sandbox.renderEvidenceChain({
+    profile_basis: [{ kind: 'scene', label: '独居', text: '描述中提到独自居住' }],
+    policy_conditions: [], citation: { department: '广州市民政局', verified: true }, pending_count: 0,
+  }, { policyName: '社区养老服务' });
+  check('证据链顶部出现母题', has(evT, 'thread-head') && has(evT, 'th-path'));
+  check('证据链母题接到真实权益名', has(evT, '社区养老服务'));
+  check('证据链母题用真实线索', has(evT, '独居'));
+
+  // 没有画像依据时退回「您的描述」，不空着
+  const evNoBasis = sandbox.renderEvidenceChain({
+    profile_basis: [], policy_conditions: [], citation: {}, pending_count: 0,
+  }, {});
+  check('无画像依据时母题退回您的描述', has(evNoBasis, '您的描述'));
+
+  // 母题不得引入新的资格断言
+  check('母题不含资格断言', !/符合资格|已符合|一定能/.test(t + evT));
+}
+
 console.log('== 两个判断维度分离（P7-A）==');
 {
   check('renderAxes 是函数', typeof sandbox.renderAxes === 'function');
@@ -253,6 +293,39 @@ console.log('== 结果分层 ==');
   check('保留为什么推荐', has(h, '为什么推荐'));
   check('保留还需确认', has(h, '还需确认'));
   check('证据链默认收起', has(h, 'hidden') && has(h, 'data-ev-toggle'));
+  // P6：主卡第一眼三件事——是什么 / 为什么（一条）/ 下一步。
+  // 理由默认只留一条，其余收在「另外 N 条理由」里；措辞不是分页。
+  // 注意：上面的夹具每条只有 1 条理由，折叠分支要用单独夹具验证。
+  {
+    const multi = sandbox.renderResultCards({
+      profile: {},
+      results: [Object.assign(mk('m1', '社区养老服务', '强相关', '可能相关'), {
+        ai_reason: ['您父亲年龄72岁，符合年龄范围', '服务依托颐康中心就近提供', '独居老人可获得日间照料'],
+      })],
+    }, {});
+    check('P6 理由默认只显示一条',
+      (multi.match(/<ul class="reason-list">/g) || []).length === 1,
+      'n=' + (multi.match(/<ul class="reason-list">/g) || []).length);
+    check('P6 其余理由折叠为「另外 N 条理由」', has(multi, '另外 2 条理由'));
+    check('P6 折叠理由默认收起',
+      has(multi, 'data-reason-toggle="m1"') && has(multi, 'data-reason-rest="m1"')
+      && /data-reason-rest="m1"[^>]*hidden/.test(multi));
+    check('P6 折叠理由与按钮有可访问性关联',
+      has(multi, 'aria-controls="reasonRest-m1"') && has(multi, 'id="reasonRest-m1"'));
+    check('P6 折叠区里仍保留全部理由',
+      has(multi, '服务依托颐康中心就近提供') && has(multi, '独居老人可获得日间照料'));
+    check('P6 首条理由始终可见（不在折叠区里）',
+      multi.indexOf('符合年龄范围') < multi.indexOf('data-reason-rest="m1"'));
+  }
+  check('P6 不用分页措辞', !/加载更多|查看更多|showMore|pageSize/.test(h));
+  // 「还需确认」「政策来源」收进原生 details：内容仍在 DOM，只是默认不展开
+  check('P6 待确认与来源默认收起', (h.match(/<details class="rc-fold">/g) || []).length === 4,
+    'n=' + (h.match(/<details class="rc-fold">/g) || []).length);
+  check('P6 折叠摘要写明项数与来源',
+    has(h, '还需确认 1 项 · 政策来源') || has(h, '政策来源'));
+  check('P6 折叠不等于删除',
+    has(h, '还需确认') && has(h, '政策来源') && has(h, 'rc-block is-warm'));
+  check('P6 主按钮指向为什么推荐', has(h, '为什么推荐？看依据'));
   check('优先项在折叠项之前', h.indexOf('data-id="p1"') < h.indexOf('data-id="p3"'));
   check('折叠区默认收起', has(h, 'aria-expanded="false"') && has(h, 'data-more-body'));
   check('折叠区有可访问性关联', has(h, 'aria-controls="moreItems"') && has(h, 'id="moreItems"'));

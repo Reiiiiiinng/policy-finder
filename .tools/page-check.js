@@ -187,7 +187,60 @@ check('详情页有第4步进一步确认', /进一步确认|renderFinalStep/.te
 check('详情页有去哪里核实', /去哪里核实/.test(pol));
 check('详情页保留五问结构', /qBlock\(1/.test(pol) && /qBlock\(3/.test(pol) && /qBlock\(5/.test(pol));
 check('详情页保留来源信任卡', /trust-card/.test(pol));
+// P1：出门前清单。低碳落点是「减少无效往返」，不是「电子化更环保」；
+// 材料只能从申请条件推导，不能凭空编造证件名目。
+check('出门前清单分材料与问题两栏',
+  /出门前要带的材料/.test(pol) && /要问清的问题/.test(pol));
+check('清单从申请条件推导材料',
+  /cond\.hukou_required/.test(pol) && /cond\.insurance_required/.test(pol)
+  && /cond\.disability_required/.test(pol));
+check('清单声明以受理单位告知为准', /以受理单位告知为准/.test(pol));
+check('低碳表述落在减少往返上',
+  /少跑一趟/.test(pol) && !/电子化|无纸化|更环保|减少碳排放/.test(pol));
+check('清单结尾给官方渠道且不代办',
+  /不代办/.test(pol) && /不代为提交材料/.test(pol) && /不做资格认定/.test(pol));
 check('详情页保留 to_verify 提示', /来源待核验/.test(pol));
+
+// P2：一句话产品定义（≤30 字）+ 三个亮点的因果链必须落在界面上，不能只写进文档。
+{
+  const idx = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
+  const def = (idx.match(/<p class="hero-def">([\s\S]*?)<\/p>/) || [])[1] || '';
+  const defText = stripTags(def).trim();
+  check('首屏有一句话产品定义', defText.length > 0);
+  check('产品定义不超过 30 字', defText.length <= 30, 'len=' + defText.length + ' "' + defText + '"');
+  check('产品定义讲机制而非功能罗列',
+    /依据|核对/.test(defText) && /发现/.test(defText));
+  check('三个亮点串成因果链',
+    /chain-card/.test(idx) && /主动发现/.test(idx) && /可解释推荐/.test(idx) && /家庭代查/.test(idx));
+  check('因果链写明「因为…所以必须…」',
+    (idx.match(/chain-because/g) || []).length >= 3,
+    'n=' + (idx.match(/chain-because/g) || []).length);
+  check('因果链在说明区而非入口之前',
+    idx.indexOf('chain-card') > idx.indexOf('id="entry"'));
+}
+
+// P5：原创视觉母题「一线」——必须有可复用的实现，且真的用在 ≥3 个界面位置上。
+{
+  const app = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const css0 = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8');
+  check('母题有独立渲染函数', /function renderThread\s*\(/.test(app));
+  check('母题形状由 CSS 承载而非图片',
+    /\.th-path/.test(css0) && /border-top:\s*1\.5px dashed/.test(css0) && !/\.thread[^{]*\{[^}]*url\(/.test(css0));
+  // ≥3 个界面：首页首屏、详情页首块、证据链顶部
+  check('母题用在证据链顶部', /renderThread\(clueText/.test(app) && /thread-head/.test(app));
+  check('母题用在首页首屏',
+    /renderThread\('独居 · 行动不便'/.test(fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8')));
+  check('母题用在详情页首块', /renderThread\(sceneClues\[0\]/.test(fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8')));
+  check('母题至少出现在 3 个渲染点',
+    (app.match(/renderThread\(/g) || []).length
+      + (fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8').match(/renderThread\(/g) || []).length
+      + (fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8').match(/renderThread\(/g) || []).length >= 3,
+    'n=' + (app.match(/renderThread\(/g) || []).length);
+  check('母题不用外链图片或字体图标',
+    !/renderThread[\s\S]{0,400}<img/.test(app));
+  check('母题不缺一端就画半条线', /if \(!c \|\| !r\)/.test(app));
+}
+
 check('详情页返回区分本人/家庭模式', /backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(pol));
 
 console.log('== CSS 变量与类名一致 ==');
@@ -246,6 +299,51 @@ console.log('== 两个判断维度分离（P7-A）==');
   });
   check('CSS 里来源层与匹配层不同形',
     /\.axis-v\.is-verified,/.test(css) && /\.axis-v\.is-maybe \{/.test(css));
+}
+
+console.log('== 全局一致性（P7-B）==');
+{
+  const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  const disSrc = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const selSrc = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  const famSrc = fs.readFileSync(path.join(ROOT, 'frontend/family.html'), 'utf8');
+
+  // 导航语言：返回类动作用「返回」，不再混用「回去」
+  const allVisible = [polSrc, disSrc, selSrc, famSrc, appSrc].join('\n');
+  check('返回类文案统一用「返回」', !/回去(调整|补充|选择|看看)/.test(allVisible));
+  check('详情页回跳按钮用「返回」', /id="fsFixScene">返回调整/.test(polSrc) && /id="fsFixInfo">返回补充/.test(polSrc));
+  check('顶栏返回文案统一', /← 返回<\/a>/.test(appSrc));
+
+  // 触达面积：可点控件的 min-height 不得低于 48px
+  const smallTargets = [
+    ['reason-more', /\.reason-more \{[\s\S]{0,320}?min-height:\s*48px/],
+    ['rc-fold-sum', /\.rc-fold-sum \{[\s\S]{0,320}?min-height:\s*48px/],
+    ['ev-toggle', /\.ev-toggle \{[\s\S]{0,320}?min-height:\s*48px/],
+    ['more-toggle', /\.more-toggle \{[\s\S]{0,400}?min-height:\s*48px/],
+    ['alt-toggle', /\.alt-toggle \{[\s\S]{0,320}?min-height:\s*48px/],
+    ['bc-btns .btn', /\.bc-btns \.btn \{[\s\S]{0,160}?min-height:\s*48px/],
+    ['fs-again .btn', /\.fs-again \.btn \{[\s\S]{0,160}?min-height:\s*48px/],
+    ['demo-banner-reset', /\.demo-banner-reset \{[\s\S]{0,400}?min-height:\s*48px/],
+    ['.btn', /\.btn \{[\s\S]{0,320}?min-height:\s*56px/],
+    ['.choice', /\.choice \{[\s\S]{0,320}?min-height:\s*56px/],
+  ];
+  smallTargets.forEach(([name, re]) => check('触达面积 ' + name + ' ≥48px', re.test(css)));
+
+  // 触达面积不能用伪元素假装：文字链也必须撑起真实盒高
+  check('文字链不靠伪元素撑命中区',
+    !/\.reason-more::after/.test(css) && !/\.fs-clear::after/.test(css));
+
+  // 按钮主次：主按钮用 .btn，次要用 .btn.ghost，四页都只用这两套
+  check('按钮只有主次两套语义',
+    !/class="btn (primary|secondary|danger)"/.test(allVisible));
+  check('次按钮统一用 ghost', /\.btn\.ghost \{/.test(css));
+
+  // 间距节奏：卡片内边距与区块间距来自同一组变量
+  check('间距走变量而非散落魔数',
+    /--radius-sm:/.test(css) && /\.result-card \{[\s\S]{0,200}?padding:\s*16px/.test(css));
+
+  // 状态标签尺寸：两维度同名同尺寸，颜色语义唯一
+  check('状态标签字号统一', /\.axis-k \{[\s\S]{0,200}?font-size:\s*11px/.test(css));
 }
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);

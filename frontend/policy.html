@@ -76,7 +76,7 @@
     const savedProfile = session.profile || session.selfProfile || null;
     const p = detail;
     // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
-    // 之后点「回去调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
+    // 之后点「返回调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
     saveReturnPolicy(id, p.policy_name);
 
     const ver = p.verification || {};
@@ -105,7 +105,19 @@
     // ① 这是什么？
     const targets = (p.target_people || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
     const scenes = (p.life_scenes || []).map((x) => `<span class="chip">${escapeHtml(x)}</span>`).join('');
+    // 视觉母题「一线」：这条权益是从哪个生活线索找到的。
+    // 有匹配上下文时用真正命中的场景；直接打开详情页时退回政策自身声明的
+    // life_scenes——那同样是「通往这条权益的生活情境」，不是编出来的。
+    const hitScenes = ((matchRow && matchRow.matched_scenes) || []).filter(Boolean);
+    const sceneClues = hitScenes.length ? hitScenes : (p.life_scenes || []).filter(Boolean);
+    const whatThread = sceneClues.length
+      ? `<p class="detail-thread">${renderThread(sceneClues[0], p.policy_name, {
+          label: '生活线索「' + sceneClues.join('、') + '」对应权益「' + p.policy_name + '」',
+        })}</p>`
+      : '';
+
     const what = `
+      ${whatThread}
       <p>${escapeHtml(p.description || '')}</p>
       <p class="q-lead">面向人群</p>
       <ul>${targets || '<li>待核实</li>'}</ul>
@@ -137,22 +149,67 @@
       : '<p>暂无必须补充的信息，但仍建议向受理单位核实适用口径后再办理。</p>';
 
     // ④ 去哪里核实（不是「怎么办理」——本平台不代办，只告诉用户去哪问）
+    //
+    // P1：把这一步做成「出门前清单」——用户真正能照着准备、照着打电话的东西。
+    // 材料只从申请条件（户口 / 参保 / 失能评估）推导，绝不编造具体证件名目；
+    // 每一行都声明「以受理单位告知为准」，因为广州库里没有逐条材料清单。
+    // 低碳不靠绿色装饰：少跑一趟就是少一次出行，说服力来自这份清单本身。
     const srcDept = clean((p.source || {}).department);
+    const cond = p.conditions || {};
+    const who = selfMode ? '您本人' : '这位长辈';
+    const procSteps = (p.application_process || []);
+
+    // 建议携带：条件里写明了什么，就提示准备什么
+    const docItems = ['身份证件'];
+    if (cond.hukou_required) docItems.push('户口簿（申请条件涉及本市户籍）');
+    if (cond.insurance_required) docItems.push('医保参保凭证（申请条件涉及参保状态）');
+    if (cond.disability_required) docItems.push('失能等级评估结论（申请条件涉及失能认定）');
+
+    // 建议问清：固定四问 + 库里标了 to_verify 的步骤（那一步是否还适用要当场问）
+    const askItems = [
+      '本人是否在服务覆盖范围内',
+      '申请入口在哪里（窗口、电话或线上）',
+      '需要哪些材料、有没有指定格式',
+      '本人适用的具体标准与发放方式',
+    ];
+    procSteps.forEach((s) => {
+      if (s.to_verify && s.step) {
+        askItems.push(`「${String(s.step).replace(/^to_verify[：:]\s*/, '')}」这一步现在是否仍然适用`);
+      }
+    });
+
+    const tripList = `
+      <div class="trip-list">
+        <div class="trip-col">
+          <div class="trip-h">出门前要带的材料</div>
+          <ul class="trip-items">
+            ${docItems.map((x) => `<li>${escapeHtml(who)}的${escapeHtml(x)}</li>`).join('')}
+            <li>受理单位另行要求的其他材料，先打电话确认再准备</li>
+          </ul>
+        </div>
+        <div class="trip-col">
+          <div class="trip-h">要问清的问题</div>
+          <ul class="trip-items">
+            ${askItems.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+      <p class="trip-note">
+        这几件事在电话里就能问清。问清了再出门，通常可以少跑一趟——少跑一趟，就是少一次出行。
+      </p>
+      <p class="trip-official">
+        咨询渠道以 ${escapeHtml(srcDept || '主管部门')} 公布的服务窗口或政务服务热线为准。
+        本平台只帮您把该问的准备好，不代办、不代为提交材料，也不做资格认定。
+      </p>`;
+
     const verifyWhere = `
       <div class="where-list">
         <div class="where-row">
           <span class="wr-k">建议咨询</span>
-          <span class="wr-v">${escapeHtml(srcDept || '当地主管部门')}</span>
-        </div>
-        <div class="where-row">
-          <span class="wr-k">建议携带</span>
-          <span class="wr-v">${selfMode ? '您本人' : '这位长辈'}的身份证件与医保凭证；涉及失能等级的，先完成照护需求或失能等级评估</span>
-        </div>
-        <div class="where-row">
-          <span class="wr-k">建议问清</span>
-          <span class="wr-v">本人是否在服务覆盖范围内、申请入口在哪、需要哪些材料、本人适用的具体标准</span>
+          <span class="wr-v">${escapeHtml(srcDept || '当地主管部门')}的服务窗口或政务服务热线</span>
         </div>
       </div>
+      ${tripList}
       <p class="q-lead" style="margin:12px 0 0;font-size:13px;color:var(--muted)">
         属地街道、镇与社区的服务覆盖范围和申请入口会有差异，最终以受理单位现场或线上告知为准。
       </p>`;
@@ -336,8 +393,8 @@
         <div class="fs-again">
           <p class="fs-again-t">如果发现 AI 理解的情况和实际不符，可以补充或更正后重新匹配：</p>
           <div class="btn-row">
-            <button type="button" class="btn ghost" id="fsFixScene">回去调整生活变化</button>
-            <button type="button" class="btn ghost" id="fsFixInfo">回去补充关键条件</button>
+            <button type="button" class="btn ghost" id="fsFixScene">返回调整生活变化</button>
+            <button type="button" class="btn ghost" id="fsFixInfo">返回补充关键条件</button>
           </div>
         </div>
 
@@ -422,7 +479,7 @@
   }
 
   /**
-   * 「回去调整生活变化 / 回去补充关键条件」的跳转。
+   * 「返回调整生活变化 / 返回补充关键条件」的跳转。
    *
    * 语义是「退回发现权益这一层」，因此与顶部返回一致：明确跳到父页面，
    * 用 location.replace 替换当前页，历史栈深度不变——

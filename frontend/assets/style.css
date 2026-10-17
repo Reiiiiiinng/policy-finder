@@ -330,6 +330,16 @@ body {
   color: var(--ink);
 }
 
+/* 一句话产品定义：讲机制，不讲功能列表 */
+.hero-def {
+  margin: 9px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--brand-dark);
+  padding-left: 10px;
+  border-left: 2px solid var(--brand-line);
+}
+
 .hero .lead {
   margin: 0;
   font-size: 17px;
@@ -1187,6 +1197,93 @@ input:focus {
   background: var(--brand);
 }
 
+/* 第一眼三件事之①：这条权益是什么（service_note 的一句话，最多两行） */
+.result-what {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 其余理由折叠：措辞是「另外 N 条理由」，不是分页加载 */
+.reason-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--brand-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.reason-more:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 4px;
+}
+
+.reason-rest {
+  margin-top: 6px;
+}
+
+/* 「还需确认」「政策来源」默认收起，展开后内容与之前完全一致 */
+.rc-fold {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 9px;
+}
+
+.rc-fold-sum {
+  list-style: none;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 折叠条要能点到：视觉仍是一行小字，命中区补到 48px */
+  min-height: 48px;
+  padding: 14px 0;
+  box-sizing: border-box;
+}
+
+.rc-fold-sum::-webkit-details-marker {
+  display: none;
+}
+
+.rc-fold-sum::after {
+  content: '⌄';
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  transition: transform .16s ease;
+}
+
+.rc-fold[open] > .rc-fold-sum::after {
+  transform: rotate(180deg);
+}
+
+.rc-fold[open] > .rc-fold-sum {
+  margin-bottom: 8px;
+}
+
+.rc-fold-sum:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 4px;
+}
+
 .result-foot {
   margin-top: 12px;
   padding-top: 11px;
@@ -1983,7 +2080,7 @@ input:focus {
   border: 1px solid var(--brand-line);
   border-radius: var(--radius-pill);
   padding: 8px 14px;
-  min-height: 44px;
+  min-height: 48px;
   cursor: pointer;
   font-family: inherit;
 }
@@ -2902,7 +2999,7 @@ input:focus {
 
 .bc-btns .btn {
   flex: 1 1 0;
-  min-height: 42px;
+  min-height: 48px;
   font-size: 14px;
 }
 
@@ -3009,6 +3106,8 @@ input:focus {
   width: 100%;
   margin-top: 12px;
   padding: 9px 12px;
+  min-height: 48px;
+  box-sizing: border-box;
   border-radius: var(--radius-sm);
   border: 1px dashed var(--brand-line);
   background: var(--brand-wash);
@@ -3232,6 +3331,343 @@ input:focus {
   line-height: 1.75;
 }
 
+/* 出门前清单：能照着准备、照着打电话的两栏。
+   不新增绿色装饰，靠版面与语气传达「问清再出门」。 */
+.trip-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.trip-col {
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px dashed var(--brand-line);
+}
+
+.trip-h {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--brand-dark);
+  letter-spacing: 0.3px;
+  margin-bottom: 7px;
+}
+
+.trip-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-items li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+
+.trip-items li:last-child {
+  margin-bottom: 0;
+}
+
+.trip-items li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.trip-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  padding-left: 10px;
+  border-left: 2px solid var(--brand-line);
+}
+
+.trip-official {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* P2：三个亮点的因果链——刻意与「怎么用」的四步流程区分开：
+   流程讲「你会看到什么」，因果链讲「为什么必须这样设计」。 */
+.chain-card {
+  background: var(--card);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.chain-head {
+  margin-bottom: 12px;
+}
+
+.chain-eyebrow {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  margin-bottom: 8px;
+}
+
+.chain-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.chain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chain-node {
+  display: flex;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
+  border: 1px solid var(--brand-line);
+}
+
+.chain-n {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chain-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chain-name {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.chain-txt {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.chain-because {
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--brand-dark);
+  padding-left: 9px;
+  border-left: 2px solid var(--brand-line);
+}
+
+.chain-foot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+/* ================================================================
+   原创视觉母题：「一线」
+   把「生活线索」接到「权益」上的那条线。承载信息，不是贴图。
+   规则：方块=输入（生活线索，空心表示还没被核对）
+        虚线=推断（匹配这一段不是结论）
+        实心圆=输出（AI 找到的权益）
+   ================================================================ */
+.thread {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.thread.is-text {
+  display: inline;
+}
+
+.th-clue,
+.th-right {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 起点：空心方块 —— 生活线索（用户给的，尚未核对） */
+.th-clue::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border: 1px solid var(--brand-mid);
+  border-radius: 1px;
+  background: transparent;
+  vertical-align: 1px;
+}
+
+/* 连线：虚线 —— 这一段是推断 */
+.th-path {
+  flex: none;
+  width: 14px;
+  height: 0;
+  border-top: 1.5px dashed var(--brand-line);
+  position: relative;
+}
+
+/* 终点：实心圆 —— 找到的权益 */
+.th-right::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  vertical-align: 1px;
+}
+
+/* 证据链顶部：线索 → 这条权益 */
+.thread-head {
+  display: flex;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
+  border: 1px solid var(--brand-line);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+.thread-head .th-clue,
+.thread-head .th-right {
+  white-space: normal;
+}
+
+.thread-head .th-path {
+  align-self: center;
+  width: 18px;
+}
+
+/* 生活线索 chip 里的迷你版：线索 → N 项权益方向 */
+.thread-mini {
+  font-size: 11.5px;
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+.thread-mini .th-path {
+  width: 10px;
+}
+
+.thread-mini .th-clue,
+.thread-mini .th-right {
+  max-width: 92px;
+}
+
+/* 首屏母题：一行示意，把「生活情况 → 权益」讲清楚 */
+.hero-thread {
+  margin: 12px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+.thread-hero {
+  gap: 7px;
+}
+
+.thread-hero .th-clue,
+.thread-hero .th-right {
+  max-width: 46%;
+  white-space: normal;
+}
+
+.thread-hero .th-path {
+  width: 20px;
+  border-top-width: 2px;
+}
+
+.thread-hero .th-clue::before,
+.thread-hero .th-right::before {
+  width: 7px;
+  height: 7px;
+}
+
+/* 详情页首块里的同一母题：字号略大，因为它承担「这条从哪来」的说明 */
+.detail-thread {
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
+  border: 1px solid var(--brand-line);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+.detail-thread .thread {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+/* 线索与权益各占一半，超出用省略号——这一行是索引，不是全文 */
+.detail-thread .th-clue,
+.detail-thread .th-right {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-thread .th-path {
+  flex: none;
+  align-self: center;
+  width: 14px;
+}
+
 /* ================================================================
    第四步：进一步确认（闭环出口）
    ================================================================ */
@@ -3358,7 +3794,7 @@ input:focus {
 
 .fs-again .btn {
   flex: 1 1 0;
-  min-height: 44px;
+  min-height: 48px;
   font-size: 13.5px;
 }
 
@@ -3384,6 +3820,9 @@ input:focus {
 .fs-mark.is-notmatch { color: var(--pending); }
 
 .fs-clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
   border: none;
   background: none;
   color: var(--muted);
@@ -3391,7 +3830,7 @@ input:focus {
   text-decoration: underline;
   cursor: pointer;
   font-family: inherit;
-  padding: 2px 4px;
+  padding: 0 4px;
 }
 
 .fs-pending {
@@ -3751,6 +4190,8 @@ input:focus {
   gap: 8px;
   width: 100%;
   padding: 11px 13px;
+  min-height: 48px;
+  box-sizing: border-box;
   border-radius: var(--radius-sm);
   border: 1px dashed var(--brand-line);
   background: var(--brand-wash);
@@ -3837,6 +4278,8 @@ input:focus {
   gap: 8px;
   width: 100%;
   padding: 13px 14px;
+  min-height: 48px;
+  box-sizing: border-box;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--cream-2);
