@@ -182,9 +182,11 @@ console.log('== 问题4：顶部返回 = 明确父页面（不再用 history.bac
     /renderTopbar\('确认情况', 'family\.html'/.test(disc));
   check('本人发现页 父页面为 index.html',
     /renderTopbar\('本人权益发现', 'index\.html'/.test(self_));
-  check('政策详情页 运行时把父页面改为发现权益',
-    /updateTopbarParent\(backHref\)/.test(pol) &&
-    /const backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(pol));
+  // 顶栏父页面在页面加载时就由本地会话同步定好（不经异步接口），
+  // 所以运行时不需要再补登记一次；这里断言的是「同步判定 + 两种模式都指对」。
+  check('政策详情页 顶栏父页面按模式同步指对',
+    /renderTopbar\('政策依据',\s*_navSelf \? 'self\.html' : 'discover\.html'\)/.test(pol) &&
+    !/updateTopbarParent/.test(pol));
 }
 
 console.log('== 问题5：详情返回恢复滚动位置 ==');
@@ -234,22 +236,24 @@ console.log('== 问题5：详情返回恢复滚动位置 ==');
 console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
 {
   const app = read('frontend/assets/app.js');
-  // 结果卡模板在 renderResultCards 里；oneCard 是它的内部函数。
-  // 取 renderResultCards 起点到下一个顶层 function 之前，避免切错区间。
+  // 结果卡模板在 renderResultCards 内部的 oneCard。
+  // 只切 oneCard 这一段：renderResultCards 里还有别的函数（reasonBrief 等）和别的模板，
+  // 从函数头一概切过去会把它们的 return 当成卡片模板，顺序断言就失真了。
   const start = app.indexOf('function renderResultCards');
   const rest = app.slice(start);
-  const nextTop = rest.slice(1).search(/^function /m);
-  const card = nextTop > 0 ? rest.slice(0, nextTop + 1) : rest;
+  const ocAt = rest.indexOf('const oneCard = (r) => {');
+  const oc = ocAt >= 0 ? rest.slice(ocAt) : rest;
+  // oneCard 以两格缩进的 `  };` 收尾（内层缩进更深，不会再匹配到）
+  const ocEnd = oc.indexOf('\n  };');
+  const card = ocEnd > 0 ? oc.slice(0, ocEnd + 5) : oc;
 
-  // 卡片顺序：名称 → 为什么推荐 → 还需确认 → 来源 → 证据链 → 详情
-  // （第七阶段已移除单卡上的 tier-strip 分层色条，改由分组标题承担，
-  //   所以这里不再检查 tier-strip）
-  // 只取真正拼 HTML 的模板片段（oneCard 的 return `...`），
-  // 否则会误把模板之前声明的 missingHtml / sourceBlock 等变量当成渲染顺序。
+  // 卡片顺序：名称 →（推荐给谁/符合度）→ 推荐理由摘要 → 为什么推荐 → 还需确认 → 来源 → 证据链 → 详情
+  // 层级口径：第一眼看标题与匹配对象，第二眼看一句理由，第三层才是可展开的确认事项与来源。
+  // 只取真正拼 HTML 的模板片段（oneCard 的 return `...`）。
   const tplAt = card.indexOf('return `');
   const tpl = tplAt >= 0 ? card.slice(tplAt) : card;
 
-  const order = ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot'];
+  const order = ['result-name', 'rc-whofit', 'briefHtml', '为什么推荐', 'missingPanel()', 'sourceBlock(r)', 'ev-toggle', 'result-foot'];
   let last = -1, ok = true, missing = [];
   order.forEach((k) => {
     const at = tpl.indexOf(k);
@@ -267,12 +271,12 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
     && /sourceBlock\(r\)/.test(card) && /查看详情/.test(card));
   check('来源块仍是浅蓝信任区', /is-trust/.test(app) && /政策来源/.test(app));
   check('未引入折叠/分页（本阶段不做）',
-    !/加载更多|查看更多|showMore|pageSize/.test(card));
-  // 第七阶段：不再「全部平铺」，但也不能丢结果——两组都要渲染进 DOM，
-  // 「其他可能相关」只是默认折叠（收起状态由 CSS 控制高度，不是移除节点）。
-  check('优先关注组全量渲染', /focus\.map\(oneCard\)\.join/.test(card));
-  check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(oneCard\)\.join/.test(card));
-  check('折叠区保留全部卡片节点', /more-toggle/.test(card) && /data-more-body/.test(card));
+    !/加载更多|查看更多|showMore|pageSize/.test(app));
+  // 下面三条看的是「分组怎么排布」，作用域是整个 renderResultCards（card 只是单卡模板）：
+  // 单卡模板里不会出现 focus.map / more-toggle / data-more-body。
+  check('优先关注组全量渲染', /focus\.map\(oneCard\)\.join/.test(rest));
+  check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(oneCard\)\.join/.test(rest));
+  check('折叠区保留全部卡片节点', /more-toggle/.test(rest) && /data-more-body/.test(rest));
 }
 
 console.log('== 已有功能未被破坏 ==');

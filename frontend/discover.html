@@ -36,6 +36,14 @@
     </div>
   </div>
 
+  <!-- 结果页页头：只在匹配完成后出现（由 JS 控制 hidden），
+       平时不占位——第 1 步还在填情况时，这里不该出现「匹配结果」四个字。 -->
+  <header class="page-head" id="resultHead" hidden>
+    <button type="button" class="ph-back" id="resultHeadBack" aria-label="返回修改描述">‹</button>
+    <h1 class="ph-title">匹配结果</h1>
+    <span class="ph-tail" aria-hidden="true"></span>
+  </header>
+
   <!-- 情况确认台 + 结果区：AI 读完由 JS 渲染 -->
   <div id="resultArea"></div>
 
@@ -119,6 +127,19 @@
 
   if (session.text) input.value = session.text;
 
+  // 结果页页头：匹配完成后才出现，返回上一屏（描述区）时再收起。
+  // 这样第 1 步的填写界面不会被「匹配结果」这个标题抢走注意力。
+  const resultHead = document.getElementById('resultHead');
+  function setResultHead(on) {
+    if (resultHead) resultHead.hidden = !on;
+  }
+  document.getElementById('resultHeadBack').addEventListener('click', () => {
+    setResultHead(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const ta = document.getElementById('situation');
+    if (ta) ta.focus({ preventScroll: true });
+  });
+
   // 演示模式首次进入：文本已自动填入，但不自动跑，保留手动点击展示输入→分析→结果
   if (session.demo) store.write({ demo: false });
 
@@ -178,6 +199,8 @@
     mountRelationStrip();
 
     if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
+
+    setResultHead(true);
 
     area.innerHTML =
       renderSituationBoard(data.profile, data.scene_library, {

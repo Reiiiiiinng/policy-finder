@@ -213,8 +213,9 @@ async function run(){
   check('测试5 已进入详情页', nav3);
   await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
   // 无头模式下 iframe.src 不刷新，改用详情页正文里的政策名反查：
-  // 页面上出现的就是所点那条政策，说明跳转与 id 都正确
-  var detailName = (q('.card h2') || {textContent:''}).textContent;
+  // 页面上出现的就是所点那条政策，说明跳转与 id 都正确。
+  // 新版详情页标题是 .dhead-title（h1），旧版是 .card h2，两者都认。
+  var detailName = (q('.dhead-title') || q('.card h2') || {textContent:''}).textContent;
   var cardName = null;
   var allNames = list.map(function (c) {
     return { id:c.dataset.id, name:(c.querySelector('.result-name')||{textContent:''}).textContent };

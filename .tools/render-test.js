@@ -281,7 +281,7 @@ console.log('== 结果分层 ==');
     ],
   };
   const h = sandbox.renderResultCards(data, {});
-  check('顶部显示总数', has(h, '共发现 4 项可能相关权益'), '');
+  check('顶部显示总数', has(h, '共找到 4 条可能相关的政策'), '');
   check('顶部显示建议优先了解数', has(h, '建议优先了解其中 2 项'), '');
   check('分组标题为「优先关注」', has(h, '优先关注'));
   check('折叠区标题为「其他可能相关 2 项」', has(h, '其他可能相关 2 项'), '');
@@ -356,7 +356,7 @@ console.log('== 结果分层 ==');
     results: [mk('p8', '社区养老服务', '强相关', '可能相关')],
   }, {});
   check('全部优先时不出现折叠区', !has(allFocus, 'more-toggle'), '');
-  check('全部优先时计数正确', has(allFocus, '共发现 1 项可能相关权益'), '');
+  check('全部优先时计数正确', has(allFocus, '共找到 1 条可能相关的政策'), '');
 }
 
 console.log('== v0.9 政策状态与阈值提示 ==');

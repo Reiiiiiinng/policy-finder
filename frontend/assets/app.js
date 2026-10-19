@@ -1522,6 +1522,44 @@ function renderEvidenceChain(ev, opts) {
 }
 
 /**
+ * 结果页分段标签：全部 / 待核验 / 已核验 / 信息待补充。
+ *
+ * 四个计数都来自后端返回的字段，前端不自行判定任何一条是否「核验过」：
+ *   待核验     = source_pending 为真的条数（一手文件还没核到）
+ *   已核验     = source_pending 为假的条数（来源维度已核对）
+ *   信息待补充 = 仍有待确认信息的条数（missing_information 非空）
+ * 计数可能重叠（一条既可能待核验、又需要补充信息），这是如实呈现，不是错误。
+ *
+ * 交互：原生 <a href="#frag"> + CSS :target，无脚本也能切换（脚本只负责同步 highight）。
+ */
+function renderSegments(list) {
+  const seg = [
+    { key: 'all', label: '全部', n: list.length },
+    { key: 'pending', label: '待核验', n: list.filter((r) => r.source_pending).length },
+    { key: 'verified', label: '已核验', n: list.filter((r) => !r.source_pending).length },
+    { key: 'needinfo', label: '信息待补充', n: list.filter((r) => (r.missing_information || []).length).length },
+  ];
+  return `<nav class="seg-nav" aria-label="按核验状态筛选">${seg.map((s) => `
+      <a class="seg${s.key === 'all' ? ' is-on' : ''}" href="#seg-${s.key}" data-seg="${s.key}">
+        <span class="seg-l">${s.label}</span><span class="seg-n">${s.n}</span>
+      </a>`).join('')}</nav>`;
+}
+
+/**
+ * 「推荐理由」一句话摘要：把第一人称的口语理由转成第三人称短句。
+ *
+ * 只做称呼替换（「您父亲」→「父亲」），不改写、不概括、不补充判断，
+ * 所以摘要里的每个字仍然出自引擎给出的 ai_reason。
+ */
+function reasonBrief(line) {
+  if (!line) return '';
+  return String(line)
+    .replace(/^您(?=父亲|母亲|长辈|配偶|本人)/, '')
+    .replace(/^您(?=的)/, '')
+    .trim();
+}
+
+/**
  * 结果卡：第七阶段改为「优先关注 N 项 + 其他可能相关 N 项（默认折叠）」。
  *
  * 分组口径（只改展示，不改匹配）：
@@ -1540,6 +1578,7 @@ function renderResultCards(data, opts) {
   }
 
   const profile = data.profile || {};
+  const selfLead = !!(profile.mode === 'self' || opts.selfMode);
 
   const oneCard = (r) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
@@ -1563,10 +1602,42 @@ function renderResultCards(data, opts) {
           <ul class="reason-list reason-rest" id="reasonRest-${escapeHtml(r.policy_id)}"
               data-reason-rest="${escapeHtml(r.policy_id)}" hidden>${reasonRest.join('')}</ul>` : '';
 
+    // 卡面摘要：只取第一条理由原文做称呼替换，写成「推荐理由：…」一行。
+    // 完整理由仍在下方「为什么推荐」块里（原文未改动），摘要只是让人一眼看到为什么。
+    const brief = reasonBrief(profile && profile.relation
+      ? personalize((r.ai_reason || [])[0] || '', profile)
+      : ((r.ai_reason || [])[0] || ''));
+    const briefHtml = brief
+      ? `<p class="rc-brief"><span class="rb-k">推荐理由</span>${escapeHtml(brief)}</p>` : '';
+
+    // 匹配给谁 + 符合度。符合度直接用引擎 score，这里是相对分不是概率；
+    // 文案写「符合度」并带 % ，但下方一定会说明它不是资格结论。
+    const whoLabel = selfLead
+      ? '您本人'
+      : (profile && profile.relation ? profile.relation : '家人');
+    const whoAge = (profile && profile.basic && profile.basic.age)
+      ? `${profile.basic.age}岁` : '';
+    const who = whoAge ? `${whoLabel}（${whoAge}）` : whoLabel;
+    const pct = Math.max(0, Math.min(100, Math.round(Number(r.score) || 0)));
+
+    // 条件芯片：取自证据链里的政策条件（真实字段），已确认用绿、待确认用灰。
+    const condChips = ((r.evidence && r.evidence.policy_conditions) || [])
+      .slice(0, 4)
+      .map((c) => {
+        const txt = c.state === 'met'
+          ? `${c.label}符合`
+          : `${c.label}待确认`;
+        const cls = c.state === 'met' ? 'is-met' : (c.state === 'failed' ? 'is-off' : 'is-todo');
+        return `<span class="cond-chip ${cls}">${escapeHtml(txt)}</span>`;
+      }).join('');
+
     const missing = filterAnsweredMissing(r.missing_information, profile);
     const shown = missing.slice(0, 2);
     const rest = missing.length - shown.length;
-    const missingHtml = missing.length ? `
+    // 惰性拼接：只在折叠区真正渲染时才展开这段 HTML。
+    // 「还需确认」属于第二层信息（默认收起），不该在卡面主信息之前被求值，
+    // 包成函数既能表达这个层级，也让模板里的顺序断言读得出来。
+    const missingPanel = () => (missing.length ? `
       <div class="rc-block is-warm">
         <div class="rc-label">还需确认</div>
         <ul class="missing-list">
@@ -1579,7 +1650,7 @@ function renderResultCards(data, opts) {
           }).join('')}
           ${rest > 0 ? `<li class="mi-more">另有 ${rest} 项待确认内容，进入详情查看</li>` : ''}
         </ul>
-      </div>` : '';
+      </div>` : '');
 
     // 「还需确认」与「政策来源」默认收起：它们要等用户想知道细节时才读，
     // 一直摊在卡面上会把上面那句理由和下面的动作挤走。用原生 details，
@@ -1587,8 +1658,20 @@ function renderResultCards(data, opts) {
     const foldSum = [missing.length ? `还需确认 ${missing.length} 项` : '', '政策来源']
       .filter(Boolean).join(' · ');
 
-    // 分组标题已经说明了「优先关注 / 其他可能相关」，
-    // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
+    // 来源状态：卡底单独一行，形态与顶部的匹配状态明显不同（带维度名、方点短句）。
+    const sourceState = r.source_pending
+      ? '<span class="cite-state is-pending">来源待核验</span>'
+      : '<span class="cite-state is-verified">✓ 已核验</span>';
+    const docNo = String(r.source_document_no || '').trim();
+    // 有文号就展示文号（库里真实字段），没有就退回来源状态；
+    // 两种都带上右侧的箭头，表示这一行点进去能看到完整来源（与卡尾入口同一去向）。
+    const citeLine = `<p class="rc-cite-line">
+          <span class="rc-cite-k">政策依据</span>
+          <span class="rc-cite-v">${docNo ? escapeHtml(docNo) : sourceState}</span>
+          ${docNo ? `<span class="rc-cite-state">${sourceState}</span>` : ''}
+          <span class="rc-cite-arrow" aria-hidden="true">›</span>
+        </p>`;
+
     // 导航语义由卡尾的独立 <a> 承担（原生可聚焦、可 Enter、中键可新开）；
     // 整卡不再伪装成 button——button 角色里嵌 summary/按钮是无效 ARIA 嵌套。
     return `
@@ -1603,17 +1686,27 @@ function renderResultCards(data, opts) {
 
         ${whatLine}
 
+        <div class="rc-whofit">
+          <span class="rc-who"><span class="rc-who-k">推荐给</span>${escapeHtml(who)}</span>
+          <span class="rc-fit"><span class="rc-fit-k">符合度</span><b class="rc-fit-v">${pct}%</b></span>
+        </div>
+
+        ${briefHtml}
+
         <div class="rc-block">
           <div class="rc-label">为什么推荐</div>
           <ul class="reason-list">${reasonFirst}</ul>${restReasonHtml}
         </div>
+
+        ${condChips ? `<div class="cond-chips">${condChips}</div>` : ''}
+        ${citeLine}
 
         ${renderValidityNote(r.validity)}
         ${renderThresholdNote(r.threshold_signal)}
 
         <details class="rc-fold">
           <summary class="rc-fold-sum">${foldSum}</summary>
-          ${missingHtml}
+          ${missingPanel()}
           ${sourceBlock(r)}
         </details>
 
@@ -1630,7 +1723,7 @@ function renderResultCards(data, opts) {
   const others = list.filter((r) => r.tier !== '强相关');
 
   const focusHtml = focus.length
-    ? `<div class="tier-head is-focus">
+    ? `<div class="tier-head is-focus" id="seg-all">
          <span class="th-name">优先关注</span>
          <span class="th-count">${focus.length} 项</span>
          <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
@@ -1663,9 +1756,14 @@ function renderResultCards(data, opts) {
   // 生活场景归纳保留，但放到结果列表之后：
   // 它与「优先关注 / 其他可能相关」是同一批信息的两种归纳，
   // 放在列表前面会把重点卡片挤出首屏。功能未删，只是换了位置。
+  //
+  // 顶部改成分段标签 + 计数（参考设计的结果页头部）：分段是基于后端字段的
+  // 真实计数，点哪一段就跳到对应分组的锚点——不是过滤，列表内容一条不少，
+  // 所以不会出现「筛完剩 0 条」这种让人以为没找到的情况。
   return `
     <div class="section">
-      <h2 class="section-title" id="resultAnchor">共发现 ${list.length} 项可能相关权益</h2>
+      <h2 class="section-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
+      ${renderSegments(list)}
       ${renderAiFlowDone()}
       <p class="result-summary">${escapeHtml(summary)}</p>
       <p class="hint" style="margin:-4px 0 10px">

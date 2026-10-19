@@ -3675,10 +3675,18 @@ input:focus {
   gap: 5px;
 }
 
-/* 线索与权益各占一半，超出用省略号——这一行是索引，不是全文 */
-.detail-thread .th-clue,
+/* 线索短、权益名长：给权益更多宽度，别把它截成「老年人照护需求…」 */
+.detail-thread .th-clue {
+  flex: 0 1 auto;
+  max-width: 42%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .detail-thread .th-right {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -4599,3 +4607,479 @@ input:focus {
   .refresh-bar { animation: none; }
   .refresh-line::after { animation: none; width: 100%; opacity: 0.55; }
 }
+
+/* ================================================================
+   结果页分段标签 + 结果卡信息层级（参考设计：结果页）
+   —— 新增一组，不改动上面既有的 .result-card/.reason-more/.rc-fold 规则，
+      只是给卡面追加「推荐给谁 / 符合度 / 推荐理由摘要 / 条件芯片 / 政策依据」几个块。
+   ================================================================ */
+.seg-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.seg-nav::-webkit-scrollbar { display: none; }
+
+.seg {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 15px;
+  border-radius: var(--radius-pill);
+  background: #f4f6f3;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.seg:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* 选中的那一段：浅绿底 + 绿字 + 一条下划短线（与设计稿一致） */
+.seg.is-on {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-weight: 700;
+  position: relative;
+}
+
+.seg.is-on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 14px;
+  height: 2px;
+  margin-left: -7px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+
+.seg-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* ---- 推荐给谁 + 符合度 ---- */
+.rc-whofit {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rc-who {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.rc-who-k {
+  margin-right: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rc-fit {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.rc-fit-k { margin-right: 3px; }
+
+/* 符合度数字：暖绿、等宽数字，是卡上唯一的大号数字，用来做视觉落点 */
+.rc-fit-v {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 推荐理由摘要（一行，原文来自 ai_reason[0]） ---- */
+.rc-brief {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  /* 三行截断：摘要就该是摘要，完整理由在下面的「为什么推荐」块里 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rb-k {
+  margin-right: 5px;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+/* ---- 条件芯片：已确认绿底 / 待确认灰底 / 不符合灰线 ---- */
+.cond-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.cond-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cond-chip.is-met {
+  background: #eaf3ec;
+  color: #2f6b46;
+}
+
+.cond-chip.is-todo {
+  background: #eef0ef;
+  color: #6b7a72;
+}
+
+.cond-chip.is-off {
+  background: #f5f3ef;
+  color: var(--muted-2);
+  text-decoration: line-through;
+}
+
+/* ---- 卡底「政策依据：文号 ›」 ---- */
+/* 卡底「政策依据：文号 · 已核验 ›」 */
+.rc-cite-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.rc-cite-k {
+  flex: none;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rc-cite-v {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rc-cite-state {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rc-cite-arrow {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted-2);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ---- 详情页顶部概要（匹配给 / 符合度 的双层小卡） ---- */
+/* 头部两栏：左信息 + 右小卡。窄屏（<400）改成上下，标题不再被挤成两行半。 */
+.dhead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  gap: 10px;
+  align-items: start;
+}
+
+.dhead-main { min-width: 0; }
+
+.dhead-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.42;
+  color: var(--ink);
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+
+.dhead-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.dhead-meta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+.dhead-meta .dk {
+  display: inline-block;
+  min-width: 62px;
+  color: var(--muted);
+}
+
+.dhead-side {
+  flex: none;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card);
+  /* 只用一条左侧竖线做「附注」的视觉语言，不再画完整边框：
+     窄屏上完整边框的小方块会显得像个没填满的空盒子。 */
+  border: 0;
+  border-left: 3px solid var(--brand-line);
+  text-align: left;
+}
+
+.ds-top {
+  padding: 8px 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ds-k {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.ds-v {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ds-fit {
+  padding: 6px 12px 8px;
+  background: none;
+  border-top: 0;
+  font-size: 13px;
+  color: var(--brand-dark);
+}
+
+.ds-fit b {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 详情页分段标签（政策解读 / 申请条件 / 办理指引 / 常见问题） ---- */
+.dtabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dtabs::-webkit-scrollbar { display: none; }
+
+.dtab {
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+}
+
+.dtab.is-on {
+  color: var(--brand-dark);
+  background: var(--brand-wash);
+  border-radius: 10px 10px 0 0;
+}
+
+.dtab.is-on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 40%;
+  height: 3px;
+  margin-left: -20%;
+  border-radius: 3px 3px 0 0;
+  background: var(--brand);
+}
+
+.dtab:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.dpane[hidden] { display: none; }
+
+/* ---- 详情页「AI 智能匹配」浅绿卡 ---- */
+.aimatch {
+  background: #f2f8f4;
+  border: 1px solid #d8e9de;
+  border-radius: var(--radius);
+  padding: 14px 15px;
+  margin-bottom: 12px;
+}
+
+.am-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #2f6b46;
+}
+
+.am-lead {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.am-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.am-list li {
+  position: relative;
+  padding-left: 24px;
+  margin-bottom: 8px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.am-list li:last-child { margin-bottom: 0; }
+
+.am-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.am-foot {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid #dbeae1;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ---- 详情页底部固定双按钮 ---- */
+.dock {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  margin: 0 -16px -16px;
+  background: linear-gradient(to top, var(--cream) 62%, rgba(250, 247, 241, 0));
+}
+
+.dock .btn {
+  flex: 1;
+  min-height: 52px;
+}
+
+@media (max-width: 400px) {
+  .dhead { grid-template-columns: 1fr; }
+  .dhead-side { max-width: 220px; }
+}
+/* ---- 结果页页头（匹配完成后出现的「匹配结果」） ---- */
+.page-head {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 14px var(--sp) 6px;
+}
+
+.page-head[hidden] { display: none; }
+
+.ph-back {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  /* 命中区补到 48px：视觉是箭头，手指要够得着 */
+  position: relative;
+}
+
+.ph-back::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.ph-back:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.ph-title {
+  margin: 0;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+
+/* ---- 分段标签：点哪一段就把哪一段滚到视口顶部（不是过滤，列表内容不变） ---- */
+.seg.is-on::after { display: none; }
+
+.seg:target,
+.seg.is-on { background: var(--brand-soft); color: var(--brand-dark); font-weight: 700; }

@@ -163,7 +163,7 @@ async function run() {
   var gotTier = await waitFor(function () { return q('.tier-groups'); }, 9000, '结果分层');
   check('结果按分层展示', gotTier);
   check('存在「优先关注」分组标题', q('.tier-head.is-focus') !== null);
-  check('顶部显示共发现 N 项', /共发现\s*\d+\s*项可能相关权益/.test(D().body.textContent),
+  check('顶部显示共找到 N 条', /共找到\s*\d+\s*条可能相关的政策/.test(D().body.textContent),
     (D().querySelector('#resultAnchor')||{}).textContent);
   check('顶部显示建议优先了解 N 项', /建议优先了解其中\s*\d+\s*项/.test(D().body.textContent));
   check('结果卡已渲染', qa('.result-card').length > 0, 'n=' + qa('.result-card').length);

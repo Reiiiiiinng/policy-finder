@@ -346,5 +346,39 @@ console.log('== 全局一致性（P7-B）==');
   check('状态标签字号统一', /\.axis-k \{[\s\S]{0,200}?font-size:\s*11px/.test(css));
 }
 
+console.log('== UI 重构（按设计参考图） ==');
+{
+  // 注意：本文件没有 read() 助手，统一用 fs.readFileSync + ROOT
+  const app = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const disc = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const pol = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+
+  // 结果页页头：匹配完成后才出现，返回键回到描述区而不是上一页
+  check('结果页有独立页头', /id="resultHead"/.test(disc) && /class="page-head"/.test(disc));
+  check('页头默认隐藏，匹配完才显形', /setResultHead\(true\)/.test(disc) && /\.page-head\[hidden\]/.test(css));
+  check('页头返回键命中区 48px', /\.ph-back \{[\s\S]{0,400}?position:\s*relative/.test(css)
+    && /\.ph-back::after \{[\s\S]{0,80}?inset:\s*-4px/.test(css));
+
+  // 计数行 + 分段标签：先给总数，再拆成待核验/已核验/信息待补充
+  check('结果区有总数与三段计数', /共找到 \$\{list.length\} 条可能相关的政策/.test(app)
+    && /待核验/.test(app) && /已核验/.test(app) && /信息待补充/.test(app));
+  check('分段标签是同一条列表的定位，不是过滤',
+    /scrollIntoView|resultAnchor/.test(app) && /\.seg\.is-on/.test(css));
+
+  // 卡面：推荐给谁 + 符合度，理由摘要一句
+  check('卡面标出推荐给谁与符合度', /rc-whofit/.test(app) && /rc-fit/.test(app) && /rc-brief/.test(app));
+  check('符合度只展示可计算的百分比，不算出来就不显示',
+    /符合度/.test(app) && /scorePct/.test(pol));
+
+  // 详情页：标题是 h1.dhead-title，右侧附注用左侧竖线而不是完整边框
+  check('详情页标题用 dhead-title', /class="dhead-title"/.test(pol));
+  check('详情页附注用竖线语言', /\.dhead-side \{[\s\S]{0,320}?border-left:\s*3px/.test(css));
+
+  // 母题连线：线索让位给权益名，不在中间截断
+  check('详情页母题线索让位给权益名',
+    /\.detail-thread \.th-clue \{[\s\S]{0,200}?max-width:\s*42%/.test(css)
+    && /\.detail-thread \.th-right \{[\s\S]{0,200}?flex:\s*1 1 auto/.test(css));
+}
+
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

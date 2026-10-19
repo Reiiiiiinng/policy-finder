@@ -105,8 +105,9 @@ async function run(){
 
   /* ---------- 顶部文案 ---------- */
   var anchor = (q('#resultAnchor')||{}).textContent || '';
-  check('顶部显示「共发现 10 项可能相关权益」',
-    /共发现\s*10\s*项可能相关权益/.test(anchor), anchor);
+  // 「所有、共 10 条」是这一屏的计数口径：先给总数，再由下面的分段标签拆成待核验/已核验。
+  check('顶部显示「共找到 10 条可能相关的政策」',
+    /共找到\s*10\s*条可能相关的政策/.test(anchor), anchor);
   var summary = (q('.result-summary')||{}).textContent || '';
   check('顶部显示「建议优先了解其中 6 项」',
     /建议优先了解其中\s*6\s*项/.test(summary), summary);
@@ -216,7 +217,7 @@ async function run(){
   check('展开后点击卡片可进入详情', nav1);
   await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
   check('详情页内容已加载', !!q('.trust-card'));
-  var detailName = (q('.card h2')||{textContent:''}).textContent.trim();
+  var detailName = (q('.dhead-title') || q('.card h2') || {textContent:''}).textContent.trim();
   var targetName = (target.querySelector('.result-name')||{textContent:''}).textContent.trim();
   check('详情页就是所点的那条', !!detailName && detailName === targetName,
     '详情=' + detailName + ' 期望=' + targetName);

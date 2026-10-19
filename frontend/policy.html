@@ -22,7 +22,7 @@
 <script src="assets/app.js"></script>
 <script>
   // 顶部返回的父页面必须「同步」确定，不能等异步接口回来再补。
-  // 之前这里先写死 index.html，再由 updateTopbarParent() 在接口返回后补登记成
+  // 之前这里先写死 index.html，再在接口返回后补登记成
   // discover.html / self.html。实测复现：在接口返回前点顶部返回，会被带回首页，
   // 而不是回到发现权益（本人模式同理，会丢掉「我的发现结果」）。
   // selfMode 只依赖本地会话，可以同步读出，所以这里一次性给对。
@@ -51,6 +51,65 @@
       <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
       ${inner}
     </div>`;
+  }
+
+  /**
+   * 分段标签：四段内容一开始就全在 DOM 里，这里只切换「哪一段可见」。
+   * 不用重渲染，所以段内的折叠状态、证据链的手动展开、表单里已填的选择都不会丢。
+   * 选中态落到 URL hash，刷新或从返回到本页时能停在原来那一段。
+   */
+  function bindDTabs() {
+    const tabs = Array.from(document.querySelectorAll('[data-dtab]'));
+    const panes = Array.from(document.querySelectorAll('[data-dpane]'));
+    if (!tabs.length) return;
+
+    function show(key, scroll) {
+      const hit = tabs.some((t) => t.dataset.dtab === key) ? key : 'read';
+      tabs.forEach((t) => {
+        const on = t.dataset.dtab === hit;
+        t.classList.toggle('is-on', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      panes.forEach((pane) => {
+        pane.hidden = pane.dataset.dpane !== hit;
+      });
+      if (scroll) {
+        const bar = document.querySelector('.dtabs');
+        if (bar && bar.getBoundingClientRect().top < 0) {
+          bar.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+      }
+    }
+
+    tabs.forEach((t) => {
+      t.addEventListener('click', () => {
+        show(t.dataset.dtab, true);
+        if (history.replaceState) history.replaceState(null, '', '#' + t.dataset.dtab);
+      });
+    });
+
+    const fromHash = (location.hash || '').replace('#', '');
+    show(fromHash || 'read', false);
+    window.addEventListener('hashchange', () => show((location.hash || '').replace('#', ''), false));
+  }
+
+  /**
+   * 底部动作条。
+   * 「咨询官方」跳到办理指引段（那里写着该问谁、怎么问），
+   * 「怎么办理」同样落到办理指引——两者都不打开任何外部页面，也不代填、不提交。
+   * 两个按钮的区别是意图：一个是「先问清楚」，一个是「按流程办」，
+   * 但落点都在同一段真实内容上，因为本平台没有在线办理能力。
+   */
+  function bindDock() {
+    document.querySelectorAll('[data-dock]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.dock === 'consult' ? 'proc' : 'proc';
+        const tab = document.querySelector('[data-dtab="' + key + '"]');
+        if (tab) tab.click();
+        const target = document.getElementById('dpane-' + key);
+        if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    });
   }
 
   async function load() {
@@ -320,9 +379,71 @@
     const backHref = selfMode ? 'self.html' : 'discover.html';
     const backLabel = selfMode ? '← 返回我的发现结果' : '← 返回发现结果';
 
-    // 兜底再登记一次：与顶部栏渲染时用的是同一套判定，正常应完全一致；
-    // 万一会话在这期间被改写（例如跨标签页），以这里读到的最新结果为准。
-    updateTopbarParent(backHref);
+    // ---- 顶部概要（参考设计：详情页头） ----
+    // 左侧：政策名 + 分类标签 + 政策依据 / 发布机构 / 有效期三条元信息；
+    // 右侧：匹配给谁 + 符合度的小卡。
+    // 有效期只展示库里真实有的数据：没有起始/结束日期时写「库内未记录」，不推算。
+    const val = (matchRow && matchRow.validity) || {};
+    const validRange = (val.effective_from || val.expires_at)
+      ? `${clean(val.effective_from) || '未记录'} 至 ${clean(val.expires_at) || '未记录'}`
+      : '库内未记录起止日期';
+    const scorePct = matchRow
+      ? Math.max(0, Math.min(100, Math.round(Number(matchRow.score) || 0)))
+      : null;
+    const whoTop = selfMode
+      ? '您本人'
+      : (savedProfile && savedProfile.basic && savedProfile.basic.age
+          ? `${session.beneficiary || '家人'}（${savedProfile.basic.age}岁）`
+          : (session.beneficiary || '家人'));
+
+    const dhead = `
+      <div class="card">
+        <div class="dhead">
+          <div class="dhead-main">
+            <h1 class="dhead-title">${escapeHtml(p.policy_name)}</h1>
+            <div class="dhead-tags">
+              ${statusLine}
+            </div>
+            <p class="dhead-meta">
+              <span class="dk">政策依据</span>${escapeHtml(clean((p.source || {}).document_no) || '库内未记录文号')}<br>
+              <span class="dk">发布机构</span>${escapeHtml(clean(srcDept) || '库内未记录')}<br>
+              <span class="dk">有 效 期</span>${escapeHtml(validRange)}
+            </p>
+          </div>
+          <div class="dhead-side">
+            <div class="ds-top">
+              <span class="ds-k">匹配给</span>
+              <span class="ds-v">${escapeHtml(whoTop)}</span>
+            </div>
+            ${scorePct === null ? '' : `
+            <div class="ds-fit"><span>符合度</span> <b>${scorePct}%</b></div>`}
+          </div>
+        </div>
+      </div>`;
+
+    // ---- 分段标签：政策解读 / 申请条件 / 办理指引 / 常见问题 ----
+    // 四段都是本页已有的真实内容，只是换成分段呈现：
+    //   政策解读 = ① 这是什么 + 来源卡
+    //   申请条件 = ② 为什么推荐 + ③ 还需要确认
+    //   办理指引 = ④ 去哪里核实 + ⑤ 怎么办理
+    //   常见问题 = 数据里没有问答对，显示「本页未收录」而不是编造问答
+    const tabs = `
+      <div class="dtabs" role="tablist" aria-label="政策详情分段">
+        <button type="button" class="dtab is-on" role="tab" data-dtab="read" aria-selected="true" aria-controls="dpane-read">政策解读</button>
+        <button type="button" class="dtab" role="tab" data-dtab="cond" aria-selected="false" aria-controls="dpane-cond">申请条件</button>
+        <button type="button" class="dtab" role="tab" data-dtab="proc" aria-selected="false" aria-controls="dpane-proc">办理指引</button>
+        <button type="button" class="dtab" role="tab" data-dtab="faq" aria-selected="false" aria-controls="dpane-faq">常见问题</button>
+      </div>`;
+
+    const faqPane = `
+      <div class="detail-block">
+        <h3><span class="q-num">?</span><span class="q-title">常见问题</span></h3>
+        <p>本库暂未收录这条政策的常见问答。为避免给出未经核对的答复，这里不作推测。</p>
+        <p class="q-lead" style="margin:0">
+          有具体疑问，建议直接致电${escapeHtml(srcDept || '主管部门')}的政务服务热线，
+          或到所在街镇、社区的服务窗口当面问清。
+        </p>
+      </div>`;
 
     // v0.9：政策状态提示（时效 / 阈值核对）。
     // 数据取自本次重跑匹配的 matchRow；取不到（画像丢失、政策不在结果里）时保持空白，
@@ -331,29 +452,30 @@
       + renderThresholdNote(matchRow && matchRow.threshold_signal);
 
     content.innerHTML = `
-      <div class="section">
-        <div class="card">
-          <h2 style="margin:0 0 6px;font-size:17px">${escapeHtml(p.policy_name)}</h2>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <span class="chip">${escapeHtml(p.category)}</span>
-            <span class="chip plain">${escapeHtml(p.service_type || '')}</span>
-            <span class="chip plain">${escapeHtml((p.region || {}).scope || '')}</span>
-          </div>
-          <div style="margin-top:8px">${statusLine}</div>
-          ${tierLine}
-          ${p.service_note ? `<p class="hint">${escapeHtml(p.service_note)}</p>` : ''}
-        </div>
+      <div class="section">${dhead}</div>
+      ${statusNotes ? `<div class="section">${statusNotes}</div>` : ''}
+      <div class="section">${tabs}</div>
+
+      <div class="section dpane" id="dpane-read" role="tabpanel" data-dpane="read">
+        ${qBlock(1, '这是什么？', what)}
+        ${sourceCard}
       </div>
 
-      ${statusNotes ? `<div class="section">${statusNotes}</div>` : ''}
-
-      <div class="section">
-        ${qBlock(1, '这是什么？', what)}
+      <div class="section dpane" id="dpane-cond" role="tabpanel" data-dpane="cond" hidden>
         ${qBlock(2, '为什么推荐给您？', why)}
         ${qBlock(3, '还需要确认什么？', needConfirm, 'is-warm')}
+      </div>
+
+      <div class="section dpane" id="dpane-proc" role="tabpanel" data-dpane="proc" hidden>
         ${qBlock(4, '去哪里核实？', verifyWhere)}
         ${qBlock(5, '怎么办理？', needProcess)}
-        ${sourceCard}
+      </div>
+
+      <div class="section dpane" id="dpane-faq" role="tabpanel" data-dpane="faq" hidden>
+        ${faqPane}
+      </div>
+
+      <div class="section">
         <div class="notice warn">${escapeHtml(p.risk_notice || 'AI仅进行初步匹配，不代表符合资格。')}</div>
       </div>
 
@@ -367,7 +489,16 @@
           <button type="button" class="btn ghost" onclick="location.href='${backHref}'">${backLabel}</button>
           <button type="button" class="btn ghost" onclick="location.href='index.html'">重新选择帮助对象</button>
         </div>
+      </div>
+
+      <!-- 底部固定动作条：左「咨询官方」引导到官方渠道，右「怎么办理」跳到办理指引 -->
+      <div class="dock">
+        <button type="button" class="btn ghost" data-dock="consult">咨询官方</button>
+        <button type="button" class="btn" data-dock="apply">怎么办理</button>
       </div>`;
+
+    bindDTabs();
+    bindDock();
 
     bindFinalStep(id, selfMode, backHref);
     // 不再在渲染完成后把流程推到第 4 步：本页始终是阶段 3「查看依据」，
