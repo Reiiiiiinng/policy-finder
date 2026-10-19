@@ -274,7 +274,7 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
     !/加载更多|查看更多|showMore|pageSize/.test(app));
   // 下面三条看的是「分组怎么排布」，作用域是整个 renderResultCards（card 只是单卡模板）：
   // 单卡模板里不会出现 focus.map / more-toggle / data-more-body。
-  check('优先关注组全量渲染', /focus\.map\(oneCard\)\.join/.test(rest));
+  check('优先关注组全量渲染', /focus\.map\(\(\s*r\s*,\s*i\s*\)\s*=>\s*oneCard\(r,[\s\S]{0,40}\)\)\.join/.test(rest));
   check('其他可能相关组也全量渲染（仅折叠不丢）', /others\.map\(oneCard\)\.join/.test(rest));
   check('折叠区保留全部卡片节点', /more-toggle/.test(rest) && /data-more-body/.test(rest));
 }

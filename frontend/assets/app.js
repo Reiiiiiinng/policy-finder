@@ -1580,7 +1580,7 @@ function renderResultCards(data, opts) {
   const profile = data.profile || {};
   const selfLead = !!(profile.mode === 'self' || opts.selfMode);
 
-  const oneCard = (r) => {
+  const oneCard = (r, opts) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
 
     // 第一眼三件事之①：这条权益是什么。service_note 是库里已有的服务简介，
@@ -1674,8 +1674,12 @@ function renderResultCards(data, opts) {
 
     // 导航语义由卡尾的独立 <a> 承担（原生可聚焦、可 Enter、中键可新开）；
     // 整卡不再伪装成 button——button 角色里嵌 summary/按钮是无效 ARIA 嵌套。
+    // 「推荐度高」只标最先出现的那一张卡：它是「优先关注」组的第一条，
+    // 也就是当前排序里最值得先看的一条，不另算分数、不改排序。
+    const isLeadCard = !!(opts && opts.lead);
     return `
-      <article class="result-card" data-id="${escapeHtml(r.policy_id)}">
+      <article class="result-card${isLeadCard ? ' has-tier' : ''}" data-id="${escapeHtml(r.policy_id)}">
+        ${isLeadCard ? '<span class="rc-tier">推荐度高</span>' : ''}
         <div class="result-head">
           <div class="result-head-main">
             <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
@@ -1693,13 +1697,13 @@ function renderResultCards(data, opts) {
 
         ${briefHtml}
 
+        ${condChips ? `<div class="cond-chips">${condChips}</div>` : ''}
+        ${citeLine}
+
         <div class="rc-block">
           <div class="rc-label">为什么推荐</div>
           <ul class="reason-list">${reasonFirst}</ul>${restReasonHtml}
         </div>
-
-        ${condChips ? `<div class="cond-chips">${condChips}</div>` : ''}
-        ${citeLine}
 
         ${renderValidityNote(r.validity)}
         ${renderThresholdNote(r.threshold_signal)}
@@ -1728,7 +1732,7 @@ function renderResultCards(data, opts) {
          <span class="th-count">${focus.length} 项</span>
          <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
        </div>
-       <div class="tier-items">${focus.map(oneCard).join('')}</div>`
+       <div class="tier-items">${focus.map((r, i) => oneCard(r, { lead: i === 0 })).join('')}</div>`
     : '';
 
   // 折叠区：默认收起，展开状态由 bindResultGroups 恢复

@@ -95,6 +95,72 @@
     </button>
   </div>
 
+  <!-- 服务入口：把「这一条权益」之外能做的事摊平。
+       四项都指向已有能力（匹配、解读、办理指引、收藏），不新增页面，
+       没查过的时候后两项显示为不可点，而不是画几个点了没反应的按钮。 -->
+  <section class="svc-sec animate-in d2" aria-labelledby="svcTitle">
+    <h2 class="section-title" id="svcTitle">服务入口</h2>
+    <div class="svc-grid">
+      <a class="svc" href="#entry">
+        <span class="svc-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3.2l7 2.6v5.4c0 4.1-2.8 7.4-7 9.6-4.2-2.2-7-5.5-7-9.6V5.8z"></path>
+            <path d="M8.6 11.8l2.4 2.4 4.4-4.6"></path>
+          </svg>
+        </span>
+        <span class="svc-body">
+          <span class="svc-name">政策匹配</span>
+          <span class="svc-desc">说清情况，AI 找出可能相关</span>
+        </span>
+      </a>
+      <a class="svc" href="#entry" data-svc="detail">
+        <span class="svc-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.4"></rect>
+            <path d="M8.2 8.6h7.6M8.2 12.4h5.4M8.2 16.2h3.6"></path>
+          </svg>
+        </span>
+        <span class="svc-body">
+          <span class="svc-name">政策解读</span>
+          <span class="svc-desc">这条权益面向谁、管什么</span>
+        </span>
+      </a>
+      <a class="svc" href="#entry" data-svc="guide">
+        <span class="svc-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 4.6h9.4l4.6 4.6v10.2H5z"></path>
+            <path d="M13.6 4.6v5h5"></path>
+            <path d="M8.4 14.2h6.2"></path>
+          </svg>
+        </span>
+        <span class="svc-body">
+          <span class="svc-name">办理指引</span>
+          <span class="svc-desc">出门前要带什么、问什么</span>
+        </span>
+      </a>
+      <a class="svc" href="#savedSec" data-svc="saved">
+        <span class="svc-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.2 3.8h11.6v16.4L12 16.4l-5.8 3.8z"></path>
+          </svg>
+        </span>
+        <span class="svc-body">
+          <span class="svc-name">我的收藏</span>
+          <span class="svc-desc">留住的几条重要政策</span>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 我的收藏：只在真的收藏过条目时出现，避免空版面 -->
+  <section class="saved-sec animate-in d2" id="savedSec" aria-labelledby="savedTitle" hidden>
+    <div class="saved-head">
+      <h2 class="section-title" id="savedTitle">我的收藏</h2>
+      <span class="saved-count" id="savedCount"></span>
+    </div>
+    <div class="saved-list" id="savedList"></div>
+  </section>
+
   <!-- 以下为说明性内容，排在入口之后：核心理念 / 流程 / 可信度 / 关系说明 -->
 
   <!-- 核心理念：从人找政策到政策找人（压缩为紧凑表达） -->
@@ -262,6 +328,41 @@
       label: '从生活情况「独居、行动不便」指向可能相关的权益「社区养老服务」',
     });
   })();
+
+  // 我的收藏：只在真的收藏过条目时出现。
+  // 数据来自本机 localStorage，读不到（隐私模式）就整块不出现，
+  // 不画空卡片，也不假装有几条收藏。
+  (function renderSaved() {
+    const sec = document.getElementById('savedSec');
+    const list = document.getElementById('savedList');
+    const count = document.getElementById('savedCount');
+    let items = [];
+    try {
+      const raw = localStorage.getItem('pf_saved');
+      items = raw ? JSON.parse(raw) : [];
+    } catch (e) { items = []; }
+    if (!Array.isArray(items) || !items.length) return;
+
+    count.textContent = items.length + ' 条';
+    list.innerHTML = items.map((it) => `
+      <a class="saved-item" href="policy.html?id=${encodeURIComponent(it.id || '')}">
+        <span class="saved-item-body">
+          <span class="saved-item-name">${escapeHtml(it.name || '')}</span>
+          ${it.dept ? `<span class="saved-item-dept">${escapeHtml(it.dept)}</span>` : ''}
+        </span>
+        <span class="saved-item-arrow" aria-hidden="true">›</span>
+      </a>`).join('');
+    sec.hidden = false;
+  })();
+
+  // 服务入口里「政策解读 / 办理指引」需要先有一条权益才谈得上，
+  // 没查过就退回入口区，而不是点了没反应。
+  document.querySelectorAll('[data-svc]').forEach((a) => {
+    a.addEventListener('click', () => {
+      const el = document.getElementById('entry');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
 
   // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程。
   // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。

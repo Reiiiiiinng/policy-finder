@@ -112,6 +112,58 @@
     });
   }
 
+  /**
+   * 收藏：只存「id + 名称 + 部门」三样，不存任何个人信息。
+   * 存进 localStorage 是为了首页「我的收藏」能读出来；
+   * 隐私模式下读写会抛错，此时按钮照常可点，只是不落盘。
+   */
+  function bindSave(p) {
+    const btn = document.querySelector('[data-save]');
+    if (!btn) return;
+    const pid = String(p.policy_id || '');
+    if (!pid) return;
+
+    const readAll = () => {
+      try {
+        const raw = localStorage.getItem('pf_saved');
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }
+    };
+    const writeAll = (arr) => {
+      try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+    };
+
+    const paint = (on) => {
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? '取消收藏这条政策' : '收藏这条政策');
+    };
+
+    paint(readAll().some((x) => x && x.id === pid));
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const arr = readAll();
+      const at = arr.findIndex((x) => x && x.id === pid);
+      if (at >= 0) {
+        arr.splice(at, 1);
+        writeAll(arr);
+        paint(false);
+        showToast('已取消收藏');
+      } else {
+        arr.push({
+          id: pid,
+          name: p.policy_name || '',
+          dept: ((p.source || {}).department) || '',
+        });
+        writeAll(arr);
+        paint(true);
+        showToast('已收藏，可在首页「我的收藏」找到');
+      }
+    });
+  }
+
   async function load() {
     if (!id) {
       content.innerHTML = '<div class="notice warn">缺少政策编号，请返回发现页重新选择。</div>';
@@ -400,7 +452,16 @@
       <div class="card">
         <div class="dhead">
           <div class="dhead-main">
-            <h1 class="dhead-title">${escapeHtml(p.policy_name)}</h1>
+            <div class="dhead-title-row">
+              <h1 class="dhead-title">${escapeHtml(p.policy_name)}</h1>
+              <button type="button" class="dhead-save" data-save="${escapeHtml(p.policy_id || '')}"
+                      aria-pressed="false" aria-label="收藏这条政策">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path>
+                </svg>
+              </button>
+            </div>
             <div class="dhead-tags">
               ${statusLine}
             </div>
@@ -499,6 +560,7 @@
 
     bindDTabs();
     bindDock();
+    bindSave(p);
 
     bindFinalStep(id, selfMode, backHref);
     // 不再在渲染完成后把流程推到第 4 步：本页始终是阶段 3「查看依据」，

@@ -378,7 +378,28 @@ console.log('== UI 重构（按设计参考图） ==');
   check('详情页母题线索让位给权益名',
     /\.detail-thread \.th-clue \{[\s\S]{0,200}?max-width:\s*42%/.test(css)
     && /\.detail-thread \.th-right \{[\s\S]{0,200}?flex:\s*1 1 auto/.test(css));
-}
+  // 首页：服务入口指向已有能力，收藏区没有条目不出现
+  const idx = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
+  check('首页有服务入口四项', /class="svc-grid"/.test(idx)
+    && /政策匹配/.test(idx) && /政策解读/.test(idx)
+    && /办理指引/.test(idx) && /我的收藏/.test(idx));
+  check('服务入口都是指向已有能力，不新开页面',
+    (idx.match(/class="svc"[^>]*href="#[a-zA-Z]+"/g) || []).length === 4);
+  check('我的收藏为空时整块隐藏', /id="savedSec"[^>]*hidden/.test(idx)
+    && /\$\{\(?items\.length/.test(idx.replace(/\s+/g, '')) === false
+    && /if \(!Array\.isArray\(items\) \|\| !items\.length\) return;/.test(idx));
+
+  // 详情页：收藏星标 + 底部动作条
+  check('详情页标题行有收藏星标', /class="dhead-save"/.test(pol) && /aria-pressed="false"/.test(pol));
+  check('收藏只存 id/名称/部门，不存个人信息',
+    /localStorage\.setItem\('pf_saved'/.test(pol)
+    && /id: pid/.test(pol) && /name: p\.policy_name/.test(pol)
+    && !/age:|beneficiary:|idcard/i.test((pol.split('function bindSave')[1] || '').slice(0, 4000)));
+  check('星标命中区 48px', /\.dhead-save \{[\s\S]{0,120}?width:\s*48px/.test(css));
+
+  // 结果页：首卡「推荐度高」书签只标一张
+  check('首张卡片有推荐度高书签',
+    /lead: i === 0/.test(app) && /rc-tier/.test(app) && /推荐度高/.test(app));}
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

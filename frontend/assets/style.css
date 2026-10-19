@@ -4629,9 +4629,10 @@ input:focus {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-height: 44px;
-  padding: 0 15px;
+  /* 四段在 390px 内必须放得下：字距和左右内边距一起收紧 */
+  padding: 0 11px;
   border-radius: var(--radius-pill);
   background: #f4f6f3;
   color: var(--ink-2);
@@ -5083,3 +5084,140 @@ input:focus {
 
 .seg:target,
 .seg.is-on { background: var(--brand-soft); color: var(--brand-dark); font-weight: 700; }
+/* ---- 服务入口（首页）：2×2，指向已有能力，不新增页面 ---- */
+.svc-sec { padding: 0 var(--sp) 4px; }
+
+.svc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.svc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 12px;
+  min-height: 62px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+
+.svc:active { background: var(--brand-wash); }
+
+.svc-ic {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--brand-wash);
+  color: var(--brand-dark);
+}
+
+.svc-ic svg { width: 19px; height: 19px; }
+
+.svc-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.svc-name { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+
+.svc-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ---- 我的收藏：没有条目时整块不出现 ---- */
+.saved-sec { padding: 12px var(--sp) 4px; }
+
+.saved-sec[hidden] { display: none; }
+
+.saved-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.saved-count { font-size: 12.5px; color: var(--muted); }
+
+.saved-list { display: flex; flex-direction: column; gap: 8px; }
+
+.saved-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+
+.saved-item-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.saved-item-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+
+.saved-item-dept { font-size: 12px; color: var(--muted); }
+
+.saved-item-arrow { margin-left: auto; color: var(--muted); font-size: 17px; }
+/* ---- 详情页标题行 + 收藏星标 ---- */
+.dhead-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dhead-title-row .dhead-title { flex: 1 1 auto; min-width: 0; }
+
+.dhead-save {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  margin: -12px -8px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+}
+
+.dhead-save svg { width: 21px; height: 21px; }
+
+/* 收藏态用暖黄，与浅绿主色区分开：这是「存下来」，不是「符合条件」 */
+.dhead-save.is-on { color: #d99a2b; }
+
+.dhead-save.is-on svg { fill: #f6c453; stroke: #d99a2b; }
+
+.dhead-save:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---- 结果卡里的「推荐度高」小条：贴在卡片左上角，像书签 ---- */
+.rc-tier {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin: -14px 0 8px -14px;
+  padding: 3px 10px 3px 12px;
+  border-radius: 10px 10px 10px 0;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.result-card.has-tier { border-top-left-radius: 0; }
