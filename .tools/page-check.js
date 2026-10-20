@@ -493,6 +493,10 @@ console.log('== 底部一级导航与新增一级页 ==');
   const dockCss = (css.match(/\.dock \{[\s\S]*?\n\}/) || [''])[0];
   check('底部动作条不靠负外边距铺满',
     dockCss && /margin: 0;/.test(dockCss) && !/margin: 0 -16px/.test(dockCss));
+  // 5) 收起的分组高度为 0，但里面的链接与按钮仍在 Tab 顺序里，
+  //    键盘用户会跳进一片看不见的区域。收起时必须 inert。
+  check('收起的分组移出焦点与无障碍树',
+    /body\.setAttribute\('inert', ''\)/.test(app) && /body\.removeAttribute\('inert'\)/.test(app));
 }
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

@@ -1889,6 +1889,16 @@ function applyMoreExpanded(on) {
 
   group.classList.toggle('is-open', !!on);
   btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  // 收起时内容高度为 0，但里面的链接与按钮仍留在 Tab 顺序里：
+  // 键盘用户会跳进一片看不见的区域，读屏也会念出折叠掉的条目。
+  // inert 同时移出焦点与无障碍树，高度过渡不受影响。
+  if (on) {
+    body.removeAttribute('inert');
+    body.removeAttribute('aria-hidden');
+  } else {
+    body.setAttribute('inert', '');
+    body.setAttribute('aria-hidden', 'true');
+  }
 
   if (on) {
     // 先放开高度限制量出真实内容高度，再写回具体值供 max-height 过渡
