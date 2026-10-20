@@ -284,7 +284,11 @@ console.log('== 结果分层 ==');
   check('顶部显示总数', has(h, '共找到 4 条可能相关的政策'), '');
   check('顶部显示建议优先了解数', has(h, '建议优先了解其中 2 项'), '');
   check('分组标题为「优先关注」', has(h, '优先关注'));
+  // 「信息待补充」是横切属性，不再把条目从档位分组里剔除：
+  // p3、p4 仍按档位分组，另有单独的缺口清单指回它们。
   check('折叠区标题为「其他可能相关 2 项」', has(h, '其他可能相关 2 项'), '');
+  check('信息待补充组独立成组', has(h, '信息待补充') && has(h, 'id="seg-needinfo"'));
+  check('缺口组不复述卡片，只列名字', !/id="seg-needinfo"[\s\S]{0,900}?class="result-card/.test(h));
   check('优先关注计数正确', has(h, '>2 项<'));
   check('卡片保留 data-id', has(h, 'data-id="p1"'));
   check('保留 .result-card 类', has(h, 'result-card'));

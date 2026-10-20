@@ -5084,6 +5084,80 @@ input:focus {
 
 .seg:target,
 .seg.is-on { background: var(--brand-soft); color: var(--brand-dark); font-weight: 700; }
+
+/* 计数为 0 的一段不可点：没有对应分组，做成链接就是死链 */
+.seg.is-empty {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: default;
+}
+
+.seg.is-empty .seg-n { color: var(--muted); }
+
+/* 分段与分组不是一对一：一条政策可能同时落在两类里，这行把关系说明白 */
+.seg-note {
+  margin: -2px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* ---- 来源核验清单：待核验 / 已核验两段的落点 ----
+   它们与档位分组交叉，所以只列名字和核验状态，卡片本身不重复渲染。 */
+.ver-group {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.vg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vg-name { font-size: 15px; font-weight: 800; color: var(--ink); }
+.vg-count { font-size: 12.5px; color: var(--muted); }
+
+.vg-desc {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.vg-list { margin: 0; padding: 0; list-style: none; }
+
+.vg-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.vg-row:first-child { border-top: 0; }
+
+.vg-name-i {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.vg-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 「信息待补充」组的组名用暖色，与其他来源分组区分开 */
+.vg-name.is-warn { color: var(--warn); }
 /* ---- 服务入口（首页）：2×2，指向已有能力，不新增页面 ---- */
 .svc-sec { padding: 0 var(--sp) 4px; }
 

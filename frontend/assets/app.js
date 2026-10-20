@@ -1539,10 +1539,18 @@ function renderSegments(list) {
     { key: 'verified', label: '已核验', n: list.filter((r) => !r.source_pending).length },
     { key: 'needinfo', label: '信息待补充', n: list.filter((r) => (r.missing_information || []).length).length },
   ];
-  return `<nav class="seg-nav" aria-label="按核验状态筛选">${seg.map((s) => `
+  // 计数为 0 的一段没有对应分组，找过去必然是死链——降级成不可点的计数。
+  return `<nav class="seg-nav" aria-label="按核验状态筛选">${seg.map((s) => (
+    s.n
+      ? `
       <a class="seg${s.key === 'all' ? ' is-on' : ''}" href="#seg-${s.key}" data-seg="${s.key}">
         <span class="seg-l">${s.label}</span><span class="seg-n">${s.n}</span>
-      </a>`).join('')}</nav>`;
+      </a>`
+      : `
+      <span class="seg is-empty" aria-disabled="true">
+        <span class="seg-l">${s.label}</span><span class="seg-n">${s.n}</span>
+      </span>`
+  )).join('')}</nav>`;
 }
 
 /**
@@ -1722,18 +1730,65 @@ function renderResultCards(data, opts) {
       </article>`;
   };
 
-  // 分组：引擎的「强相关」档展示为「优先关注」，其余两档合并为「其他可能相关」
+  // 分组：引擎的「强相关」档展示为「优先关注」，其余两档合并为「其他可能相关」。
+  //
+  // 「信息待补充」是一条横切的属性（missing_information 非空），几乎每条政策都有——
+  // 真实数据 10 条全非空。所以它不能拿来当排除条件（那会把整组清空），
+  // 只用来决定「答案卡要不要展开那块缺口」。档位分组与它解耦，互不影响。
+  //
+  // 于是同一批政策在页面上有两种组织方式，各自回答不同问题：
+  //   档位分组（优先关注 / 其他可能相关 / 信息待补充）→ 这 10 条按相关度怎么排
+  //   来源分组（待核验 / 已核验）→ 按来源维度怎么分
+  // 来源分组只列名字与核验状态，不复述卡片，避免同一条政策出现两遍。
+  const hasMissing = (r) => (r.missing_information || []).length > 0;
   const focus = list.filter((r) => r.tier === '强相关');
   const others = list.filter((r) => r.tier !== '强相关');
+  const needinfo = list.filter(hasMissing);
 
-  const focusHtml = focus.length
-    ? `<div class="tier-head is-focus" id="seg-all">
+  const verPending = list.filter((r) => r.source_pending);
+  const verVerified = list.filter((r) => !r.source_pending);
+
+  const verListHtml = (rows, key, label, desc) => (rows.length
+    ? `<div class="ver-group" id="seg-${key}">
+         <div class="vg-head">
+           <span class="vg-name">${label}</span>
+           <span class="vg-count">${rows.length} 项</span>
+         </div>
+         <p class="vg-desc">${desc}</p>
+         <ul class="vg-list">${rows.map((r) => `
+           <li class="vg-row">
+             <span class="vg-name-i">${escapeHtml(r.policy_name)}</span>
+             <span class="vg-meta">${
+               r.source_pending
+                 ? '一手文件尚未核到'
+                 : `已核验${r.source_checked_at ? ' · ' + escapeHtml(r.source_checked_at) : ''}`
+             }</span>
+           </li>`).join('')}</ul>
+       </div>`
+    : '');
+
+  const verPendingHtml = verListHtml(
+    verPending, 'pending', '来源待核验',
+    '这些政策的责任部门与文号已标注，但支撑它的一手文件还没逐字核到。'
+  );
+  const verVerifiedHtml = verListHtml(
+    verVerified, 'verified', '来源已核验',
+    '这些政策的名称、对象、服务内容与依据文件已逐项核对。'
+  );
+
+  // 「优先关注」组的标题同时承担「全部」分段的落点：
+  // 从这一行开始往下就是完整列表，与原设计「全部」= 回到列表起点一致。
+  // 「全部」这一段在优先关注组为空时也要有落点（否则点了是死链），
+  // 所以把锚点挂在一个始终存在的容器上，组标题只负责长相。
+  const focusInner = (focus.length
+    ? `<div class="tier-head is-focus">
          <span class="th-name">优先关注</span>
          <span class="th-count">${focus.length} 项</span>
          <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
        </div>
        <div class="tier-items">${focus.map((r, i) => oneCard(r, { lead: i === 0 })).join('')}</div>`
-    : '';
+    : '<p class="vg-desc" style="margin:0">本次匹配没有进入「优先关注」档的条目，下面按来源核验与信息完整度分组列出。</p>');
+  const focusHtml = `<div class="seg-anchor" id="seg-all">${focusInner}</div>`;
 
   // 折叠区：默认收起，展开状态由 bindResultGroups 恢复
   const othersHtml = others.length
@@ -1752,6 +1807,29 @@ function renderResultCards(data, opts) {
        </div>`
     : '';
 
+  // 「信息待补充」组：不重复卡片，只把缺什么列出来，指回上面那条。
+  // 用户点「信息待补充」跳过来时立刻知道要补哪几项，而不是面对一批一样的卡片。
+  const needinfoHtml = needinfo.length
+    ? `<div class="ver-group" id="seg-needinfo">
+         <div class="vg-head">
+           <span class="vg-name is-warn">信息待补充</span>
+           <span class="vg-count">${needinfo.length} 项</span>
+         </div>
+         <p class="vg-desc">以下几项的适用条件里有无法从描述判断的部分，补齐后结论才会更确定。卡片本身仍在上面的分组里。</p>
+         <ul class="vg-list">${needinfo.map((r) => `
+           <li class="vg-row">
+             <span class="vg-name-i">${escapeHtml(r.policy_name)}</span>
+             <span class="vg-meta">缺 ${r.missing_information.length} 项</span>
+           </li>`).join('')}</ul>
+       </div>`
+    : '';
+
+  // 分段计数按条目属性统计，一条政策可以同时落在两类里，
+  // 所以分段数字之和会大于总数——这是如实呈现，不是算错。
+  const countNote = needinfo.length
+    ? '计数按条目属性统计；一条政策可能同时属于两类，所以分段数字之和会大于总数。'
+    : '';
+
   const focusCount = focus.length;
   const summary = focusCount
     ? `建议优先了解其中 ${focusCount} 项`
@@ -1764,6 +1842,14 @@ function renderResultCards(data, opts) {
   // 顶部改成分段标签 + 计数（参考设计的结果页头部）：分段是基于后端字段的
   // 真实计数，点哪一段就跳到对应分组的锚点——不是过滤，列表内容一条不少，
   // 所以不会出现「筛完剩 0 条」这种让人以为没找到的情况。
+  //
+  // 四段各自必须有真实落点，否则点了不动比不能点更糟：
+  //   全部       → #seg-all（优先关注组标题，往下就是整份列表）
+  //   待核验     → #seg-pending（来源待核验组）
+  //   已核验     → #seg-verified（来源已核验组）
+  //   信息待补充 → #seg-needinfo（缺条件组）
+  // 某一段当前为 0 条时该组不渲染，锚点也就不存在——这时把胶囊降级成
+  // 不可点的计数，避免出现「看着能点、点了没反应」的假控件。
   return `
     <div class="section">
       <h2 class="section-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
@@ -1774,7 +1860,8 @@ function renderResultCards(data, opts) {
         以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
       </p>
       <div class="notice">${escapeHtml(data.notice || '')}</div>
-      <div class="tier-groups">${focusHtml}${othersHtml}</div>
+      ${countNote ? `<p class="seg-note">${escapeHtml(countNote)}</p>` : ''}
+      <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
       ${renderSceneSummary(list)}
     </div>`;
 }

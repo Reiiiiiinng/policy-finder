@@ -399,7 +399,21 @@ console.log('== UI 重构（按设计参考图） ==');
 
   // 结果页：首卡「推荐度高」书签只标一张
   check('首张卡片有推荐度高书签',
-    /lead: i === 0/.test(app) && /rc-tier/.test(app) && /推荐度高/.test(app));}
+    /lead: i === 0/.test(app) && /rc-tier/.test(app) && /推荐度高/.test(app));
+  // 分段标签四段都必须有真实落点（曾有三个 href 指向不存在的 id，点了不滚动）
+  // 待核验/已核验两组的锚点由模板拼出（id="seg-${key}"），静态锚点是 seg-all 与 seg-needinfo
+  check('四个分段各有对应锚点',
+    /id="seg-all"/.test(app) && /id="seg-needinfo"/.test(app)
+    && /id="seg-\$\{key\}"/.test(app)
+    && /verListHtml\(\s*verPending, .pending./.test(app)
+    && /verListHtml\(\s*verVerified, .verified./.test(app));
+  check('分段 href 与锚点一一对应',
+    /href="#seg-\$\{s\.key\}"/.test(app));
+  check('计数为 0 的分段降级为不可点',
+    /is-empty/.test(app) && /aria-disabled="true"/.test(app)
+    && /\.seg\.is-empty/.test(css));
+  check('分段不是过滤，列表一条不少',
+    /列表内容一条不少/.test(app) && /不是过滤/.test(app));}
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);
