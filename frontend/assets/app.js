@@ -2032,3 +2032,73 @@ function renderTopbar(title, parentHref, sub) {
     });
   }
 }
+
+/* ==========================================================================
+   底部一级导航（首页 / 发现 / 咨询 / 我的）
+   --------------------------------------------------------------------------
+   为什么是四个真实文件而不是单页切换：
+   本项目每个页面本来就是独立文件、靠 location.href 翻页，没有路由框架。
+   加一层假路由会把「刷新页面」「中键新窗口」「浏览器后退」全部推翻重做，
+   收益只有地址栏好看一点，风险远大于收益。所以底部导航做成
+   「每个一级页里固定渲染同一个 <nav>，当前页那一项高亮」——
+   它仍是真实的页面跳转，点哪个进哪个文件，刷新后高亮不丢。
+
+   政策详情是二级页，不在这四个入口里；它的返回靠顶部「← 返回」。
+   ========================================================================== */
+
+const TAB_ITEMS = [
+  { key: 'home', label: '首页', href: 'index.html',
+    d: 'M4 10.6 12 4l8 6.6V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z' },
+  { key: 'discover', label: '发现', href: 'discover.html',
+    d: 'M11 4.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6zM20 20l-3.9-3.9' },
+  { key: 'consult', label: '咨询', href: 'consult.html',
+    d: 'M4.4 5.4h15.2v10.2H12l-4.6 3.6v-3.6H4.4z' },
+  { key: 'mine', label: '我的', href: 'mine.html',
+    d: 'M12 4.4a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4zM4.8 20.2a7.2 7.2 0 0 1 14.4 0' },
+];
+
+/**
+ * 渲染并挂载底部一级导航。current 是当前页的 key（home/discover/consult/mine）。
+ *
+ * 只在缺少 <nav> 时创建；重复调用（例如结果重绘）会原地更新高亮，不会叠出第二条。
+ * 同时给 <body> 打上 has-tabbar，由 CSS 负责给正文留出底部空间——
+ * 内容被导航遮住这件事必须由布局解决，不能靠某个页面自己记得加 padding。
+ */
+function mountTabbar(current) {
+  if (typeof document === 'undefined' || !document.body) return null;
+  let nav = document.getElementById('tabbar');
+  if (!nav) {
+    nav = document.createElement('nav');
+    nav.id = 'tabbar';
+    nav.className = 'tabbar';
+    document.body.appendChild(nav);
+  }
+  document.body.classList.add('has-tabbar');
+
+  nav.setAttribute('aria-label', '主导航');
+  nav.innerHTML = `<div class="tb-inner">${TAB_ITEMS.map((t) => {
+    const on = t.key === current;
+    return `<a class="tb-item${on ? ' is-on' : ''}" href="${t.href}"
+      ${on ? 'aria-current="page"' : ''} data-tab="${t.key}">
+      <svg class="tb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true"><path d="${t.d}"></path></svg>
+      <span class="tb-label">${t.label}</span>
+    </a>`;
+  }).join('')}</div>`;
+  return nav;
+}
+
+/**
+ * 读取「本次查询」的会话。所有一级页读同一份，不另存一套。
+ * 返回 null 表示还没查过（发现页据此显示空状态，而不是编一批结果）。
+ */
+function readQuerySession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(store.key) || '{}');
+    if (!s || !s.text) return null;
+    return s;
+  } catch (e) {
+    return null;
+  }
+}

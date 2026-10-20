@@ -415,5 +415,48 @@ console.log('== UI 重构（按设计参考图） ==');
   check('分段不是过滤，列表一条不少',
     /列表内容一条不少/.test(app) && /不是过滤/.test(app));}
 
+console.log('== 底部一级导航与新增一级页 ==');
+{
+  const app = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const pol = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  const mine = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  const cons = fs.readFileSync(path.join(ROOT, 'frontend/consult.html'), 'utf8');
+  const idx2 = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
+  const disc2 = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+
+  // 四个一级页都要挂同一个导航，且各自高亮自己
+  check('四个一级页都挂了底部导航',
+    /mountTabbar\('home'\)/.test(idx2) && /mountTabbar\('discover'\)/.test(disc2)
+    && /mountTabbar\('consult'\)/.test(cons) && /mountTabbar\('mine'\)/.test(mine));
+  check('导航项与页面一一对应',
+    /key: 'home',[\s\S]{0,80}href: 'index\.html'/.test(app)
+    && /key: 'discover',[\s\S]{0,80}href: 'discover\.html'/.test(app)
+    && /key: 'consult',[\s\S]{0,80}href: 'consult\.html'/.test(app)
+    && /key: 'mine',[\s\S]{0,80}href: 'mine\.html'/.test(app));
+  check('当前页用 aria-current 标注',
+    /aria-current="page"/.test(app) && /is-on/.test(app));
+
+  // 遮挡由布局解决：body 加类，CSS 给正文留空间，不靠各页自己记得加 padding
+  check('导航遮挡由布局解决',
+    /classList\.add\('has-tabbar'\)/.test(app)
+    && /body\.has-tabbar \.app \{[\s\S]{0,120}?padding-bottom: calc\(76px/.test(css));
+  check('导航固定且有安全区内边距',
+    /\.tabbar \{[\s\S]{0,200}?position: fixed/.test(css)
+    && /padding-bottom: env\(safe-area-inset-bottom\)/.test(css));
+  check('导航每项触达不小于 48px',
+    /\.tb-item \{[\s\S]{0,300}?min-height: 52px/.test(css));
+
+  // 详情页是二级页：不挂导航，但要从收藏入口返回时回「我的」
+  check('详情页不挂底部导航', !/mountTabbar\(/.test(pol));
+
+  // 空状态：没查过就说没查过，不预置任何结果
+  check('发现页有未查询空状态', /还没有发现结果/.test(disc2) && /esStart/.test(disc2));
+  check('我的页空收藏与空查询都如实说明',
+    /还没有收藏/.test(mine) && /还没有查询过/.test(mine));
+  check('我的页读的是同一份收藏，不另存一套',
+    /localStorage\.getItem\('pf_saved'\)/.test(mine) && /pf_saved/.test(pol));
+  check('咨询页不编造热线号码',
+    /未接入在线咨询/.test(cons) && !/0\d{2,3}-\d{7,8}/.test(cons));
+}
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

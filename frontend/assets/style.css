@@ -5288,3 +5288,171 @@ input:focus {
 }
 
 .result-card.has-tier { border-top-left-radius: 0; }
+/* ---- 底部一级导航：固定、安全区、正文不被遮挡 ----
+   遮挡问题由布局解决：body.has-tabbar 给 .app 补出与导航等高的底部空间，
+   而不是指望每个页面自己记得加 padding。 */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  background: rgba(255, 255, 255, .96);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 14px rgba(28, 37, 33, .05);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tb-inner {
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 6px 4px 8px;
+}
+
+.tb-item {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--muted);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tb-item:focus-visible {
+  outline: 2px solid var(--brand-mid);
+  outline-offset: -2px;
+}
+
+.tb-ic { width: 22px; height: 22px; }
+
+.tb-label {
+  font-size: 11.5px;
+  line-height: 1.2;
+  letter-spacing: .01em;
+}
+
+.tb-item.is-on { color: var(--brand-dark); font-weight: 700; }
+.tb-item.is-on .tb-ic { stroke-width: 2.1; }
+
+/* 正文底部留出导航高度 + 安全区，最后一屏内容不会被压住 */
+body.has-tabbar .app {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+/* 详情页有自己的底部动作条：让它整体上移到导航之上，两者不叠在一起 */
+body.has-tabbar .dock {
+  bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+body.has-tabbar .app.has-dock {
+  padding-bottom: calc(148px + env(safe-area-inset-bottom));
+}
+
+/* ---- 空状态：还没有结果时给一个能走的下一步，不预置任何假数据 ---- */
+.empty-state {
+  text-align: center;
+  padding: 28px 6px 8px;
+}
+
+.es-ic {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-mid);
+  background: var(--brand-soft);
+}
+
+.es-ic svg { width: 30px; height: 30px; }
+
+.es-t {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.es-d {
+  margin: 0 auto 20px;
+  max-width: 30em;
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.empty-state .btn { margin: 0 auto 10px; min-width: 220px; }
+
+/* ---- 咨询页 ---- */
+.consult-lead { background: var(--brand-wash); border-color: var(--brand-line); }
+.cl-t { margin: 0 0 8px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.cl-d { margin: 0 0 12px; font-size: 14.5px; line-height: 1.75; color: var(--ink-2); }
+
+.dept-list { display: flex; flex-direction: column; gap: 12px; }
+.dept-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.dept-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dept-name { font-size: 15.5px; font-weight: 800; color: var(--ink); }
+.dept-n { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.dept-meta { margin-top: 4px; font-size: 13px; color: var(--muted); }
+.dept-how { margin: 10px 0 0; font-size: 13.5px; line-height: 1.7; color: var(--ink-2); }
+
+.ask-list { margin: 8px 0 0; padding-left: 20px; }
+.ask-list li { margin: 6px 0; font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+
+/* ---- 我的页 ---- */
+.empty-mini { text-align: center; padding: 24px 6px 8px; }
+.em-t { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--ink); }
+.em-d { margin: 0 auto 16px; max-width: 28em; font-size: 14px; line-height: 1.7; color: var(--muted); }
+.empty-mini .btn { margin: 0 auto; min-width: 190px; }
+
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+}
+.saved-row:active { background: var(--brand-wash); }
+.sr-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sr-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.sr-dept { font-size: 12.5px; color: var(--muted); }
+.sr-del {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.sr-del:hover { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+
+.q-who { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.q-text { margin: 0 0 14px; font-size: 15px; line-height: 1.75; color: var(--ink); }
+.q-acts { display: flex; flex-direction: column; gap: 10px; }
+.q-acts .btn { text-align: center; text-decoration: none; }
+
+.about-rows .src-row .v { flex: 1; text-align: right; }

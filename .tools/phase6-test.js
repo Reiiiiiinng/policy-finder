@@ -178,14 +178,18 @@ console.log('== 问题4：顶部返回 = 明确父页面（不再用 history.bac
   const pol = read('frontend/policy.html');
   check('家庭协助页 父页面为 index.html',
     /renderTopbar\('家庭协助', 'index\.html'/.test(fam));
-  check('发现权益页 父页面为 family.html',
-    /renderTopbar\('确认情况', 'family\.html'/.test(disc));
+  // 发现页已升为底部一级导航的其中一个 tab（发现），不再有「← 返回」，
+  // 但它仍是匹配结果的正主页面：结果渲染入口必须还在原处。
+  check('发现页为一级页，顶栏不再挂返回',
+    /renderTopbar\('发现', null\)/.test(disc) && /mountTabbar\('discover'\)/.test(disc));
   check('本人发现页 父页面为 index.html',
     /renderTopbar\('本人权益发现', 'index\.html'/.test(self_));
   // 顶栏父页面在页面加载时就由本地会话同步定好（不经异步接口），
   // 所以运行时不需要再补登记一次；这里断言的是「同步判定 + 两种模式都指对」。
+  // 从「我的」收藏点进来的，返回要回「我的」，不能落回发现页。
   check('政策详情页 顶栏父页面按模式同步指对',
-    /renderTopbar\('政策依据',\s*_navSelf \? 'self\.html' : 'discover\.html'\)/.test(pol) &&
+    /renderTopbar\('政策依据',\s*_fromMine \? 'mine\.html' : \(_navSelf \? 'self\.html' : 'discover\.html'\)\)/.test(pol) &&
+    /const _fromMine = \/.*mine\\\.html/.test(pol) &&
     !/updateTopbarParent/.test(pol));
 }
 

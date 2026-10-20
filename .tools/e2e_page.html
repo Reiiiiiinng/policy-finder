@@ -246,6 +246,43 @@ async function run() {
     check('可回到情况确认台', !!q('.board'));
   }
 
+  // ---------- 9. 底部一级导航 ----------
+  // 现在在发现页（已跑过匹配），导航应该挂上且高亮「发现」
+  var nav = q('#tabbar');
+  check('发现页有底部导航', !!nav);
+  if (nav) {
+    var items = nav.querySelectorAll('.tb-item');
+    check('导航四项齐全', items.length === 4, items.length + ' 项');
+    var on = nav.querySelector('.tb-item.is-on');
+    check('当前页高亮为发现', !!on && on.getAttribute('data-tab') === 'discover',
+      on ? on.getAttribute('data-tab') : '无');
+    check('高亮项有 aria-current',
+      !!on && on.getAttribute('aria-current') === 'page');
+
+    // 遮挡：正文必须为导航留出空间，且导航不透明
+    var appEl = q('.app');
+    var padB = parseInt(W().getComputedStyle(appEl).paddingBottom, 10) || 0;
+    check('正文为导航留出底部空间', padB >= 70, padB + 'px');
+    var navBg = W().getComputedStyle(nav).backgroundColor;
+    check('导航不是全透明', navBg.indexOf('rgba(255, 255, 255, 0.96') === 0, navBg);
+  }
+
+  // 点「我的」应真的到我的页，并高亮「我的」
+  if (nav) {
+    var mineTab = nav.querySelector('[data-tab="mine"]');
+    if (mineTab) {
+      mineTab.click();
+      await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
+      await waitFor(function () { return q('#savedList'); }, 9000, '我的页');
+      check('点导航可进入我的页', !!q('#savedList'));
+      var onMine = q('.tb-item.is-on');
+      check('我的页高亮为我的', !!onMine && onMine.getAttribute('data-tab') === 'mine');
+      // 我的页也要为导航留空间
+      var padM = parseInt(W().getComputedStyle(q('.app')).paddingBottom, 10) || 0;
+      check('我的页也为导航留出空间', padM >= 70, padM + 'px');
+    }
+  }
+
   out('');
   out('=== ' + MODE + ' 模式：通过 ' + pass + '，失败 ' + fail + ' ===',
     fail ? 'bad' : 'ok');

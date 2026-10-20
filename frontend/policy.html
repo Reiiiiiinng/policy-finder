@@ -29,8 +29,12 @@
   const _navSession = store.read();
   const _navProfile = _navSession.profile || _navSession.selfProfile || null;
   const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
+  // 从「我的」收藏点进来时，返回应该回「我的」而不是发现页——
+  // 收藏是独立入口，回来却落到发现页会让人以为点错了。
+  // 文档来源 document.referrer 只在同源时可信，其余一律按原规则。
+  const _fromMine = /\/mine\.html(?:[?#]|$)/.test(document.referrer || '');
   // 本页身份 = 阶段 3「查看依据」；步骤文案只由 mountFlow 写，这里不再传字面量
-  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html');
+  renderTopbar('政策依据', _fromMine ? 'mine.html' : (_navSelf ? 'self.html' : 'discover.html'));
   mountDemoBanner();
   mountDemoProgress(4);
   mountFlow(3);
@@ -103,10 +107,17 @@
   function bindDock() {
     document.querySelectorAll('[data-dock]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const key = btn.dataset.dock === 'consult' ? 'proc' : 'proc';
-        const tab = document.querySelector('[data-dtab="' + key + '"]');
+        if (btn.dataset.dock === 'consult') {
+          // 「咨询官方」应该带用户去「问哪里」：来源区写明责任部门与官方文件，
+          // 第 4 块写明去哪核实。之前两个按钮都跳办理指引，
+          // 等于「咨询」和「怎么办理」是同一个动作，按钮名骗人。
+          const src = document.getElementById('dblock-source');
+          if (src) src.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          return;
+        }
+        const tab = document.querySelector('[data-dtab="proc"]');
         if (tab) tab.click();
-        const target = document.getElementById('dpane-' + key);
+        const target = document.getElementById('dpane-proc');
         if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
       });
     });
@@ -159,7 +170,7 @@
         });
         writeAll(arr);
         paint(true);
-        showToast('已收藏，可在首页「我的收藏」找到');
+        showToast('已收藏，可在底部「我的」里找到');
       }
     });
   }
@@ -409,7 +420,7 @@
       ? `<p class="tc-note">核验说明：${escapeHtml(ver.note)}</p>` : '';
 
     const sourceCard = `
-      <div class="trust-card">
+      <div class="trust-card" id="dblock-source">
         <h3><span class="q-num">6</span><span class="q-title">政策来源</span></h3>
         ${tcStatus}
         <div class="tc-rows">${rowsHtml}</div>

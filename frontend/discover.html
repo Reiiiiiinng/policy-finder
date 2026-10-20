@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#faf7f1">
   <meta name="description" content="用一句话描述家人的生活变化，核对 AI 的理解，发现可能遗漏的公共服务权益。">
-  <title>政策找人 · 确认情况</title>
+  <title>发现 · 政策找人</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
   <div class="topbar"></div>
 
   <!-- 第 1 步：描述发生了什么 -->
-  <div class="section">
+  <div class="section" id="stepDescribe">
     <div class="step-lead">
       <span class="step-lead-n">1</span>
       <div>
@@ -47,9 +47,9 @@
   <!-- 情况确认台 + 结果区：AI 读完由 JS 渲染 -->
   <div id="resultArea"></div>
 
-  <div class="section">
+  <div class="section" id="consultWrap">
     <div class="btn-row">
-      <button type="button" class="btn ghost" onclick="location.href='family.html'">← 返回确认查询关系</button>
+      <button type="button" class="btn ghost" onclick="location.href='index.html'">重新选择帮助对象</button>
     </div>
   </div>
 
@@ -61,7 +61,8 @@
 <script src="assets/app.js"></script>
 <script>
   // 不再在这里写死「第 N 步」：步骤文案由 mountFlow 统一写入顶栏徽章
-  renderTopbar('确认情况', 'family.html');
+  renderTopbar('发现', null);
+  mountTabbar('discover');
   mountDemoBanner();
   mountDemoProgress(1);
   mountFlow(1);
@@ -363,6 +364,40 @@
     const hinted = !!query('focus');
     const opt = { restorePosition: !hinted, scrollToResult: !hinted };
     runMatch(opt).then(applyFocus);
+  } else {
+    // 还没查过：这是一级页，不能只留一张空白输入框。
+    // 空状态如实说明「还没有结果」，给一个能立刻走的下一步，不预置任何假结果。
+    document.getElementById('stepDescribe').hidden = true;
+    document.getElementById('consultWrap').hidden = true;
+    area.innerHTML = `
+      <div class="section">
+        <div class="empty-state">
+          <div class="es-ic" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="21" cy="21" r="12"></circle><path d="M30 30l10 10"></path>
+              <path d="M21 15v12M15 21h12"></path>
+            </svg>
+          </div>
+          <h2 class="es-t">还没有发现结果</h2>
+          <p class="es-d">用一句日常的话说明家里的情况，比如谁、多大年纪、住在哪里、最近有什么变化。
+            系统只会给出「可能相关」的初步提示，不判断是否符合资格。</p>
+          <button type="button" class="btn" id="esStart">开始描述情况</button>
+          <button type="button" class="btn ghost" id="esDemo">看演示案例怎么用</button>
+        </div>
+      </div>`;
+    const go = () => {
+      document.getElementById('stepDescribe').hidden = false;
+      document.getElementById('consultWrap').hidden = false;
+      document.getElementById('situation').focus();
+      document.getElementById('stepDescribe').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    document.getElementById('esStart').addEventListener('click', go);
+    document.getElementById('esDemo').addEventListener('click', () => {
+      input.value = exampleText();
+      go();
+      showToast('已填入示例，点「让 AI 读一遍」即可');
+    });
   }
 </script>
 </body>
