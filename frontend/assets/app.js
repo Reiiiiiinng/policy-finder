@@ -1824,11 +1824,6 @@ function renderResultCards(data, opts) {
        </div>`
     : '';
 
-  // 分段计数按条目属性统计，一条政策可以同时落在两类里，
-  // 所以分段数字之和会大于总数——这是如实呈现，不是算错。
-  const countNote = needinfo.length
-    ? '计数按条目属性统计；一条政策可能同时属于两类，所以分段数字之和会大于总数。'
-    : '';
 
   const focusCount = focus.length;
   const summary = focusCount
@@ -1860,7 +1855,6 @@ function renderResultCards(data, opts) {
         以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
       </p>
       <div class="notice">${escapeHtml(data.notice || '')}</div>
-      ${countNote ? `<p class="seg-note">${escapeHtml(countNote)}</p>` : ''}
       <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
       ${renderSceneSummary(list)}
     </div>`;

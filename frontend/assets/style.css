@@ -5095,13 +5095,6 @@ input:focus {
 
 .seg.is-empty .seg-n { color: var(--muted); }
 
-/* 分段与分组不是一对一：一条政策可能同时落在两类里，这行把关系说明白 */
-.seg-note {
-  margin: -2px 0 12px;
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: var(--muted);
-}
 
 /* ---- 来源核验清单：待核验 / 已核验两段的落点 ----
    它们与档位分组交叉，所以只列名字和核验状态，卡片本身不重复渲染。 */
