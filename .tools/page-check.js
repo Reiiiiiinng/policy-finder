@@ -457,6 +457,11 @@ console.log('== 底部一级导航与新增一级页 ==');
     /localStorage\.getItem\('pf_saved'\)/.test(mine) && /pf_saved/.test(pol));
   check('咨询页不编造热线号码',
     /未接入在线咨询/.test(cons) && !/0\d{2,3}-\d{7,8}/.test(cons));
+  // /api/policies 列表不含 source，直接用它会全部落到兜底文案「主管部门」，
+  // 看起来像 10 条政策只有 1 个部门。部门必须从详情接口取。
+  check('部门取自详情接口而非列表接口',
+    /API\.policy\(p\.policy_id\)/.test(cons) && /pd\.source/.test(cons)
+    && !/\(p\.source \|\| \{\}\)/.test(cons));
 }
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

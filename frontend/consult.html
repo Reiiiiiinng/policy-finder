@@ -68,13 +68,25 @@
       return;
     }
     const all = (d && d.policies) || [];
+    if (!all.length) {
+      listEl.innerHTML = '<p class="hint">政策库里暂时没有可展示的主管部门。</p>';
+      return;
+    }
+
+    // 列表接口只给概要，不含 source（责任部门）。部门必须从详情接口取，
+    // 否则会全部落到兜底文案「主管部门」——10 条政策却只显示一个部门的假象。
+    const details = await Promise.all(all.map((p) => API.policy(p.policy_id)
+      .catch(() => null)));
+
     const map = new Map();
-    all.forEach((p) => {
-      const dept = ((p.source || {}).department) || '主管部门';
+    details.forEach((pd) => {
+      if (!pd || !pd.policy_id) return;
+      const src = pd.source || {};
+      const dept = src.department || '责任部门未标注';
       if (!map.has(dept)) map.set(dept, { dept: dept, n: 0, verified: 0 });
       const row = map.get(dept);
       row.n += 1;
-      if (!((p.source || {}).pending)) row.verified += 1;
+      if (!src.pending) row.verified += 1;
     });
     if (!map.size) {
       listEl.innerHTML = '<p class="hint">政策库里暂时没有可展示的主管部门。</p>';
