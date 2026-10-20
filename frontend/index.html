@@ -101,7 +101,7 @@
   <section class="svc-sec animate-in d2" aria-labelledby="svcTitle">
     <h2 class="section-title" id="svcTitle">服务入口</h2>
     <div class="svc-grid">
-      <a class="svc" href="#entry">
+      <a class="svc" href="#entry" data-svc="match">
         <span class="svc-ic" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3.2l7 2.6v5.4c0 4.1-2.8 7.4-7 9.6-4.2-2.2-7-5.5-7-9.6V5.8z"></path>
@@ -357,12 +357,30 @@
     sec.hidden = false;
   })();
 
-  // 服务入口里「政策解读 / 办理指引」需要先有一条权益才谈得上，
-  // 没查过就退回入口区，而不是点了没反应。
-  document.querySelectorAll('[data-svc]').forEach((a) => {
-    a.addEventListener('click', () => {
-      const el = document.getElementById('entry');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // 服务入口：每一格都必须真的把用户送到那个功能上。
+  // 之前四格里有三格（政策解读 / 办理指引 / 我的收藏）点了只是滚回上面的入口区，
+  // 等于点了没反应——其中「我的收藏」明明有现成列表，却被挡住。
+  document.querySelectorAll('.svc').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const svc = a.dataset.svc || 'match';
+      // 「政策匹配」在首页自身有落点，原生锚点即可
+      if (svc === 'match') return;
+      // 「我的收藏」的落点是那个区块——但它没有收藏时是整块隐藏的，
+      // 此时点它等于点了没反应（实测 savedHidden=true，锚点滚不到任何东西）。
+      // 没东西可看就去「我的」页，那里有说明和引导。
+      if (svc === 'saved') {
+        const sec = document.getElementById('savedSec');
+        if (sec && !sec.hidden) return;
+        e.preventDefault();
+        location.href = 'mine.html';
+        return;
+      }
+      e.preventDefault();
+      // 「政策解读 / 办理指引」是某一条权益的详情页内容，首页没有可展开的实体，
+      // 所以送到发现页由用户挑一条：查过就直接回到结果，没查过就先去描述情况。
+      // intent 只影响落地后的提示语，不改动匹配结果。
+      try { sessionStorage.setItem('pf_svc_intent', svc); } catch (err) { /* 隐私模式忽略 */ }
+      location.href = 'discover.html';
     });
   });
 

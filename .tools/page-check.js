@@ -459,6 +459,17 @@ console.log('== 底部一级导航与新增一级页 ==');
     /未接入在线咨询/.test(cons) && !/0\d{2,3}-\d{7,8}/.test(cons));
   // /api/policies 列表不含 source，直接用它会全部落到兜底文案「主管部门」，
   // 看起来像 10 条政策只有 1 个部门。部门必须从详情接口取。
+  // 服务入口四格必须真的把用户送到那个功能上。
+  // 三格曾经只是 scrollIntoView 回入口区（等于点了没反应），
+  // 「我的收藏」更是在没收藏时整块隐藏，锚点滚不到任何东西。
+  check('服务入口四格各有落点标识',
+    /data-svc="match"/.test(idx2) && /data-svc="detail"/.test(idx2)
+    && /data-svc="guide"/.test(idx2) && /data-svc="saved"/.test(idx2));
+  check('收藏区隐藏时改去我的页', /sec && !sec\.hidden/.test(idx2)
+    && /location\.href = 'mine\.html'/.test(idx2));
+  check('解读与指引送到发现页并消费 intent',
+    /pf_svc_intent/.test(idx2) && /function applyServiceIntent/.test(disc2)
+    && /sessionStorage\.removeItem\('pf_svc_intent'\)/.test(disc2));
   check('部门取自详情接口而非列表接口',
     /API\.policy\(p\.policy_id\)/.test(cons) && /pd\.source/.test(cons)
     && !/\(p\.source \|\| \{\}\)/.test(cons));

@@ -357,14 +357,36 @@
     }, 260);
   }
 
+  /**
+   * 消费首页「政策解读 / 办理指引」带过来的 intent。
+   * 只弹一句指路提示，不改任何匹配结果，也不预置任何选中项。
+   * 读完即清，避免下次进发现页又弹一次。
+   */
+  function applyServiceIntent() {
+    let intent = null;
+    try {
+      intent = sessionStorage.getItem('pf_svc_intent');
+      sessionStorage.removeItem('pf_svc_intent');
+    } catch (e) { /* 隐私模式忽略 */ }
+    if (intent === 'detail') showToast('选一条权益，进去看「这是什么」与「为什么推荐」');
+    if (intent === 'guide') showToast('选一条权益，进去看「去哪里核实」与「怎么办理」');
+  }
   // 已输入过则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
   // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
   if (session.text && !session.demo) {
     const hinted = !!query('focus');
     const opt = { restorePosition: !hinted, scrollToResult: !hinted };
-    runMatch(opt).then(applyFocus);
+    runMatch(opt).then(() => {
+      applyFocus();
+      // 从首页「政策解读 / 办理指引」过来的，落到结果后点明该做什么，
+      // 否则用户看到一批卡片并不知道自己该挑哪一条。
+      applyServiceIntent();
+    });
   } else {
+    // 没查过也从首页入口过来时，intent 同样要消费掉，否则它会一直挂在
+    // sessionStorage 里，下次进来莫名其妙弹提示。
+    applyServiceIntent();
     // 还没查过：这是一级页，不能只留一张空白输入框。
     // 空状态如实说明「还没有结果」，给一个能立刻走的下一步，不预置任何假结果。
     document.getElementById('stepDescribe').hidden = true;
