@@ -5021,7 +5021,10 @@ input:focus {
   display: flex;
   gap: 10px;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  margin: 0 -16px -16px;
+  /* 用自身内边距铺满容器，不用负外边距向外撑：
+     负外边距只在父容器有同宽内边距时才对得上，这一层父容器内边距是 0，
+     撑出去会多出 32px，把整页顶出 16px 横向滚动。 */
+  margin: 0;
   background: linear-gradient(to top, var(--cream) 62%, rgba(250, 247, 241, 0));
 }
 
@@ -5433,6 +5436,18 @@ body.has-tabbar .app.has-dock {
   box-shadow: var(--shadow-sm);
 }
 .saved-row:active { background: var(--brand-wash); }
+/* 行内是「链接 + 取消收藏按钮」两块并列区域，链接撑满行高方便点按 */
+.sr-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+}
+.sr-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .sr-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .sr-name { font-size: 15px; font-weight: 700; color: var(--ink); }
 .sr-dept { font-size: 12.5px; color: var(--muted); }

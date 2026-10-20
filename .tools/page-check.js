@@ -473,6 +473,26 @@ console.log('== 底部一级导航与新增一级页 ==');
   check('部门取自详情接口而非列表接口',
     /API\.policy\(p\.policy_id\)/.test(cons) && /pd\.source/.test(cons)
     && !/\(p\.source \|\| \{\}\)/.test(cons));
+
+  // ---- 整体检查（第二轮实测发现并修掉的缺陷，逐条防回归）----
+  const selfSrc2 = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  // 1) 核验状态在 verification.status，source 里没有 pending 字段。
+  //    读不存在的字段得到 undefined，会让整库都被算成「已核验」（实测 10/0，真值 8/2）。
+  check('咨询页核验计数读 verification.status',
+    /verification \|\| \{\}\)\.status === 'verified'/.test(cons)
+    && !/src\.pending/.test(cons));
+  // 2) 分段点击后高亮必须跟随。停在「全部」会让用户以为筛选没生效。
+  check('分段高亮跟随点击', /function bindSegments/.test(app)
+    && /classList\.toggle\('is-on'/.test(app));
+  check('发现页与本人页都绑定分段', /bindSegments\(\)/.test(disc2) && /bindSegments\(\)/.test(selfSrc2));
+  // 3) 收藏行的「取消收藏」不能嵌在 <a> 里：HTML 不允许交互内容嵌在链接内。
+  check('收藏行链接与按钮并列不嵌套',
+    /<div class="saved-row">/.test(mine) && /class="sr-link"/.test(mine)
+    && !/<a class="saved-row"/.test(mine) && !/<\/a>`\)\.join/.test(mine));
+  // 4) 底部动作条不能用负外边距向外撑：父容器内边距为 0 时会顶出 16px 横向滚动。
+  const dockCss = (css.match(/\.dock \{[\s\S]*?\n\}/) || [''])[0];
+  check('底部动作条不靠负外边距铺满',
+    dockCss && /margin: 0;/.test(dockCss) && !/margin: 0 -16px/.test(dockCss));
 }
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

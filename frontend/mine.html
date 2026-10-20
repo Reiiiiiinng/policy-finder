@@ -74,19 +74,23 @@
       });
       return;
     }
+    // 每一行是「链接 + 按钮」两个并列的可点区，链接不再包住按钮。
+    // 把按钮放进 <a> 里是无效嵌套（HTML 不允许交互内容嵌在链接内），
+    // 读屏会把「取消收藏」也念成链接的一部分，键盘操作也会互相干扰。
     box.innerHTML = items.map((it) => `
-      <a class="saved-row" href="policy.html?id=${encodeURIComponent(it.id)}">
-        <span class="sr-main">
-          <span class="sr-name">${escapeHtml(it.name || '这条政策')}</span>
-          ${it.dept ? `<span class="sr-dept">${escapeHtml(it.dept)}</span>` : ''}
-        </span>
+      <div class="saved-row">
+        <a class="sr-link" href="policy.html?id=${encodeURIComponent(it.id)}">
+          <span class="sr-main">
+            <span class="sr-name">${escapeHtml(it.name || '这条政策')}</span>
+            ${it.dept ? `<span class="sr-dept">${escapeHtml(it.dept)}</span>` : ''}
+          </span>
+        </a>
         <button type="button" class="sr-del" data-del="${escapeHtml(it.id)}"
                 aria-label="取消收藏 ${escapeHtml(it.name || '')}">取消收藏</button>
-      </a>`).join('');
+      </div>`).join('');
     box.querySelectorAll('[data-del]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
-        // 按钮在链接里：取消收藏不能顺带把用户带去详情页
-        e.preventDefault();
+        // 取消收藏只删这一条，不等于「去看这条政策」
         e.stopPropagation();
         const id = btn.dataset.del;
         writeSaved(readSaved().filter((x) => x.id !== id));

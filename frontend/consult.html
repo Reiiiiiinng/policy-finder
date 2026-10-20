@@ -86,7 +86,10 @@
       if (!map.has(dept)) map.set(dept, { dept: dept, n: 0, verified: 0 });
       const row = map.get(dept);
       row.n += 1;
-      if (!src.pending) row.verified += 1;
+      // 核验状态在 verification.status（verified / to_verify），source 里没有 pending。
+      // 读不存在的字段只会得到 undefined，于是整库都被算成「已核验」。
+      const verified = (pd.verification || {}).status === 'verified';
+      if (verified) row.verified += 1;
     });
     if (!map.size) {
       listEl.innerHTML = '<p class="hint">政策库里暂时没有可展示的主管部门。</p>';

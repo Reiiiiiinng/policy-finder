@@ -1997,6 +1997,30 @@ function bindReasonToggles() {
   });
 }
 
+/**
+ * 分段导航（全部 / 待核验 / 已核验 / 信息待补充）。
+ *
+ * 分段不是过滤——列表内容一条不少，点击只是把视野带到对应分组。
+ * 正因为不是过滤，高亮必须跟着点击走：停在「全部」上会让用户以为
+ * 筛选没生效，于是反复点同一格。这里只改选中态，不改任何内容。
+ */
+function bindSegments() {
+  const segs = Array.from(document.querySelectorAll('.seg-nav .seg[data-seg]'));
+  if (!segs.length) return;
+  segs.forEach((a) => {
+    if (a.__bound) return;
+    a.__bound = true;
+    a.addEventListener('click', () => {
+      segs.forEach((x) => {
+        const on = x === a;
+        x.classList.toggle('is-on', on);
+        if (on) x.setAttribute('aria-current', 'true');
+        else x.removeAttribute('aria-current');
+      });
+    });
+  });
+}
+
 /** 顶部返回条：parentHref 是本页的父页面，点击后明确跳回该页 */
 function renderTopbar(title, parentHref, sub) {
   const el = document.querySelector('.topbar');
