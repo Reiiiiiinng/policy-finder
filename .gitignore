@@ -27,3 +27,9 @@ Thumbs.db
 
 # 设计参考图与对照截图（本地勘察用，不入库）
 /_ui/
+
+# 临时截图与验证壳，不入库
+_shots/
+frontend/_s_*.html
+frontend/_frame_*.html
+frontend/_tabprobe.html
