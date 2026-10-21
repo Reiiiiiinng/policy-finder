@@ -14,7 +14,10 @@
     POST /api/explain                单条政策 -> 渲染后的推荐理由
 """
 
+import email.message
+import io
 import json
+import mimetypes
 import os
 import sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -49,6 +52,11 @@ def _json(handler, data, code=200):
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
+    # WSGI 适配层（见文件末尾 _WsgiHandler）靠这两个属性取回响应；
+    # 独立的 ThreadingHTTPServer 模式不受影响。
+    handler._status = code
+    handler._headers = [("Content-Type", "application/json; charset=utf-8")]
+    handler._body = body
 
 
 def _brief(policy):
@@ -296,6 +304,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.end_headers()
+        self._status = 204
+        self._headers = [
+            ("Access-Control-Allow-Origin", "*"),
+            ("Access-Control-Allow-Headers", "Content-Type"),
+            ("Access-Control-Allow-Methods", "POST, OPTIONS"),
+        ]
+        self._body = b""
 
     def log_message(self, fmt, *args):
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), fmt % args))
@@ -315,6 +330,128 @@ def main():
     except KeyboardInterrupt:
         print("\n已停止")
         httpd.server_close()
+
+
+
+# ------------------------------------------------------------------ WSGI 适配
+# PythonAnywhere 之类的平台只能跑 WSGI 应用，不能起自己的服务器。
+# 这里给上面的 Handler 套一层薄壳：把 WSGI 的请求塞进它认得的形状（headers /
+# rfile / wfile），再把 _json() 记录的响应取出来。业务逻辑一行没改。
+
+
+class _FakeSocket(object):
+    """让 Handler 以为自己在写 http.server 的 wfile。"""
+
+    def __init__(self):
+        self._chunks = []
+
+    def write(self, data):
+        self._chunks.append(data)
+
+    def flush(self):
+        pass
+
+    def value(self):
+        return b"".join(self._chunks)
+
+
+class _WsgiHandler(Handler):
+    """只借用 Handler 的路由逻辑，不走 BaseHTTPRequestHandler 的套接字那套。"""
+
+    def __init__(self, environ):
+        self.path = environ.get("PATH_INFO", "/")
+        qs = environ.get("QUERY_STRING", "")
+        if qs:
+            self.path += "?" + qs
+        self.headers = email.message.Message()
+        for key, value in environ.items():
+            if key.startswith("HTTP_"):
+                self.headers[key[5:].replace("_", "-").title()] = value
+        if environ.get("CONTENT_TYPE"):
+            self.headers["Content-Type"] = environ["CONTENT_TYPE"]
+        if environ.get("CONTENT_LENGTH"):
+            self.headers["Content-Length"] = environ["CONTENT_LENGTH"]
+
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except (TypeError, ValueError):
+            length = 0
+        raw = environ["wsgi.input"].read(length) if length else b""
+        self.rfile = io.BytesIO(raw)
+        self.wfile = _FakeSocket()
+
+        self._status = 500
+        self._headers = [("Content-Type", "text/plain; charset=utf-8")]
+        self._body = b"internal error"
+
+    # 被拦下来的父类方法：WSGI 下没有真实连接，这些调用只是记账。
+    def send_response(self, code, message=None):
+        self._status = code
+
+    def send_header(self, key, value):
+        self._headers.append((key, value))
+
+    def end_headers(self):
+        pass
+
+
+def _serve_static(path_info):
+    """把 frontend/ 下的文件按 WSGI 返回。路径穿越在归一化后被挡掉。"""
+    rel = path_info.lstrip("/") or "index.html"
+    target = os.path.normpath(os.path.join(FRONTEND_DIR, rel))
+    if not os.path.abspath(target).startswith(os.path.abspath(FRONTEND_DIR)):
+        return 404, [("Content-Type", "text/plain; charset=utf-8")], b"forbidden"
+    if os.path.isdir(target):
+        target = os.path.join(target, "index.html")
+    if not os.path.isfile(target):
+        return 404, [("Content-Type", "text/plain; charset=utf-8")], b"not found"
+    with open(target, "rb") as fh:
+        body = fh.read()
+    ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
+    if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
+        ctype += "; charset=utf-8"
+    return 200, [("Content-Type", ctype), ("Content-Length", str(len(body)))], body
+
+
+_STATUS_TEXT = {
+    200: "OK",
+    204: "No Content",
+    400: "Bad Request",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    500: "Internal Server Error",
+}
+
+def application(environ, start_response):
+    """WSGI 入口。PythonAnywhere 的 WSGI 配置文件里 import 这个模块即可。"""
+    handler = _WsgiHandler(environ)
+    method = environ.get("REQUEST_METHOD", "GET").upper()
+    path = urlparse(handler.path).path
+
+    if method == "POST":
+        handler.do_POST()
+    elif method == "OPTIONS":
+        handler.do_OPTIONS()
+    elif method == "HEAD":
+        handler.do_GET()
+        handler._body = b""
+    elif method == "GET" and path.startswith("/api/") or method == "GET" and path == "/__e2e_log":
+        handler.do_GET()
+    elif method == "GET":
+        status, headers, body = _serve_static(path)
+        handler._status, handler._headers, handler._body = status, headers, body
+    else:
+        handler._status = 405
+        handler._headers = [("Content-Type", "text/plain; charset=utf-8")]
+        handler._body = b"method not allowed"
+
+    status_line = "%d %s" % (handler._status, _STATUS_TEXT.get(handler._status, "OK"))
+    headers = [(k, v) for k, v in handler._headers if k.lower() != "content-length"]
+    headers.append(("Content-Length", str(len(handler._body))))
+    start_response(status_line, headers)
+    return [handler._body]
+
+
 
 
 if __name__ == "__main__":
