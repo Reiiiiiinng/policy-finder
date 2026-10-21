@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <meta name="description" content="查看收藏的政策与最近的查询记录。收藏只保存在本机。">
+  <title>我的 · 政策找人</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <div class="section">
+    <h2 class="section-title">我的收藏</h2>
+    <div id="savedList"></div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">本次查询</h2>
+    <div id="queryBox"></div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">关于</h2>
+    <div class="card">
+      <div class="src-rows about-rows">
+        <div class="src-row"><span class="k">数据范围</span><span class="v" id="aboutScope">读取中……</span></div>
+        <div class="src-row"><span class="k">存储位置</span><span class="v">收藏与查询只存在本机浏览器，不上传</span></div>
+        <div class="src-row"><span class="k">定位</span><span class="v">只做「可能相关」的初步提示，不做资格认定、不代办</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    清空浏览器数据会同时清掉收藏与查询记录，这是本机保存的代价。
+  </div>
+</div>
+
+  <script src="data/policies.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('我的', null);
+  mountTabbar('mine');
+  mountDemoBanner();
+
+  function readSaved() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('pf_saved') || '[]');
+      return Array.isArray(arr) ? arr.filter((x) => x && x.id) : [];
+    } catch (e) { return []; }
+  }
+
+  function writeSaved(arr) {
+    try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  /**
+   * 收藏列表。没有收藏时整块显示空态而不是留白——
+   * 用户要能分清「一条都没收藏」和「还没加载出来」。
+   */
+  function paintSaved() {
+    const box = document.getElementById('savedList');
+    const items = readSaved();
+    if (!items.length) {
+      box.innerHTML = `
+        <div class="card empty-mini">
+          <p class="em-t">还没有收藏</p>
+          <p class="em-d">在政策详情页点右上角的星标就能收藏，方便之后回来对照。</p>
+          <button type="button" class="btn ghost" id="emGo">去看可能相关的权益</button>
+        </div>`;
+      document.getElementById('emGo').addEventListener('click', () => {
+        location.href = 'discover.html';
+      });
+      return;
+    }
+    // 每一行是「链接 + 按钮」两个并列的可点区，链接不再包住按钮。
+    // 把按钮放进 <a> 里是无效嵌套（HTML 不允许交互内容嵌在链接内），
+    // 读屏会把「取消收藏」也念成链接的一部分，键盘操作也会互相干扰。
+    box.innerHTML = items.map((it) => `
+      <div class="saved-row">
+        <a class="sr-link" href="policy.html?id=${encodeURIComponent(it.id)}">
+          <span class="sr-main">
+            <span class="sr-name">${escapeHtml(it.name || '这条政策')}</span>
+            ${it.dept ? `<span class="sr-dept">${escapeHtml(it.dept)}</span>` : ''}
+          </span>
+        </a>
+        <button type="button" class="sr-del" data-del="${escapeHtml(it.id)}"
+                aria-label="取消收藏 ${escapeHtml(it.name || '')}">取消收藏</button>
+      </div>`).join('');
+    box.querySelectorAll('[data-del]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        // 取消收藏只删这一条，不等于「去看这条政策」
+        e.stopPropagation();
+        const id = btn.dataset.del;
+        writeSaved(readSaved().filter((x) => x.id !== id));
+        paintSaved();
+        showToast('已取消收藏');
+      });
+    });
+  }
+
+  /**
+   * 本次查询。这里如实只显示「这一次」，不伪造历史列表——
+   * 产品没有存查询历史，编一份出来就是假信息。
+   */
+  function paintQuery() {
+    const box = document.getElementById('queryBox');
+    const s = readQuerySession();
+    if (!s) {
+      box.innerHTML = `
+        <div class="card empty-mini">
+          <p class="em-t">还没有查询过</p>
+          <p class="em-d">在「发现」里用一句话描述家里的情况，就能看到可能相关的权益。</p>
+          <button type="button" class="btn ghost" id="qGo">去发现</button>
+        </div>`;
+      document.getElementById('qGo').addEventListener('click', () => {
+        location.href = 'discover.html';
+      });
+      return;
+    }
+    const who = s.demo
+      ? '演示案例'
+      : (s.beneficiary ? ('帮' + s.beneficiary) : (s.mode === 'self' ? '本人模式' : '家庭协助'));
+    box.innerHTML = `
+      <div class="card">
+        <div class="q-who">${escapeHtml(who)}</div>
+        <p class="q-text">${escapeHtml(s.text || '')}</p>
+        <div class="q-acts">
+          <a class="btn" href="discover.html">回到发现结果</a>
+          <button type="button" class="btn ghost" id="qClear">清空本次查询</button>
+        </div>
+      </div>`;
+    document.getElementById('qClear').addEventListener('click', () => {
+      store.write({ profile: {}, text: '' });
+      paintQuery();
+      showToast('已清空本次查询');
+    });
+  }
+
+  paintSaved();
+  paintQuery();
+
+  loadSiteContext().then(() => {
+    document.getElementById('aboutScope').textContent =
+      SITE.region + ' · ' + SITE.policyCount + ' 条政策，逐条标注责任部门与文号';
+  }).catch(() => {
+    document.getElementById('aboutScope').textContent = '暂时读不到政策库信息';
+  });
+
+  // 从详情页取消收藏后按返回回到这里时，列表要是新的
+  window.addEventListener('pageshow', () => { paintSaved(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <title>政策找人 · 家庭协助</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <!-- 三步流程：当前步骤高亮 -->
+  <div class="steps-bar" id="stepsBar" aria-label="查询流程进度">
+    <div class="step" data-step="1"><span class="n">1</span><span class="t">选择帮助对象</span></div>
+    <span class="step-line" aria-hidden="true"></span>
+    <div class="step" data-step="2"><span class="n">2</span><span class="t">确认家庭关系</span></div>
+    <span class="step-line" aria-hidden="true"></span>
+    <div class="step" data-step="3"><span class="n">3</span><span class="t">描述生活变化</span></div>
+  </div>
+
+  <div class="notice">
+    这个页面专为「帮别人查」设计：权益的受益人是老人本人，家属可以代为描述和查询，
+    但关键信息仍应取得老人本人的确认。本平台只做「可能相关」的初步提示，
+    不代办任何事项，最终资格由主管部门核定。
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">谁在帮忙查询？（操作者）</h2>
+    <p class="hint" style="margin:-4px 0 10px">
+      代为查询的是家属或工作人员。本人为自己查询请使用首页「我自己」入口。
+      再点一次已选中的项可取消选择。
+    </p>
+    <div class="choice-grid" id="operatorGrid">
+      <button type="button" class="choice" data-role="女儿"><span class="title">女儿</span></button>
+      <button type="button" class="choice" data-role="儿子"><span class="title">儿子</span></button>
+      <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
+      <button type="button" class="choice" data-role="其他家属"><span class="title">其他家属</span></button>
+      <button type="button" class="choice" data-role="社区工作人员"><span class="title">社区工作人员</span></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">你要帮助谁？（受益人）</h2>
+    <p class="hint" id="beneficiaryTip" style="margin:-4px 0 10px"></p>
+    <!-- 受益人选择区：主区 + 折叠区放在同一容器内，便于统一绑定与回填 -->
+    <div id="beneficiaryBox">
+      <div class="choice-grid" id="beneficiaryGrid">
+        <button type="button" class="choice" data-role="父亲"><span class="title">父亲</span></button>
+        <button type="button" class="choice" data-role="母亲"><span class="title">母亲</span></button>
+        <button type="button" class="choice" data-role="爷爷"><span class="title">爷爷</span></button>
+        <button type="button" class="choice" data-role="奶奶"><span class="title">奶奶</span></button>
+        <button type="button" class="choice" data-role="外公"><span class="title">外公</span></button>
+        <button type="button" class="choice" data-role="外婆"><span class="title">外婆</span></button>
+        <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
+        <button type="button" class="choice" data-role="其他"><span class="title">其他长辈</span></button>
+      </div>
+      <!-- 父母入口下，祖辈/配偶选项收在「其他关系」里，避免两个入口语义雷同 -->
+      <div class="alt-group" id="altGroup" hidden>
+        <button type="button" class="alt-toggle" id="altToggle" aria-expanded="false">
+          <span>其他关系</span>
+          <span class="at-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div class="alt-body choice-grid" id="altBody" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">谁在帮谁查 · 信息状态</h2>
+    <div class="card">
+      <!-- 查询关系：一眼看出「谁在帮谁」 -->
+      <div class="pair-relation">
+        <div class="role-side">
+          <span class="role-side-label">查询的人</span>
+          <span class="role-side-name" id="operatorVal">未选择</span>
+          <span class="role-side-note">由 TA 描述情况、补充信息</span>
+        </div>
+        <span class="pair-arrow" aria-hidden="true">→</span>
+        <div class="role-side by-beneficiary">
+          <span class="role-side-label">受益人</span>
+          <span class="role-side-name" id="beneficiaryVal">未选择</span>
+          <span class="role-side-note">权益的归属人</span>
+        </div>
+      </div>
+
+      <!-- 逐项信息状态：✓ 已确认 / ○ 待确认 -->
+      <div class="fact-list" id="factList"></div>
+
+      <p class="hint">
+        操作者填写 ≠ 受益人确认。下面勾选后，查询关系才会变为「已确认」；
+        户籍、医保、失能等级等事实信息，会在下一步由 AI 逐项提问。
+      </p>
+      <label class="confirm-line">
+        <input type="checkbox" id="confirmCheck">
+        <span>以上关系与信息我已经向老人本人核实（或已取得老人同意代为查询）</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="section">
+    <button type="button" class="btn" id="nextBtn" disabled>下一步：描述生活变化</button>
+    <p class="hint" id="nextHint">请先选择操作者与帮助对象。</p>
+  </div>
+
+  <div class="footnote">
+    第一步 选择帮助对象 → 第二步 确认家庭关系 → 第三步 描述生活变化
+  </div>
+</div>
+
+  <script src="data/policies.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('家庭协助', 'index.html', '操作者 ≠ 受益人');
+  mountDemoBanner();
+  mountDemoProgress(1);
+  mountFlow(1);
+  mountRelationStrip();
+
+  const session = store.read();
+  // 「本人」已从操作者列表移除。老会话里可能存着 operator='本人'，
+  // 这里做一次合法性校验，不认识的取值一律当未选择，避免出现
+  // 「有值但页面上没有任何按钮高亮」的错位状态。
+  const OPERATOR_ROLES = ['女儿', '儿子', '配偶', '其他家属', '社区工作人员'];
+  let operator = OPERATOR_ROLES.indexOf(session.operator) >= 0 ? session.operator : null;
+  let beneficiary = session.beneficiary || null;
+
+  /* ---------------------------------------------------------------
+     区分「我的父母」与「我的长辈」两个入口
+     父母 → 主区只放 父亲/母亲，祖辈与配偶收进「其他关系」
+     长辈 → 主区放 全部祖辈/配偶/其他长辈，父亲母亲收进「其他关系」
+     入口语义来自首页写入的 session.target；两者都进 family.html，
+     不新增页面、不改跳转契约。
+     --------------------------------------------------------------- */
+  const PARENTS_TARGET = 'parents';
+  const CLOSER = ['父亲', '母亲'];
+  const ELDERS = ['爷爷', '奶奶', '外公', '外婆', '配偶', '其他'];
+
+  const entry = session.target === 'family' ? 'elders' : 'parents';
+  const mainRoles = entry === 'parents' ? CLOSER : ELDERS;
+  const altRoles = entry === 'parents' ? ELDERS : CLOSER;
+
+  // 主区按入口语义排序
+  const grid = document.getElementById('beneficiaryGrid');
+  const allBtns = {};
+  grid.querySelectorAll('.choice').forEach((b) => {
+    allBtns[b.dataset.role] = b;
+  });
+  mainRoles.forEach((r) => {
+    if (allBtns[r]) grid.appendChild(allBtns[r]);   // appendChild 即为移动
+  });
+
+  // 非主区关系移入折叠区
+  const altBody = document.getElementById('altBody');
+  const altGroup = document.getElementById('altGroup');
+  const altToggle = document.getElementById('altToggle');
+  altRoles.forEach((r) => {
+    if (allBtns[r]) altBody.appendChild(allBtns[r]);
+  });
+  altGroup.hidden = altRoles.length === 0;
+  altToggle.addEventListener('click', () => {
+    const open = altToggle.getAttribute('aria-expanded') === 'true';
+    altToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    altBody.hidden = open;
+  });
+
+  // 入口不同，标题与提示也不同
+  const tip = document.getElementById('beneficiaryTip');
+  if (entry === 'parents') {
+    tip.textContent = '先选父亲或母亲；如果是祖辈或其他亲属，可展开下方「其他关系」。';
+  } else {
+    tip.textContent = '选择祖辈、配偶或其他需要帮助的长辈。';
+  }
+  document.querySelector('#stepsBar .step[data-step="1"] .t').textContent =
+    entry === 'parents' ? '选择帮助对象' : '选择长辈';
+
+  function bindGrid(gridId, onPick) {
+    // 受益人可能分布在主区与折叠区两个容器里，这里按 data-kind 统一绑定
+    const sel = gridId === 'beneficiaryGrid'
+      ? '#beneficiaryBox .choice'
+      : '#' + gridId + ' .choice';
+    document.querySelectorAll(sel).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const role = btn.dataset.role;
+        const wasSelected = btn.classList.contains('selected');
+        // 同一关系可能在两个容器里各有一个按钮，先把同 role 的高亮都清掉
+        document.querySelectorAll(sel).forEach((b) => {
+          if (b.dataset.role === role) b.classList.remove('selected');
+        });
+        if (wasSelected) {
+          // 再点一次已选中的项 = 取消选择，回到未选择状态
+          onPick(null);
+        } else {
+          btn.classList.add('selected');
+          onPick(role);
+        }
+      });
+    });
+  }
+
+  /** 逐项信息状态行：ok 时绿色 ✓，否则中性 ○ */
+  function factRow(ok, label, value) {
+    return `<div class="fact-row ${ok ? 'ok' : 'todo'}">
+      <span class="fact-mark" aria-hidden="true">${ok ? '✓' : '○'}</span>
+      <span class="fact-label">${escapeHtml(label)}</span>
+      <span class="fact-val">${escapeHtml(value)}</span>
+    </div>`;
+  }
+
+  /** 三值事实的展示：true/false 都是「已确认」（答案不同而已），null/undefined 才是待确认 */
+  function factState(v, yesText, noText) {
+    if (v === true) return { ok: true, text: yesText };
+    if (v === false) return { ok: true, text: noText };
+    return { ok: false, text: '待确认' };
+  }
+
+  function updateSteps(confirmed) {
+    const hasPair = !!operator && !!beneficiary;
+    const current = !hasPair ? 1 : (!confirmed ? 2 : 3);
+    document.querySelectorAll('#stepsBar .step').forEach((el) => {
+      const n = Number(el.dataset.step);
+      el.classList.toggle('done', n < current || (n === 2 && confirmed));
+      el.classList.toggle('active', n === current);
+    });
+  }
+
+  function refresh() {
+    const checked = document.getElementById('confirmCheck').checked;
+    // 「本人」已从协助查询中移除（本人走独立入口），这里不存在本人代查的情况
+    const confirmed = checked;
+
+    document.getElementById('operatorVal').textContent = operator || '未选择';
+    document.getElementById('beneficiaryVal').textContent = beneficiary || '未选择';
+
+    // 信息状态清单：查询关系来自本页选择，事实项来自已有画像（从发现页返回时能反映真实进度）
+    const savedProfile = session.profile || {};
+    const age = savedProfile.age;
+    const rows = [];
+    rows.push(factRow(!!(operator && beneficiary), '查询关系',
+      (operator || '—') + ' → ' + (beneficiary || '—')));
+    rows.push(factRow(!!age, '年龄', age ? age + ' 岁' : '待确认'));
+    const h = factState(savedProfile.hukou, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(h.ok, SITE.region + '户籍', h.text));
+    const i = factState(savedProfile.insurance, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(i.ok, '医保参保情况', i.text));
+    const d = factState(savedProfile.disability, '已确认 · 是', '已确认 · 否');
+    rows.push(factRow(d.ok, '失能等级评估', d.text));
+    document.getElementById('factList').innerHTML = rows.join('');
+
+    const ready = !!operator && !!beneficiary;
+    document.getElementById('nextBtn').disabled = !ready;
+    document.getElementById('nextHint').textContent = ready
+      ? '下一步只需要用一句话描述老人最近的生活变化。'
+      : '请先选择操作者与帮助对象。';
+
+    updateSteps(confirmed);
+    store.write({ operator, beneficiary, confirmed });
+    // 关系条依赖 operator/beneficiary：选择变化后必须重挂，否则仍显示旧值
+    mountRelationStrip();
+  }
+
+  bindGrid('operatorGrid', (role) => { operator = role; refresh(); });
+  bindGrid('beneficiaryGrid', (role) => { beneficiary = role; refresh(); });
+  document.getElementById('confirmCheck').addEventListener('change', refresh);
+
+  // 回填已选（受益人可能在折叠区，需先展开才能高亮）
+  if (operator) {
+    const el = document.querySelector('#operatorGrid .choice[data-role="' + operator + '"]');
+    if (el) el.classList.add('selected');
+  }
+  if (beneficiary) {
+    const inAlt = altRoles.indexOf(beneficiary) >= 0;
+    if (inAlt) {
+      // 折叠区默认展开，避免回填后看不到已选
+      altBody.hidden = false;
+      altToggle.setAttribute('aria-expanded', 'true');
+    }
+    const el = document.querySelector('#beneficiaryBox .choice[data-role="' + beneficiary + '"]');
+    if (el) el.classList.add('selected');
+  }
+  if (session.confirmed) document.getElementById('confirmCheck').checked = true;
+  refresh();
+
+  // 信息状态清单里的「XX市户籍」等文案依赖站点上下文，就绪后重绘一次。
+  // 接口不可用时保持默认值，页面照常可用。
+  loadSiteContext().then(refresh);
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    location.href = 'discover.html';
+  });
+</script>
+</body>
+</html>

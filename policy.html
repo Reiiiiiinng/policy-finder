@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <meta name="description" content="查看政策依据、适用条件、官方来源与办理方式，并决定下一步怎么核实。">
+  <title>政策找人 · 政策依据</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div id="content">
+    <div class="loading">正在加载政策依据…</div>
+  </div>
+  <div class="footnote">
+    政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。
+  </div>
+</div>
+
+  <script src="data/policies.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  // 顶部返回的父页面必须「同步」确定，不能等异步接口回来再补。
+  // 之前这里先写死 index.html，再在接口返回后补登记成
+  // discover.html / self.html。实测复现：在接口返回前点顶部返回，会被带回首页，
+  // 而不是回到发现权益（本人模式同理，会丢掉「我的发现结果」）。
+  // selfMode 只依赖本地会话，可以同步读出，所以这里一次性给对。
+  const _navSession = store.read();
+  const _navProfile = _navSession.profile || _navSession.selfProfile || null;
+  const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
+  // 从「我的」收藏点进来时，返回应该回「我的」而不是发现页——
+  // 收藏是独立入口，回来却落到发现页会让人以为点错了。
+  // 文档来源 document.referrer 只在同源时可信，其余一律按原规则。
+  const _fromMine = /\/mine\.html(?:[?#]|$)/.test(document.referrer || '');
+  // 本页身份 = 阶段 3「查看依据」；步骤文案只由 mountFlow 写，这里不再传字面量
+  renderTopbar('政策依据', _fromMine ? 'mine.html' : (_navSelf ? 'self.html' : 'discover.html'));
+  mountDemoBanner();
+  mountDemoProgress(4);
+  mountFlow(3);
+  mountRelationStrip();
+
+  const id = query('id');
+  const content = document.getElementById('content');
+
+  // 后端在字段缺失时写的是字符串 to_verify，展示层统一当作「没有」
+  function clean(v) {
+    const s = String(v == null ? '' : v).trim();
+    return (!s || s === 'to_verify') ? '' : s;
+  }
+
+  // 详情页统一分块
+  function qBlock(n, title, inner, cls) {
+    return `<div class="detail-block ${cls || ''}" id="q${n}">
+      <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
+      ${inner}
+    </div>`;
+  }
+
+  /**
+   * 分段标签：四段内容一开始就全在 DOM 里，这里只切换「哪一段可见」。
+   * 不用重渲染，所以段内的折叠状态、证据链的手动展开、表单里已填的选择都不会丢。
+   * 选中态落到 URL hash，刷新或从返回到本页时能停在原来那一段。
+   */
+  function bindDTabs() {
+    const tabs = Array.from(document.querySelectorAll('[data-dtab]'));
+    const panes = Array.from(document.querySelectorAll('[data-dpane]'));
+    if (!tabs.length) return;
+
+    function show(key, scroll) {
+      const hit = tabs.some((t) => t.dataset.dtab === key) ? key : 'read';
+      tabs.forEach((t) => {
+        const on = t.dataset.dtab === hit;
+        t.classList.toggle('is-on', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      panes.forEach((pane) => {
+        pane.hidden = pane.dataset.dpane !== hit;
+      });
+      if (scroll) {
+        const bar = document.querySelector('.dtabs');
+        if (bar && bar.getBoundingClientRect().top < 0) {
+          bar.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+      }
+    }
+
+    tabs.forEach((t) => {
+      t.addEventListener('click', () => {
+        show(t.dataset.dtab, true);
+        if (history.replaceState) history.replaceState(null, '', '#' + t.dataset.dtab);
+      });
+    });
+
+    const fromHash = (location.hash || '').replace('#', '');
+    show(fromHash || 'read', false);
+    window.addEventListener('hashchange', () => show((location.hash || '').replace('#', ''), false));
+  }
+
+  /**
+   * 底部动作条。
+   * 「咨询官方」跳到办理指引段（那里写着该问谁、怎么问），
+   * 「怎么办理」同样落到办理指引——两者都不打开任何外部页面，也不代填、不提交。
+   * 两个按钮的区别是意图：一个是「先问清楚」，一个是「按流程办」，
+   * 但落点都在同一段真实内容上，因为本平台没有在线办理能力。
+   */
+  function bindDock() {
+    document.querySelectorAll('[data-dock]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.dock === 'consult') {
+          // 「咨询官方」应该带用户去「问哪里」：来源区写明责任部门与官方文件，
+          // 第 4 块写明去哪核实。之前两个按钮都跳办理指引，
+          // 等于「咨询」和「怎么办理」是同一个动作，按钮名骗人。
+          const src = document.getElementById('dblock-source');
+          if (src) src.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          return;
+        }
+        const tab = document.querySelector('[data-dtab="proc"]');
+        if (tab) tab.click();
+        const target = document.getElementById('dpane-proc');
+        if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    });
+  }
+
+  /**
+   * 收藏：只存「id + 名称 + 部门」三样，不存任何个人信息。
+   * 存进 localStorage 是为了首页「我的收藏」能读出来；
+   * 隐私模式下读写会抛错，此时按钮照常可点，只是不落盘。
+   */
+  function bindSave(p) {
+    const btn = document.querySelector('[data-save]');
+    if (!btn) return;
+    const pid = String(p.policy_id || '');
+    if (!pid) return;
+
+    const readAll = () => {
+      try {
+        const raw = localStorage.getItem('pf_saved');
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }
+    };
+    const writeAll = (arr) => {
+      try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+    };
+
+    const paint = (on) => {
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? '取消收藏这条政策' : '收藏这条政策');
+    };
+
+    paint(readAll().some((x) => x && x.id === pid));
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const arr = readAll();
+      const at = arr.findIndex((x) => x && x.id === pid);
+      if (at >= 0) {
+        arr.splice(at, 1);
+        writeAll(arr);
+        paint(false);
+        showToast('已取消收藏');
+      } else {
+        arr.push({
+          id: pid,
+          name: p.policy_name || '',
+          dept: ((p.source || {}).department) || '',
+        });
+        writeAll(arr);
+        paint(true);
+        showToast('已收藏，可在底部「我的」里找到');
+      }
+    });
+  }
+
+  async function load() {
+    if (!id) {
+      content.innerHTML = '<div class="notice warn">缺少政策编号，请返回发现页重新选择。</div>';
+      return;
+    }
+
+    let detail;
+    try {
+      detail = await API.policy(id);
+    } catch (e) {
+      content.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动。</div>';
+      return;
+    }
+    if (detail.error) {
+      content.innerHTML = '<div class="notice warn">未找到该政策。</div>';
+      return;
+    }
+
+    // 家庭协助模式存 profile，本人模式存 selfProfile
+    const session = store.read();
+    const savedProfile = session.profile || session.selfProfile || null;
+    const p = detail;
+    // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
+    // 之后点「返回调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
+    saveReturnPolicy(id, p.policy_name);
+
+    const ver = p.verification || {};
+    const pending = ver.status === 'to_verify';
+    const selfMode = !!(savedProfile && savedProfile.mode === 'self');
+    // 本人模式下展示文案统一用「您」；家庭模式保持原称谓
+    const say = (t) => personalize(t, savedProfile || {});
+
+    // 真实匹配状态：本次访问是从匹配结果点进来的，session 里存着当时的画像。
+    // 用同样的输入重跑一次匹配，只为取回 tier / status，绝不在前端自己判断资格。
+    let matchRow = null;
+    try {
+      if (savedProfile) {
+        const key = selfMode ? 'selfProfile' : 'profile';
+        const m = await API.match({
+          text: savedProfile.raw_text || session.text || session.selfText || '',
+          mode: savedProfile.mode || (selfMode ? 'self' : undefined),
+          relation: selfMode ? undefined : session.beneficiary,
+          operator: selfMode ? undefined : session.operator,
+          profile: savedProfile,
+        });
+        matchRow = (m.results || []).find((r) => r.policy_id === id) || null;
+      }
+    } catch (e) { /* 取不到匹配状态不影响详情展示 */ }
+
+    // ① 这是什么？
+    const targets = (p.target_people || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const scenes = (p.life_scenes || []).map((x) => `<span class="chip">${escapeHtml(x)}</span>`).join('');
+    // 视觉母题「一线」：这条权益是从哪个生活线索找到的。
+    // 有匹配上下文时用真正命中的场景；直接打开详情页时退回政策自身声明的
+    // life_scenes——那同样是「通往这条权益的生活情境」，不是编出来的。
+    const hitScenes = ((matchRow && matchRow.matched_scenes) || []).filter(Boolean);
+    const sceneClues = hitScenes.length ? hitScenes : (p.life_scenes || []).filter(Boolean);
+    const whatThread = sceneClues.length
+      ? `<p class="detail-thread">${renderThread(sceneClues[0], p.policy_name, {
+          label: '生活线索「' + sceneClues.join('、') + '」对应权益「' + p.policy_name + '」',
+        })}</p>`
+      : '';
+
+    const what = `
+      ${whatThread}
+      <p>${escapeHtml(p.description || '')}</p>
+      <p class="q-lead">面向人群</p>
+      <ul>${targets || '<li>待核实</li>'}</ul>
+      ${scenes ? `<div class="chips">${scenes}</div>` : ''}`;
+
+    // ② 为什么推荐给您 —— 有匹配上下文时展示证据链，没有则给出通用提示
+    const noCtx = selfMode
+      ? '本条为通用权益提示。返回上一步补充您的具体情况后，这里会显示针对您本人的证据链。'
+      : '本条为通用权益提示。返回上一步补充老人的具体情况后，这里会显示针对这位老人的证据链。';
+    const why = matchRow && matchRow.evidence
+      ? renderEvidenceChain(matchRow.evidence, { selfMode: selfMode })
+      : `<p style="color:var(--muted)">${escapeHtml(noCtx)}</p>`;
+
+    // ③ 还需要确认什么
+    const missingRaw = filterAnsweredMissing(p.missing_information, savedProfile);
+    const missing = missingRaw.map((x) => say(x));
+    const needConfirm = missing.length
+      ? `
+        <p class="q-lead">这些信息 AI 无法替您判断，需要您或受理单位确认后才成立。</p>
+        <ul class="missing-list">
+          ${missing.map((x) => `
+            <li>
+              <div class="mi-q">${escapeHtml(x)}</div>
+              <div class="mi-why">${escapeHtml(explainMissing(x))}</div>
+            </li>`).join('')}
+        </ul>
+        <p class="q-lead" style="margin:10px 0 0">以上不影响本条出现在您的可能相关列表中，
+          但会影响最终能否适用。</p>`
+      : '<p>暂无必须补充的信息，但仍建议向受理单位核实适用口径后再办理。</p>';
+
+    // ④ 去哪里核实（不是「怎么办理」——本平台不代办，只告诉用户去哪问）
+    //
+    // P1：把这一步做成「出门前清单」——用户真正能照着准备、照着打电话的东西。
+    // 材料信息分两路：
+    //   1) 库里已有带 source_ref 的官方 materials（佛山库）→ 原样展示件目与依据，不添不减；
+    //   2) 没有官方材料清单的库（广州库）→ 不推导具体证件名，
+    //      只把申请条件涉及的证明类型转成「问清」条目，具体件目以受理单位告知为准。
+    // 低碳不靠绿色装饰：少跑一趟就是少一次出行，说服力来自这份清单本身。
+    const srcDept = clean((p.source || {}).department);
+    const cond = p.conditions || {};
+    const who = selfMode ? '您本人' : '这位长辈';
+    const procSteps = (p.application_process || []);
+
+    // 官方收件要求：库里已核到就原样展示（含条款出处），缺失或为空一律走核实事项
+    const officialMaterials = (Array.isArray(p.materials) ? p.materials : [])
+      .filter((m) => m && m.item);
+
+    // 无官方清单时：条件写明涉及哪类要求，就提示问清哪类证明——
+    // 是「要问什么」，不是「官方要什么证件」；不能仅凭条件标志断言具体材料。
+    const condAsks = [];
+    if (cond.hukou_required) condAsks.push('申请条件涉及本市户籍：需要哪种户籍类证明，请一并问清');
+    if (cond.insurance_required) condAsks.push('申请条件涉及参保状态：需要哪种参保类证明，请一并问清');
+    if (cond.disability_required) condAsks.push('申请条件涉及失能认定：需要哪种评估结论或证明，请一并问清');
+
+    // 建议问清：固定四问 + 库里标了 to_verify 的步骤（那一步是否还适用要当场问）
+    const askItems = [
+      '本人是否在服务覆盖范围内',
+      '申请入口在哪里（窗口、电话或线上）',
+      '需要哪些材料、有没有指定格式',
+      '本人适用的具体标准与发放方式',
+    ];
+    procSteps.forEach((s) => {
+      if (s.to_verify && s.step) {
+        askItems.push(`「${String(s.step).replace(/^to_verify[：:]\s*/, '')}」这一步现在是否仍然适用`);
+      }
+    });
+
+    const docCol = officialMaterials.length
+      ? `
+        <div class="trip-h">出门前要带的材料</div>
+        <ul class="trip-items">
+          ${officialMaterials.map((m) => `<li>${escapeHtml(m.item)}`
+            + (m.source_ref ? `<span class="trip-ref">（依据：${escapeHtml(m.source_ref)}）</span>` : '')
+            + (m.note ? `<span class="trip-ref">（${escapeHtml(m.note)}）</span>` : '')
+            + `</li>`).join('')}
+          <li>受理单位可能另有补充材料要求，先打电话确认再准备</li>
+        </ul>`
+      : `
+        <div class="trip-h">出门前建议核实的材料</div>
+        <ul class="trip-items">
+          <li>${escapeHtml(who)}的身份证件（是否必须、是否要原件，请电话问清）</li>
+          ${condAsks.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}
+          <li>受理单位另行要求的其他材料，先打电话确认再准备</li>
+        </ul>`;
+
+    const tripList = `
+      <div class="trip-list">
+        <div class="trip-col">
+          ${docCol}
+        </div>
+        <div class="trip-col">
+          <div class="trip-h">要问清的问题</div>
+          <ul class="trip-items">
+            ${askItems.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+      <p class="trip-note">
+        这几件事在电话里就能问清。问清了再出门，通常可以少跑一趟——少跑一趟，就是少一次出行。
+      </p>
+      <p class="trip-official">
+        咨询渠道以 ${escapeHtml(srcDept || '主管部门')} 公布的服务窗口或政务服务热线为准。
+        本平台只帮您把该问的准备好，不代办、不代为提交材料，也不做资格认定。
+      </p>`;
+
+    const verifyWhere = `
+      <div class="where-list">
+        <div class="where-row">
+          <span class="wr-k">建议咨询</span>
+          <span class="wr-v">${escapeHtml(srcDept || '当地主管部门')}的服务窗口或政务服务热线</span>
+        </div>
+      </div>
+      ${tripList}
+      <p class="q-lead" style="margin:12px 0 0;font-size:13px;color:var(--muted)">
+        属地街道、镇与社区的服务覆盖范围和申请入口会有差异，最终以受理单位现场或线上告知为准。
+      </p>`;
+
+    // ⑤ 办理方式：只展示数据库中已核验的步骤，未核到的不代为编写
+    const steps = (p.application_process || []);
+    const allUnverified = !steps.length || steps.every((s) => s.to_verify);
+    const processHtml = steps.map((s) => {
+      const flag = s.to_verify ? ' <span class="badge pending">待核实</span>' : '';
+      return `<li>${escapeHtml(s.step)}${flag}</li>`;
+    }).join('');
+    const processWarn = allUnverified
+      ? `<p class="q-lead" style="margin:0 0 8px;color:var(--warn)">
+           办理流程尚未核到一手文件原文，本页不代为列出具体步骤。
+           请向${escapeHtml(srcDept || '主管部门')}或所在街镇、社区养老服务窗口咨询实际入口。
+         </p>` : '';
+    const needProcess = `
+      ${processWarn}
+      ${steps.length
+        ? `<ol>${processHtml}</ol>`
+        : '<p style="color:var(--muted)">本页未收录办理流程，请以受理单位现场或线上指引为准。</p>'}
+      <p style="margin-top:8px;color:var(--muted);font-size:12.5px">
+        所需材料以受理单位现场或线上告知为准，本页不代为列明，避免给您错误信息。
+      </p>`;
+
+    // ⑥ 政策来源（浅蓝信任卡）
+    const src = p.source || {};
+    const rows = [];
+    rows.push(['责任部门', clean(src.department), '']);
+    rows.push(['政策文件', clean(src.document), '尚未核到一手文件，此处不代为填写']);
+    if (clean(src.document_no)) rows.push(['文号', clean(src.document_no), '']);
+    if (clean(src.publish_date)) rows.push(['发布时间', clean(src.publish_date), '']);
+    if (clean(src.related_document)) rows.push(['相关依据', clean(src.related_document), '']);
+    rows.push(['核验状态', pending ? '来源待核验' : '已核验', '']);
+    rows.push(['核验时间', clean(ver.checked_at) || '未提供', '']);
+
+    const rowsHtml = rows.map((r) => {
+      const val = r[1] || r[2];
+      return `<div class="tc-row">
+        <span class="k">${escapeHtml(r[0])}</span>
+        <span class="v${r[1] ? '' : ' muted'}">${escapeHtml(val)}</span>
+      </div>`;
+    }).join('');
+
+    const url = clean(src.official_url);
+    const linkHtml = url
+      ? `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+           <span>🔗</span><span>${escapeHtml(url)}</span></a>`
+      : `<div class="tc-none"><span>⚠</span>
+           <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
+
+    // 来源维度单独呈现：带维度名、无药丸底，与顶部的匹配维度明显不同形
+    const verBadge = pending
+      ? '<span class="cite-state is-pending">来源待核验</span>'
+      : '<span class="cite-state is-verified">✓ 已核验</span>';
+    const tcStatus = `
+      <div class="tc-status">
+        ${verBadge}
+        <span>${pending
+          ? '这条政策的一手文件尚未核到，以下内容仅供参考，请以主管部门发布的正式信息为准。'
+          : '政策名称、对象、服务内容与依据文件已核对。'}</span>
+      </div>`;
+
+    const verNote = clean(ver.note)
+      ? `<p class="tc-note">核验说明：${escapeHtml(ver.note)}</p>` : '';
+
+    const sourceCard = `
+      <div class="trust-card" id="dblock-source">
+        <h3><span class="q-num">6</span><span class="q-title">政策来源</span></h3>
+        ${tcStatus}
+        <div class="tc-rows">${rowsHtml}</div>
+        ${linkHtml}
+        ${verNote}
+      </div>`;
+
+    // 顶部概要：匹配维度与来源维度分开渲染（各带维度名、不同形态），
+    // 不再把「可能相关」和「已核验」两个同款药丸并排放，避免读成「已经审核通过」。
+    const statusLine = renderAxes(matchRow && matchRow.status, pending);
+    const tierLine = matchRow && matchRow.tier
+      ? `<div class="tier-strip ${matchRow.tier === '强相关' ? 'tier-strong'
+          : (matchRow.tier === '可能相关' ? 'tier-mid' : 'tier-low')}" style="margin-top:10px">
+           <span class="ts-name">${escapeHtml(matchRow.tier)}</span>
+           <span class="ts-desc">结合您已确认的信息得出</span>
+         </div>`
+      : '';
+
+    const backHref = selfMode ? 'self.html' : 'discover.html';
+    const backLabel = selfMode ? '← 返回我的发现结果' : '← 返回发现结果';
+
+    // ---- 顶部概要（参考设计：详情页头） ----
+    // 左侧：政策名 + 分类标签 + 政策依据 / 发布机构 / 有效期三条元信息；
+    // 右侧：匹配给谁 + 符合度的小卡。
+    // 有效期只展示库里真实有的数据：没有起始/结束日期时写「库内未记录」，不推算。
+    const val = (matchRow && matchRow.validity) || {};
+    const validRange = (val.effective_from || val.expires_at)
+      ? `${clean(val.effective_from) || '未记录'} 至 ${clean(val.expires_at) || '未记录'}`
+      : '库内未记录起止日期';
+    const scorePct = matchRow
+      ? Math.max(0, Math.min(100, Math.round(Number(matchRow.score) || 0)))
+      : null;
+    const whoTop = selfMode
+      ? '您本人'
+      : (savedProfile && savedProfile.basic && savedProfile.basic.age
+          ? `${session.beneficiary || '家人'}（${savedProfile.basic.age}岁）`
+          : (session.beneficiary || '家人'));
+
+    const dhead = `
+      <div class="card">
+        <div class="dhead">
+          <div class="dhead-main">
+            <div class="dhead-title-row">
+              <h1 class="dhead-title">${escapeHtml(p.policy_name)}</h1>
+              <button type="button" class="dhead-save" data-save="${escapeHtml(p.policy_id || '')}"
+                      aria-pressed="false" aria-label="收藏这条政策">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="dhead-tags">
+              ${statusLine}
+            </div>
+            <p class="dhead-meta">
+              <span class="dk">政策依据</span>${escapeHtml(clean((p.source || {}).document_no) || '库内未记录文号')}<br>
+              <span class="dk">发布机构</span>${escapeHtml(clean(srcDept) || '库内未记录')}<br>
+              <span class="dk">有 效 期</span>${escapeHtml(validRange)}
+            </p>
+          </div>
+          <div class="dhead-side">
+            <div class="ds-top">
+              <span class="ds-k">匹配给</span>
+              <span class="ds-v">${escapeHtml(whoTop)}</span>
+            </div>
+            ${scorePct === null ? '' : `
+            <div class="ds-fit"><span>符合度</span> <b>${scorePct}%</b></div>`}
+          </div>
+        </div>
+      </div>`;
+
+    // ---- 分段标签：政策解读 / 申请条件 / 办理指引 / 常见问题 ----
+    // 四段都是本页已有的真实内容，只是换成分段呈现：
+    //   政策解读 = ① 这是什么 + 来源卡
+    //   申请条件 = ② 为什么推荐 + ③ 还需要确认
+    //   办理指引 = ④ 去哪里核实 + ⑤ 怎么办理
+    //   常见问题 = 数据里没有问答对，显示「本页未收录」而不是编造问答
+    const tabs = `
+      <div class="dtabs" role="tablist" aria-label="政策详情分段">
+        <button type="button" class="dtab is-on" role="tab" data-dtab="read" aria-selected="true" aria-controls="dpane-read">政策解读</button>
+        <button type="button" class="dtab" role="tab" data-dtab="cond" aria-selected="false" aria-controls="dpane-cond">申请条件</button>
+        <button type="button" class="dtab" role="tab" data-dtab="proc" aria-selected="false" aria-controls="dpane-proc">办理指引</button>
+        <button type="button" class="dtab" role="tab" data-dtab="faq" aria-selected="false" aria-controls="dpane-faq">常见问题</button>
+      </div>`;
+
+    const faqPane = `
+      <div class="detail-block">
+        <h3><span class="q-num">?</span><span class="q-title">常见问题</span></h3>
+        <p>本库暂未收录这条政策的常见问答。为避免给出未经核对的答复，这里不作推测。</p>
+        <p class="q-lead" style="margin:0">
+          有具体疑问，建议直接致电${escapeHtml(srcDept || '主管部门')}的政务服务热线，
+          或到所在街镇、社区的服务窗口当面问清。
+        </p>
+      </div>`;
+
+    // v0.9：政策状态提示（时效 / 阈值核对）。
+    // 数据取自本次重跑匹配的 matchRow；取不到（画像丢失、政策不在结果里）时保持空白，
+    // 不生成任何 DOM —— 政策库全部为 active 且无阈值时，这里必然为空。
+    const statusNotes = renderValidityNote(matchRow && matchRow.validity)
+      + renderThresholdNote(matchRow && matchRow.threshold_signal);
+
+    content.innerHTML = `
+      <div class="section">${dhead}</div>
+      ${statusNotes ? `<div class="section">${statusNotes}</div>` : ''}
+      <div class="section">${tabs}</div>
+
+      <div class="section dpane" id="dpane-read" role="tabpanel" data-dpane="read">
+        ${qBlock(1, '这是什么？', what)}
+        ${sourceCard}
+      </div>
+
+      <div class="section dpane" id="dpane-cond" role="tabpanel" data-dpane="cond" hidden>
+        ${qBlock(2, '为什么推荐给您？', why)}
+        ${qBlock(3, '还需要确认什么？', needConfirm, 'is-warm')}
+      </div>
+
+      <div class="section dpane" id="dpane-proc" role="tabpanel" data-dpane="proc" hidden>
+        ${qBlock(4, '去哪里核实？', verifyWhere)}
+        ${qBlock(5, '怎么办理？', needProcess)}
+      </div>
+
+      <div class="section dpane" id="dpane-faq" role="tabpanel" data-dpane="faq" hidden>
+        ${faqPane}
+      </div>
+
+      <div class="section">
+        <div class="notice warn">${escapeHtml(p.risk_notice || 'AI仅进行初步匹配，不代表符合资格。')}</div>
+      </div>
+
+      <!-- 第 4 步：进一步确认。让流程形成闭环，而不是停在「读完就走」 -->
+      <div class="section">
+        ${renderFinalStep(p, matchRow, selfMode, backHref, backLabel)}
+      </div>
+
+      <div class="section">
+        <div class="btn-row">
+          <button type="button" class="btn ghost" onclick="location.href='${backHref}'">${backLabel}</button>
+          <button type="button" class="btn ghost" onclick="location.href='index.html'">重新选择帮助对象</button>
+        </div>
+      </div>
+
+      <!-- 底部固定动作条：左「咨询官方」引导到官方渠道，右「怎么办理」跳到办理指引 -->
+      <div class="dock">
+        <button type="button" class="btn ghost" data-dock="consult">咨询官方</button>
+        <button type="button" class="btn" data-dock="apply">怎么办理</button>
+      </div>`;
+
+    bindDTabs();
+    bindDock();
+    bindSave(p);
+
+    bindFinalStep(id, selfMode, backHref);
+    // 不再在渲染完成后把流程推到第 4 步：本页始终是阶段 3「查看依据」，
+    // 页尾的「进一步确认」是可选收尾动作，不是本页身份。步骤状态一次性由顶部 mountFlow(3) 决定。
+    mountRelationStrip();
+  }
+
+  /**
+   * 第四步「进一步确认」：用户对这条权益做出明确表态。
+   * 表单只存在于本地 sessionStorage，不提交任何数据、不代办任何事项。
+   */
+  function renderFinalStep(p, matchRow, selfMode, backHref, backLabel) {
+    const dept = clean((p.source || {}).department) || '当地主管部门';
+    const pending = (p.verification || {}).status === 'to_verify';
+    const tid = (p.policy_id || '').slice(-3);
+
+    return `
+      <div class="final-step">
+        <div class="fs-head">
+          <span class="fs-n">4</span>
+          <div>
+            <div class="fs-t">看完依据，接下来怎么做？</div>
+            <div class="fs-s">这一步只帮您把思路理清楚，本平台不代办、不代填，也不会替您做决定。</div>
+          </div>
+        </div>
+
+        <div class="fs-opts" id="fsOpts">
+          <button type="button" class="fs-opt" data-fs="verify">
+            <span class="fo-t">打算去核实</span>
+            <span class="fo-d">已知晓依据，接下来向${escapeHtml(dept)}或所在街镇咨询本人适用情况</span>
+          </button>
+          <button type="button" class="fs-opt" data-fs="later">
+            <span class="fo-t">先记下来</span>
+            <span class="fo-d">暂时不办，但先知道还有这项权益存在</span>
+          </button>
+          <button type="button" class="fs-opt" data-fs="notmatch">
+            <span class="fo-t">情况不符，不适用</span>
+            <span class="fo-d">我已核实过，这项与当前情况无关</span>
+          </button>
+        </div>
+
+        <div class="fs-note" id="fsNote" hidden></div>
+
+        <div class="fs-again">
+          <p class="fs-again-t">如果发现 AI 理解的情况和实际不符，可以补充或更正后重新匹配：</p>
+          <div class="btn-row">
+            <button type="button" class="btn ghost" id="fsFixScene">返回调整生活变化</button>
+            <button type="button" class="btn ghost" id="fsFixInfo">返回补充关键条件</button>
+          </div>
+        </div>
+
+        <div class="fs-tail">
+          已核实过「${escapeHtml(p.policy_name)}」：<span id="fsMark" class="fs-mark">尚未表态</span>
+          <button type="button" class="fs-clear" id="fsClear" hidden>清除</button>
+        </div>
+        ${pending ? `<p class="fs-pending">提示：这条权益的一手文件尚未核到，建议先向${escapeHtml(dept)}确认是否确有此项服务。</p>` : ''}
+      </div>`;
+  }
+
+  const FS_TEXT = {
+    verify: '好的。带齐证件去咨询时，可以直接报政策名称与文号，请对方确认本人是否在服务覆盖范围内。',
+    later: '已记下。这条会一直在这里，等您需要的时候再回来核实，不用现在决定。',
+    notmatch: '已记录为不适用。若之后情况有变化，可以随时重新匹配。',
+  };
+
+  function fsKey(pid) { return 'pf_fs_' + pid; }
+
+  function bindFinalStep(pid, selfMode, backHref) {
+    const KEY = fsKey(pid);
+    const opts = document.getElementById('fsOpts');
+    const note = document.getElementById('fsNote');
+    const mark = document.getElementById('fsMark');
+    const clear = document.getElementById('fsClear');
+    if (!opts) return;
+
+    function paint(val) {
+      opts.querySelectorAll('.fs-opt').forEach((b) => {
+        const on = b.dataset.fs === val;
+        b.classList.toggle('is-picked', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      if (val) {
+        note.hidden = false;
+        note.textContent = FS_TEXT[val];
+        mark.textContent = { verify: '打算去核实', later: '先记下来', notmatch: '不适用' }[val];
+        mark.className = 'fs-mark is-' + val;
+        clear.hidden = false;
+      } else {
+        note.hidden = true;
+        mark.textContent = '尚未表态';
+        mark.className = 'fs-mark';
+        clear.hidden = true;
+      }
+    }
+
+    let cur = '';
+    try { cur = sessionStorage.getItem(KEY) || ''; } catch (e) { cur = ''; }
+    paint(cur);
+
+    opts.querySelectorAll('.fs-opt').forEach((b) => {
+      b.addEventListener('click', () => {
+        const v = b.dataset.fs;
+        cur = (cur === v) ? '' : v;
+        try {
+          if (cur) sessionStorage.setItem(KEY, cur);
+          else sessionStorage.removeItem(KEY);
+        } catch (e) { /* 隐私模式下忽略 */ }
+        paint(cur);
+        showToast(cur ? '已记录您的选择' : '已取消');
+      });
+    });
+
+    if (clear) {
+      clear.addEventListener('click', () => {
+        cur = '';
+        try { sessionStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+        paint(cur);
+        showToast('已清除');
+      });
+    }
+
+    const fixScene = document.getElementById('fsFixScene');
+    if (fixScene) {
+      fixScene.addEventListener('click', () => goBackToList('scene', backHref));
+    }
+    const fixInfo = document.getElementById('fsFixInfo');
+    if (fixInfo) {
+      fixInfo.addEventListener('click', () => goBackToList('cond', backHref));
+    }
+  }
+
+  /**
+   * 「返回调整生活变化 / 返回补充关键条件」的跳转。
+   *
+   * 语义是「退回发现权益这一层」，因此与顶部返回一致：明确跳到父页面，
+   * 用 location.replace 替换当前页，历史栈深度不变——
+   * 不会把用户留在详情页，也不会让顶部返回再弹回来。
+   *
+   * 额外带上 back=<policy_id>：告诉列表页「我刚在看这一条」。
+   * 重新匹配后结果顺序可能全变，列表页按 id 重新定位它，
+   * 找不到时只提示「暂未继续匹配」，绝不强行跳回旧页面。
+   */
+  function goBackToList(focus, backHref) {
+    const suffix = id ? '&back=' + encodeURIComponent(id) : '';
+    location.replace(backHref + '?focus=' + focus + suffix);
+  }
+
+  load();
+</script>
+</body>
+</html>

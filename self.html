@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf7f1">
+  <meta name="description" content="您为自己查找可能相关的公共服务权益，核对 AI 的理解并查看政策依据。">
+  <title>政策找人 · 本人权益发现</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <div class="notice">
+    本人模式：您正在为自己查找可能相关的公共服务权益。
+    信息由您本人提供，结果仍需向主管部门核实。
+  </div>
+
+  <!-- 第 1 步：描述发生了什么 -->
+  <div class="section">
+    <div class="step-lead">
+      <span class="step-lead-n">1</span>
+      <div>
+        <div class="step-lead-t">您最近的生活有什么变化？</div>
+        <div class="step-lead-s">用日常的话描述就行，不用记政策名称，也不用填表。</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label for="situation">说一说您自己的情况</label>
+        <textarea id="situation" placeholder="用一句话说说您最近发生了什么"></textarea>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn ghost" id="fillExample">填入示例</button>
+        <button type="button" class="btn" id="discoverBtn">让 AI 读一遍</button>
+      </div>
+      <p class="hint">
+        写得口语一些反而更准：年纪、住哪里、和谁住、身体变化、就医、花费压力，都会影响匹配。
+      </p>
+    </div>
+  </div>
+
+  <!-- 情况确认台 + 结果区：AI 读完由 JS 渲染 -->
+  <div id="resultArea"></div>
+
+  <div class="section">
+    <div class="btn-row">
+      <button type="button" class="btn ghost" onclick="location.href='index.html'">← 返回首页</button>
+      <button type="button" class="btn ghost" onclick="location.href='family.html'">改为帮家人查询</button>
+    </div>
+  </div>
+
+  <div class="footnote">
+    全程只做「可能相关」的初步提示，不代表已符合资格；任何结论都需要向主管部门核实。
+  </div>
+</div>
+
+  <script src="data/policies.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  renderTopbar('本人权益发现', 'index.html', '本人模式');
+  mountDemoBanner();
+  mountFlow(1);
+  mountRelationStrip();
+
+  const session = store.read();
+  // 从详情页「返回调整」带回来的政策 id（读完即从地址栏移除）
+  const RETURN_PID = consumeReturnParam();
+
+  const input = document.getElementById('situation');
+  const area = document.getElementById('resultArea');
+
+  // 本人模式：称谓用「我」，与被查询对象无关；案例内容随政策库覆盖城市变化
+  const selfText = () => demoProfile().selfText;
+
+  document.getElementById('fillExample').addEventListener('click', () => {
+    input.value = selfText();
+    input.focus();
+  });
+
+  document.getElementById('discoverBtn').addEventListener('click', () => {
+    runMatch({ scrollToResult: true });
+  });
+
+  /** 推荐演示案例卡。文案依赖站点上下文，故在 loadSiteContext 之后再渲染。 */
+  function buildCaseBox() {
+    const p = demoProfile();
+    const caseBox = document.createElement('div');
+    caseBox.className = 'case-card';
+    caseBox.innerHTML = `
+      <div class="case-head">
+        <span class="case-badge">推荐演示案例</span>
+        <span class="case-title">${escapeHtml(p.title)}</span>
+      </div>
+      <p class="case-desc">点击后填入这句话，仍需您点「让 AI 读一遍」：<br>「<span class="case-preview"></span>」</p>
+      <button type="button" class="case-btn" id="caseBtn">体验案例：${escapeHtml(p.short)}</button>`;
+    input.closest('.card').insertAdjacentElement('afterend', caseBox);
+    caseBox.querySelector('.case-preview').textContent = selfText();
+    caseBox.querySelector('#caseBtn').addEventListener('click', () => {
+      input.value = selfText();
+      // 演示案例是一次全新场景：清掉上一轮留存的事实答案，避免沿用旧画像里的地区等字段
+      store.write({ selfProfile: {}, selfText: '' });
+      showToast('已填入案例，点「让 AI 读一遍」继续');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // 城市相关文案等站点上下文就绪后再落笔；接口不可用时用默认值，页面照常可用。
+  loadSiteContext().then(() => {
+    input.placeholder = '例如：' + selfText();
+    buildCaseBox();
+  });
+
+  if (session.selfText) input.value = session.selfText;
+
+  /**
+   * 匹配并渲染。与 discover.html 同一套规则，仅称谓与存储键不同。
+   * opts.restore        {key, value, viewportY} 重渲染后把被点击的按钮放回原视口位置
+   * opts.scrollToResult true 时渲染后滚动到确认台
+   */
+  async function runMatch(opts) {
+    opts = opts || {};
+    // 注意：这里**不** await loadSiteContext()。
+    // 站点上下文在页面加载时就已开始请求，等两次匹配请求回来时必然已就绪；
+    // 若在此 await，会额外推迟渲染，导致详情页返回后的滚动位置恢复错过重试窗口。
+    const text = input.value.trim();
+    if (!text) {
+      area.innerHTML = '<div class="notice warn">请先用一句话描述您最近的生活变化。</div>';
+      return;
+    }
+    const isRefresh = !!opts.keepHeight;
+
+    // 局部刷新：结果区仍显示上一次内容，用固定窄条说明「已收到输入、正在更新」
+    // 首次匹配：走 AI 流程（renderAiFlow），每一步都对应一次真实请求
+    if (isRefresh) showRefreshBar(opts.busyTitle);
+    else area.innerHTML = renderAiFlow(0);
+
+    const saved = store.read();
+    let data;
+    try {
+      if (!isRefresh) {
+        // 第 1 步：真实调用画像接口，返回后才打勾前两步
+        await API.post('/api/profile', { text: text, mode: 'self' });
+        updateAiFlow(2);
+      }
+      data = await API.match({
+        text: text,
+        mode: 'self',
+        profile: saved.selfProfile || {},
+      });
+      if (!isRefresh) updateAiFlow(4);
+    } catch (e) {
+      area.style.minHeight = '';
+      hideRefreshBar();
+      area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      return;
+    }
+
+    store.write({ selfText: text, selfProfile: data.profile });
+    mountFlow(2);
+    mountRelationStrip();
+
+    // 局部刷新时锁定容器高度，保证替换前后文档总高度不变，避免跳顶
+    if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
+
+    area.innerHTML =
+      renderSituationBoard(data.profile, data.scene_library, {
+        title: '第二步：确认 AI 的理解对不对',
+      }) +
+      renderResultCards(data, {
+        heading: '第三步：AI 发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
+      });
+
+    bindAll(data);
+
+    // 从政策详情返回时，恢复进入详情前的滚动位置并高亮刚看过的政策。
+    // 只在有有效记录时执行，不影响正常的补充信息局部刷新。
+    if (opts.restorePosition && !RETURN_PID) restoreListPosition();
+
+    // 带着「刚才查看的那条政策」返回：在新结果里重新定位（与家庭模式同一套）
+    const returnTookOver = applyReturnPolicy(data.results, {
+      pid: RETURN_PID, scroll: !!isRefresh,
+    });
+
+    if (isRefresh) showToast('已根据您的确认重新匹配');
+    hideRefreshBar();
+
+    if (!returnTookOver) {
+      if (opts.restore) restorePosition(opts.restore);
+      else if (opts.scrollToResult) {
+        const anchor = area.firstElementChild;
+        if (anchor) {
+          window.scrollTo({
+            top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12),
+            behavior: 'smooth',
+          });
+        }
+      }
+    }
+
+    if (isRefresh) {
+      requestAnimationFrame(() => {
+        area.style.minHeight = '';
+        if (opts.restore && !returnTookOver) restorePosition(opts.restore);
+      });
+    }
+  }
+
+  function restorePosition(restore) {
+    const sel = restore.key
+      ? '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]'
+      : '[data-scene="' + restore.scene + '"]';
+    const el = document.querySelector(sel);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
+    window.scrollTo(0, Math.max(0, top));
+  }
+
+  function bindCards() {
+    document.querySelectorAll('.result-card').forEach((card) => {
+      const go = () => {
+        // 进入详情前记住当前滚动位置与这条政策 id，返回时恢复
+        saveListPosition(card.dataset.id);
+        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
+      };
+      // 卡内有真实控件（折叠 summary / 理由展开 / 证据链按钮 / 详情链接）：
+      // 点它们时事件会冒泡到整卡，这里必须让位，否则折叠区在结果页打不开。
+      // 键盘导航由卡尾 <a class="result-foot"> 原生承担，整卡不再监听 keydown。
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, summary, details, input, textarea, select')) return;
+        go();
+      });
+    });
+  }
+
+  function bindConfirm(current) {
+    document.querySelectorAll('[data-confirm]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.confirm;
+        const raw = btn.dataset.value;
+        const value = raw === 'true' ? true : (raw === 'false' ? false : null);
+        const viewportY = btn.getBoundingClientRect().top;
+        btn.disabled = true;
+        const profile = Object.assign({}, current.profile, { [key]: value });
+        store.write({ selfProfile: profile });
+        // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
+        // 去掉问句前缀（「您是否具有…」→「…」），避免状态条被撑长。
+        const condEl = btn.closest('.board-cond');
+        const condText = condEl && condEl.querySelector('.bc-label')
+          ? condEl.querySelector('.bc-label').textContent.trim() : '';
+        const short = condText.replace(/^(老人|您)是否(具有|参加|属于)?/, '').trim();
+        runMatch({
+          restore: { key: key, value: raw, viewportY: viewportY },
+          keepHeight: true,
+          busyTitle: short ? '已记录「' + short + '」的确认' : '已记录您的确认',
+        });
+      });
+    });
+  }
+
+  function bindScenes(current) {
+    bindSceneChips(current, function (scenes) {
+      const btn = document.querySelector('[data-scene="' + CSS.escape(
+        (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
+      const viewportY = btn ? btn.getBoundingClientRect().top : 0;
+      // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
+      const profile = Object.assign({}, current.profile, {
+        confirmed_scenes: scenes,
+        scenes_edited: true,
+      });
+      store.write({ selfProfile: profile });
+      runMatch({
+        restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
+        keepHeight: true,
+        busyTitle: '已按您调整的生活变化重新匹配',
+      });
+    });
+  }
+
+  function bindEvidence(current) {
+    const map = {};
+    (current.results || []).forEach((r) => {
+      r.__selfMode = true;
+      map[r.policy_id] = r;
+    });
+    bindEvidenceToggles(map);
+  }
+
+  function bindAll(data) {
+    bindCards();
+    bindConfirm(data);
+    bindScenes(data);
+    bindEvidence(data);
+    bindReasonToggles();
+    bindResultGroups();
+    bindSegments();
+  }
+
+  // 从详情页「返回调整」带 focus 参数回来时的定位
+  function applyFocus() {
+    const f = query('focus');
+    if (!f) return;
+    let el = null;
+    if (f === 'scene') el = document.querySelector('.scene-chips');
+    if (f === 'cond') el = document.querySelector('.board-conds');
+    if (!el) return;
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(f === 'scene' ? '在这里增减生活变化' : '在这里补充关键条件');
+    }, 260);
+  }
+
+  // 已有输入则自动跑一次，方便从详情页返回。
+  // restorePosition 只在真的有返回记录时才恢复滚动；
+  // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
+  if (session.selfText) {
+    runMatch({ restorePosition: !query('focus') }).then(applyFocus);
+  }
+</script>
+</body>
+</html>
