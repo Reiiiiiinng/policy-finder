@@ -23,5 +23,3 @@ services:
       # 广州库；换佛山改成 foshan
       - key: POLICY_DB
         value: guangzhou
-      - key: PYTHON_VERSION
-        value: "3.12.6"
