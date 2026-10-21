@@ -72,48 +72,48 @@ function setSession(o){
 }
 function clearSession(){ try{ sessionStorage.removeItem('policy_finder_session'); }catch(e){} }
 function docTop(){ try { return D().documentElement.scrollTop; } catch(e){ return 0; } }
+/* iframe 实际地址（同源可读；不要用 f.src 判断导航，无头下不刷新） */
+function page(){ try { return Wn().location.pathname; } catch(e){ return ''; } }
 
 async function run(){
   out('=== 第六阶段实测（390×844）===');
 
-  /* ---------- 测试1：首页首屏信息层级 ---------- */
+  /* ---------- 测试1：首页首屏信息层级（2026-10-20 首页重设计适配） ---------- */
   await load('/index.html');
   await sleep(600);
   var d1 = D();
-  var hero = d1.querySelector('.hero');
-  var entry = d1.querySelector('#entry');
-  var entryBtns = qa('#entry .choice.entry');
-  check('测试1 首页可加载', !!hero);
+  var hello = d1.querySelector('.home-hello');
+  var entry = d1.querySelector('#entry');   /* 家庭画像卡承接旧入口区 id */
+  var tiles = qa('.home-grid .hg-tile');
+  check('测试1 首页可加载（欢迎区存在）', !!hello);
+  check('测试1 旧大标题 hero 已移除', !d1.querySelector('.hero-title'));
   // 桌面无头模式下 iframe 内会出现 15px 滚动条，可用宽度略小于 390
   var vw = d1.documentElement.clientWidth;
   var vh = d1.documentElement.clientHeight;
   check('测试1 视口宽度接近 390（桌面滚动条占位）', vw >= 370 && vw <= W, 'clientW=' + vw);
-  // 首屏（可见高度）内应完整看到标题与三个入口
+  // 首屏（可见高度）内应看到欢迎区与家庭画像卡
   var entryTop = entry.getBoundingClientRect().top;
   var entryBottom = entry.getBoundingClientRect().bottom;
-  check('测试1 三个入口在首屏内可见', entryTop < vh, 'entry top=' + Math.round(entryTop));
-  check('测试1 三个入口完整显示（未截断）', entryBottom <= vh + 4,
+  check('测试1 家庭画像卡在首屏内可见', entryTop < vh, 'entry top=' + Math.round(entryTop));
+  check('测试1 家庭画像卡完整显示（未截断）', entryBottom <= vh + 4,
     'entry bottom=' + Math.round(entryBottom) + ' vh=' + vh);
-  check('测试1 三个入口齐全', entryBtns.length === 3, 'n=' + entryBtns.length);
-  // 首屏优先级：入口必须在理念卡之前；理念卡不得挤占入口的位置
-  var idea = d1.querySelector('.idea-card');
-  var how = d1.querySelector('.how-card');
-  var ideaTop = idea ? idea.getBoundingClientRect().top : 1e9;
-  var howTop = how ? how.getBoundingClientRect().top : 1e9;
-  check('测试1 核心理念排在入口之后', ideaTop >= entryBottom - 4,
-    'idea=' + Math.round(ideaTop) + ' entryBottom=' + Math.round(entryBottom));
-  check('测试1 使用流程排在核心理念之后', howTop >= ideaTop - 4,
-    'how=' + Math.round(howTop) + ' idea=' + Math.round(ideaTop));
+  check('测试1 服务宫格 2×2 四项齐全', tiles.length === 4, 'n=' + tiles.length);
+  // 首屏优先级：发现动态卡排在画像卡之后；底部导航四项齐全
+  var dc = d1.querySelector('.home-discover');
+  var dcTop = dc ? dc.getBoundingClientRect().top : 1e9;
+  check('测试1 发现动态卡排在画像卡之后', dcTop >= entryBottom - 4,
+    'dc=' + Math.round(dcTop) + ' entryBottom=' + Math.round(entryBottom));
+  check('测试1 底部导航四项齐全', qa('.tabbar .tab-item').length === 4,
+    'n=' + qa('.tabbar .tab-item').length);
   // 绿智共生不在首屏、不在 topbar
   var tag = d1.querySelector('.topbar .theme-tag');
   check('测试1 topbar 已无「绿智共生」标签', tag === null);
   var themeTagInTop = d1.querySelector('.topbar').textContent.indexOf('绿智共生') >= 0;
   check('测试1 首屏无「绿智共生」字样', !themeTagInTop);
   check('测试1 赛事主题仍在页面（页脚）', d1.body.textContent.indexOf('绿智共生') >= 0);
-  // 产品标题为最大字号
-  var h1 = d1.querySelector('.hero-title');
-  var fs = parseFloat(getComputedStyle(h1).fontSize);
-  check('测试1 「政策找人」是首屏最大字号', fs >= 30, fs + 'px');
+  // 欢迎标题为首页显著大字号（重设计后 20px，仍显著大于页脚 11.5px）
+  var fs = parseFloat(getComputedStyle(hello).fontSize);
+  check('测试1 欢迎标题是显著大字号', fs >= 18, fs + 'px');
   // 无横向溢出
   check('测试1 无横向滚动', d1.documentElement.scrollWidth <= vw + 1,
     'scrollW=' + d1.documentElement.scrollWidth + ' clientW=' + vw);
@@ -258,21 +258,88 @@ async function run(){
   await load('/index.html');
   await sleep(600);
   var d6 = D();
-  var h1s = parseFloat(getComputedStyle(d6.querySelector('.hero-title')).fontSize);
+  var hello6 = d6.querySelector('.home-hello');
   var foot = d6.querySelector('.theme-foot');
+  var h1s = hello6 ? parseFloat(getComputedStyle(hello6).fontSize) : 0;
   var footSize = foot ? parseFloat(getComputedStyle(foot).fontSize) : 0;
-  check('测试6 「政策找人」字号远大于「绿智共生」', h1s > footSize * 2,
+  /* 断言校准说明（2026-10-20 首页重设计）：原断言为 hero 32px 时代的「2 倍」阈值；
+     重设计后欢迎标题按展示板规范为 20px，2 倍阈值不再适用。为不降低「绿智共生
+     弱化」的标准，改为三重收紧条件：标题 ≥18px 下限 + 页脚 ≤12px 上限 + 比值 ≥1.5。 */
+  check('测试6 欢迎标题显著大于「绿智共生」（≥1.5 倍且页脚≤12px 且标题≥18px）',
+    h1s > footSize * 1.5 && footSize <= 12 && h1s >= 18,
     h1s + ' vs ' + footSize);
   var footColor = foot ? getComputedStyle(foot).color : '';
-  var titleColor = getComputedStyle(d6.querySelector('.hero-title')).color;
   check('测试6 绿智共生为弱色（非黑非深）', /rgb\((\d+), (\d+), (\d+)\)/.test(footColor), footColor);
-  check('测试6 绿智共生不在 topbar/hero 内',
+  check('测试6 绿智共生不在 topbar/欢迎区内',
     d6.querySelector('.topbar').textContent.indexOf('绿智共生') < 0
-    && d6.querySelector('.hero').textContent.indexOf('绿智共生') < 0);
+    && d6.querySelector('.home-welcome').textContent.indexOf('绿智共生') < 0);
   check('测试6 赛事主题信息未删除', d6.body.textContent.indexOf('绿智共生') >= 0);
   check('测试6 首页仍无横向滚动',
     d6.documentElement.scrollWidth <= d6.documentElement.clientWidth + 1,
     'scrollW=' + d6.documentElement.scrollWidth + ' clientW=' + d6.documentElement.clientWidth);
+
+  /* ---------- 测试7：发现路由优先级（首页重设计新增） ----------
+     场景A 双痕迹并存（selfText/selfProfile 与 text/beneficiary 同时存在、
+             无 pf_last_match）→ 按兼容规则一律 discover.html；
+     场景B/B2 有效 pf_last_match 优先于旧会话痕迹（双向验证）；
+     场景C 空会话兜底 → family.html；
+     场景D 底部导航「发现」与首页发现动态卡同一路由；
+     场景E 「咨询」未开放：不跳转且给出明确提示。 */
+  out('--- 测试7 发现路由 ---');
+  // A. 双痕迹并存 → discover.html
+  await load('/index.html');
+  clearSession();
+  setSession({ selfText: '我72岁，在广州生活', selfProfile: { mode: 'self', age: 72 },
+               text: '我父亲72岁，在广州', profile: {}, beneficiary: '父亲', operator: '女儿' });
+  await load('/index.html'); await sleep(400);
+  q('#discoverCard').click();
+  await waitForEvent(8000);
+  check('测试7A 双痕迹并存 → discover.html（兼容规则）',
+    page().indexOf('discover.html') >= 0, page());
+  // B. 有效 pf_last_match(self) 优先于旧家庭痕迹 → self.html
+  await load('/index.html');
+  clearSession();
+  setSession({ text: '旧的家庭协助痕迹', profile: {}, beneficiary: '父亲',
+               pf_last_match: { count: 2, mode: 'self', ts: Date.now() } });
+  await load('/index.html'); await sleep(400);
+  q('#discoverCard').click();
+  await waitForEvent(8000);
+  check('测试7B 有效 pf_last_match(self) 优先于旧痕迹 → self.html',
+    page().indexOf('self.html') >= 0, page());
+  // B2. 反向：pf_last_match(family) 优先于本人旧痕迹 → discover.html
+  await load('/index.html');
+  clearSession();
+  setSession({ selfText: '本人的旧痕迹', selfProfile: { mode: 'self' },
+               pf_last_match: { count: 5, mode: 'family', ts: Date.now() } });
+  await load('/index.html'); await sleep(400);
+  q('#discoverCard').click();
+  await waitForEvent(8000);
+  check('测试7B2 pf_last_match(family) 优先于本人痕迹 → discover.html',
+    page().indexOf('discover.html') >= 0, page());
+  // C. 空会话 → family.html
+  await load('/index.html');
+  clearSession();
+  await load('/index.html'); await sleep(400);
+  q('#discoverCard').click();
+  await waitForEvent(8000);
+  check('测试7C 空会话兜底 → family.html', page().indexOf('family.html') >= 0, page());
+  // D. 底部导航「发现」与发现动态卡同一路由
+  await load('/index.html'); await sleep(400);
+  var discTab = q('.tab-item[data-tab="discover"]');
+  check('测试7D1 底部导航「发现」存在且未伪装', !!discTab && !discTab.getAttribute('aria-disabled'));
+  discTab.click();
+  await waitForEvent(8000);
+  check('测试7D2 底部导航「发现」路由与发现卡一致 → family.html',
+    page().indexOf('family.html') >= 0, page());
+  // E. 「咨询」未开放：不跳转且给出明确提示
+  await load('/index.html'); await sleep(400);
+  q('.tab-item[data-tab="consult"]').click();
+  await sleep(400);
+  var toastEl = q('#pfToast');
+  check('测试7E 咨询 tab 未跳转且提示暂未开放',
+    page().indexOf('index.html') >= 0 && !!toastEl && toastEl.hidden === false
+      && toastEl.textContent.indexOf('暂未开放') >= 0,
+    toastEl ? ('toast=' + toastEl.textContent.slice(0, 30) + ' hidden=' + toastEl.hidden) : 'no toast');
 
   out('');
   out('=== 390×844 实测：通过 ' + pass + '，失败 ' + fail + ' ===', fail ? 'bad' : 'ok');

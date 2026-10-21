@@ -119,8 +119,9 @@ async function run(){
  out('--- 路线A 家庭协助 → 发现权益 → 进一步确定 ---');
  sessionStorage.clear();
  await navTo('/index.html'); await sleep(600);
- await waitFor(function(){return f.contentDocument.querySelector('.choice.entry[data-target="parents"]');},8000,'首页入口');
- f.contentDocument.querySelector('.choice.entry[data-target="parents"]').click(); await nav(); await sleep(600);
+ // 2026-10-20 首页重设计适配：家庭入口由家庭画像卡主按钮承接（data-target 契约保留）
+ await waitFor(function(){return f.contentDocument.querySelector('.hp-enter[data-target="parents"]');},8000,'首页家庭入口');
+ f.contentDocument.querySelector('.hp-enter[data-target="parents"]').click(); await nav(); await sleep(600);
  check('A0 从首页进入家庭协助', /family\.html/.test(page()), page());
  f.contentDocument.querySelector('#operatorGrid .choice[data-role="女儿"]').click(); await sleep(200);
  f.contentDocument.querySelector('#beneficiaryGrid .choice[data-role="父亲"]').click(); await sleep(200);
@@ -145,8 +146,9 @@ async function run(){
  out('--- 路线B 本人入口 → 发现权益 → 进一步确定 ---');
  sessionStorage.clear();
  await navTo('/index.html'); await sleep(600);
- await waitFor(function(){return f.contentDocument.querySelector('.choice.entry[data-target="self"]');},8000,'本人入口');
- f.contentDocument.querySelector('.choice.entry[data-target="self"]').click(); await nav(); await sleep(600);
+ // 2026-10-20 首页重设计适配：本人入口由「为自己查找 ›」链接承接（data-target 契约保留）
+ await waitFor(function(){return f.contentDocument.querySelector('.hp-self-link[data-target="self"]');},8000,'首页本人入口');
+ f.contentDocument.querySelector('.hp-self-link[data-target="self"]').click(); await nav(); await sleep(600);
  check('B0 从首页进入本人发现页', /self\.html/.test(page()), page());
  var ta2=f.contentDocument.getElementById('situation');
  ta2.value='我72岁，一个人在广州生活，最近行动不便。';

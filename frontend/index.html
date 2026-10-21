@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="政策找人：说出家人的生活变化，AI 帮您发现可能遗漏的公共服务权益。">
-  <meta name="theme-color" content="#faf7f1">
+  <meta name="theme-color" content="#f7f5ee">
   <title>政策找人 · 让可能被忽略的权益主动找到需要它的人</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -24,180 +24,121 @@
     </div>
   </div>
 
-  <!-- 首屏：标题 + 一句话定位 + 直接给入口 -->
-  <header class="hero animate-in">
-    <h1 class="hero-title">政策找人</h1>
-    <p class="hero-sub">说出家里发生了什么，<br>AI 帮您发现可能相关、却没用上的公共服务权益。</p>
-    <a class="hero-jump" href="#entry">↓ 我想帮谁查</a>
+  <!-- 模块 A：欢迎区（替代原大标题 hero，控制首屏高度） -->
+  <header class="home-welcome animate-in">
+    <h1 class="home-hello">您好，欢迎使用政策找人</h1>
+    <p class="home-hello-sub">为您主动发现可能相关的政策与服务</p>
   </header>
 
-  <!-- 入口选择：紧跟首屏，是首屏之后的第一件事 -->
-  <div class="section animate-in d1" id="entry">
-    <h2 class="section-title">我想帮谁发现可能相关的权益？</h2>
-
-    <button type="button" class="choice entry" data-target="parents" aria-label="为我的父母查询可能相关的公共服务权益">
-      <span class="entry-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="9" cy="7.5" r="3.1"></circle>
-          <path d="M3.4 19.6a5.6 5.6 0 0 1 11.2 0"></path>
-          <circle cx="17.8" cy="9.2" r="2.3"></circle>
-          <path d="M15.3 19.6a4.5 4.5 0 0 1 5.3-4.4"></path>
+  <!-- 模块 B：家庭画像卡
+       成员与年龄全部来自当前会话真实数据（session.beneficiary / profile.age /
+       selfProfile），无任何硬编码；无会话时显示空态引导，不伪造成员。 -->
+  <section class="home-profile animate-in d1" id="entry" aria-label="家庭画像">
+    <div class="hp-head">
+      <span class="hp-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="8" r="3"></circle>
+          <path d="M3.6 19a5.4 5.4 0 0 1 10.8 0"></path>
+          <circle cx="17" cy="9.4" r="2.3"></circle>
+          <path d="M14.9 19a4.2 4.2 0 0 1 5.5-3.9"></path>
         </svg>
+        家庭画像
       </span>
-      <span class="entry-body">
-        <span class="entry-title">我的父母</span>
-        <span class="entry-desc">替爸爸、妈妈看看他们可能有哪些还没用上的权益</span>
-      </span>
-      <span class="entry-arrow" aria-hidden="true">›</span>
-    </button>
-
-    <button type="button" class="choice entry" data-target="family" aria-label="为我的祖辈或其他长辈查询可能相关的公共服务权益">
-      <span class="entry-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="9.6" cy="7" r="3.1"></circle>
-          <path d="M4 19.6a5.6 5.6 0 0 1 11.2 0"></path>
-          <path d="M18.8 4.2v15"></path>
-          <path d="M18.8 4.2c0 1.7-1.3 3-3 3"></path>
-        </svg>
-      </span>
-      <span class="entry-body">
-        <span class="entry-title">我的长辈</span>
-        <span class="entry-desc">为祖辈、配偶或其他亲属查询可能相关的权益</span>
-      </span>
-      <span class="entry-arrow" aria-hidden="true">›</span>
-    </button>
-
-    <button type="button" class="choice entry" data-target="self" aria-label="为我自己查询可能相关的公共服务权益">
-      <span class="entry-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="7.4" r="3.6"></circle>
-          <path d="M5 19.8a7 7 0 0 1 14 0"></path>
-        </svg>
-      </span>
-      <span class="entry-body">
-        <span class="entry-title">我自己</span>
-        <span class="entry-desc">直接进入本人模式，为自己发现可能相关的权益</span>
-      </span>
-      <span class="entry-arrow" aria-hidden="true">›</span>
-    </button>
-
-    <!-- 比赛演示模式入口：预设虚拟案例，走完整流程但不自动提交 -->
-    <button type="button" class="demo-entry" id="demoEntry"
-            aria-label="进入比赛演示模式，使用预设虚拟案例">
-      <span class="demo-entry-body">
-        <span class="demo-entry-title">🎬 演示体验</span>
-        <span class="demo-entry-desc" id="demoEntryDesc">推荐答辩案例</span>
-      </span>
-      <span class="demo-entry-arrow" aria-hidden="true">›</span>
-    </button>
-  </div>
-
-  <!-- 以下为说明性内容，排在入口之后：核心理念 / 流程 / 可信度 / 关系说明 -->
-
-  <!-- 核心理念：从人找政策到政策找人（压缩为紧凑表达） -->
-  <section class="idea-card animate-in d2" aria-label="核心理念：从人找政策到政策找人">
-    <div class="idea-head">
-      <span class="idea-eyebrow">核心理念</span>
-      <h2 class="idea-title">从「人找政策」到「政策找人」</h2>
+      <span class="hp-count" id="hpCount">正在读取家庭画像…</span>
     </div>
-    <div class="idea-flow">
-      <div class="idea-node">
-        <span class="idea-tag">以前</span>
-        <div class="idea-name">人找政策</div>
-        <div class="idea-pips"><i>要记得政策名称</i><i>要主动搜</i><i>容易错过</i></div>
-      </div>
-      <span class="idea-shift" aria-hidden="true">→</span>
-      <div class="idea-node is-now">
-        <span class="idea-tag">现在</span>
-        <div class="idea-name">政策找人</div>
-        <div class="idea-pips"><i>说清生活变化</i><i>AI 辅助发现</i><i>提示可能相关</i></div>
-      </div>
+    <div class="hp-title" id="hpTitle">为家人的生活变化，找到可能遗漏的权益</div>
+    <div class="hp-members" id="hpMembers">
+      <!-- 由底部脚本按会话真实状态渲染：成员卡 / 本人卡 / 空态引导卡 -->
     </div>
-    <p class="idea-foot">
-      结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。
-    </p>
+    <button type="button" class="hp-enter" id="hpEnter" data-target="parents"
+            aria-label="进入家庭情况确认，重新评估家庭情况">
+      重新评估家庭情况
+    </button>
+    <button type="button" class="hp-self-link" data-target="self"
+            aria-label="进入本人模式，为自己查找可能相关的权益">
+      或 <b>为自己查找 ›</b>
+    </button>
   </section>
 
-  <!-- 使用流程 -->
-  <section class="how-card animate-in d2" aria-label="使用流程">
-    <div class="how-head">
-      <span class="how-eyebrow">怎么用</span>
-      <h2 class="how-title">四步，每一步都能看到依据</h2>
+  <!-- 模块 C：发现动态卡
+       数量仅来自最近一次真实匹配记录（pf_last_match，由发现页写入并校验），
+       无记录 / 过期 / 非法一律空态，绝不显示「新增」或写死数字。 -->
+  <button type="button" class="home-discover animate-in d2 is-empty" id="discoverCard"
+          aria-label="查看发现动态">
+    <span class="dc-ico" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v2M5.6 5.6 7 7M3 12h2M18.4 5.6 17 7M21 12h-2"></path>
+        <circle cx="12" cy="14" r="5"></circle>
+        <path d="M12 14v-3"></path>
+      </svg>
+    </span>
+    <span class="dc-body">
+      <span class="dc-tag">发现动态</span>
+      <span class="dc-txt" id="dcTxt">完成一次情况确认后，这里会汇总为您发现的权益</span>
+    </span>
+    <span class="dc-arrow" aria-hidden="true">›</span>
+  </button>
+
+  <!-- 模块 D：服务入口 2×2 宫格
+       政策匹配连接真实发现流程；暂无对应功能的入口明确标注「建设中」，
+       点击给出说明并引导至现有详情页能力，不伪装成已实现。 -->
+  <section class="home-grid-sec animate-in d2" aria-label="服务入口">
+    <h2 class="hg-title">服务入口</h2>
+    <div class="home-grid">
+      <button type="button" class="hg-tile" id="tileMatch">
+        <span class="t-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+            <path d="M8 9h8M8 13h5"></path>
+          </svg>
+        </span>
+        <span class="t-name">政策匹配</span>
+        <span class="t-sub">描述情况，AI 帮您匹配</span>
+      </button>
+      <button type="button" class="hg-tile is-todo" data-todo="解读" aria-disabled="true">
+        <span class="t-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2z"></path>
+            <path d="M9 8h6M9 12h4"></path>
+          </svg>
+        </span>
+        <span class="t-name">政策解读<span class="t-soon">建设中</span></span>
+        <span class="t-sub">依据与解读详见每条权益的详情页</span>
+      </button>
+      <button type="button" class="hg-tile is-todo" data-todo="办理" aria-disabled="true">
+        <span class="t-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
+            <circle cx="12" cy="11" r="2.2"></circle>
+          </svg>
+        </span>
+        <span class="t-name">办理指引<span class="t-soon">建设中</span></span>
+        <span class="t-sub">办理流程与官方渠道详见详情页</span>
+      </button>
+      <button type="button" class="hg-tile is-todo" data-todo="权益" aria-disabled="true">
+        <span class="t-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="3.4"></circle>
+            <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"></path>
+          </svg>
+        </span>
+        <span class="t-name">我的权益<span class="t-soon">规划中</span></span>
+        <span class="t-sub">当前可在「发现」查看匹配结果</span>
+      </button>
     </div>
-    <ol class="how-list">
-      <li>
-        <span class="hn">1</span>
-        <div>
-          <b>确认情况</b>
-          <span>说清发生了什么，核对 AI 有没有认错，可以随时改</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">2</span>
-        <div>
-          <b>发现可能相关的权益</b>
-          <span>AI 从真实政策库里找出可能相关的一项项，逐条说明理由</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">3</span>
-        <div>
-          <b>查看政策依据</b>
-          <span>这条权益要求什么、出自哪份文件，一并摊开给您看</span>
-        </div>
-      </li>
-      <li>
-        <span class="hn">4</span>
-        <div>
-          <b>进一步确认</b>
-          <span>决定要不要去核实。全程只做提示，不代办、不做资格认定</span>
-        </div>
-      </li>
-    </ol>
   </section>
 
-  <!-- 数据可信度条：数字全部来自 /api/policies，不写死；接口失败则整条隐藏 -->
-  <div class="trust-strip animate-in d2" id="trustStrip" hidden>
-    <div class="trust-item">
-      <span class="trust-num" id="statTotal">—</span>
-      <span class="trust-label">政策条目</span>
-    </div>
-    <div class="trust-item">
-      <span class="trust-num" id="statVerified">—</span>
-      <span class="trust-label">已核官方来源</span>
-    </div>
-    <div class="trust-item">
-      <span class="trust-num" id="statScenes">—</span>
-      <span class="trust-label">覆盖生活场景</span>
-    </div>
-  </div>
-  <p class="trust-note animate-in d3" id="trustNote" hidden>
-    每一条权益都标注来源部门与核验状态；尚未核到一手文件的条目，会明确显示「来源待核验」。
-  </p>
+  <!-- 比赛演示模式入口：预设虚拟案例，走完整流程但不自动提交（原功能保留） -->
+  <button type="button" class="demo-entry" id="demoEntry"
+          aria-label="进入比赛演示模式，使用预设虚拟案例">
+    <span class="demo-entry-body">
+      <span class="demo-entry-title">🎬 演示体验</span>
+      <span class="demo-entry-desc" id="demoEntryDesc">推荐答辩案例</span>
+    </span>
+    <span class="demo-entry-arrow" aria-hidden="true">›</span>
+  </button>
 
-  <!-- 核心差异：操作者 ≠ 受益人 -->
-  <div class="section animate-in d3">
-    <h2 class="section-title">这一步，谁在为谁查询</h2>
-    <div class="role-diff">
-      <div class="role-side">
-        <span class="role-side-label">查询的人</span>
-        <span class="role-side-name">你（家属 / 本人）</span>
-        <span class="role-side-note">描述情况、补充信息、代为操作</span>
-      </div>
-      <span class="role-diff-arrow" aria-hidden="true">→</span>
-      <div class="role-side by-beneficiary">
-        <span class="role-side-label">受益人</span>
-        <span class="role-side-name">实际享受权益的长辈</span>
-        <span class="role-side-note">关键信息应由其本人确认</span>
-      </div>
-    </div>
-    <p class="hint">
-      由家人代为查询 ≠ 本人已认可。户籍、参保、失能等级这类关键信息，
-      仍建议取得老人本人的确认；最终是否具备资格，由主管部门核定。
-    </p>
-  </div>
-
-  <div class="notice animate-in d4">
+  <div class="notice animate-in d3">
     本页面由 AI 根据您描述的生活情况进行初步匹配，仅用于提示「可能相关」的公共服务权益，
     不代表已符合政策资格。最终资格由主管部门核定。
   </div>
@@ -210,6 +151,114 @@
 </div>
 
 <script src="assets/app.js"></script>
+<script>
+  // 底部导航：首页为当前页（discover/self 页由各自脚本挂载）
+  mountBottomNav('home');
+
+  /* ---------- 模块 B：家庭画像卡渲染（全部读取真实会话数据） ---------- */
+  const MEMBER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.4"></circle><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"></path></svg>';
+  const PLUS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>';
+
+  function memberCardHtml(name, ageText) {
+    return '<div class="hp-member is-active">'
+      + '<span class="hp-avatar">' + MEMBER_ICON + '</span>'
+      + '<span class="nm">' + escapeHtml(name) + '</span>'
+      + '<span class="ag">' + escapeHtml(ageText || '') + '</span>'
+      + '</div>';
+  }
+
+  function renderHomeProfile() {
+    const s = store.read();
+    const membersEl = document.getElementById('hpMembers');
+    const countEl = document.getElementById('hpCount');
+    const enterEl = document.getElementById('hpEnter');
+
+    const isSelf = !!(s.selfProfile && s.selfProfile.mode === 'self');
+    const ben = s.beneficiary;
+    // 年龄只在真实画像给出数字时展示；没有就不显示，绝不编造
+    const famAge = (s.profile && typeof s.profile.age === 'number') ? s.profile.age + ' 岁' : '';
+    const selfAge = (s.selfProfile && typeof s.selfProfile.age === 'number') ? s.selfProfile.age + ' 岁' : '';
+
+    if (ben) {
+      countEl.textContent = '正在为 1 位家庭成员查找';
+      membersEl.innerHTML = memberCardHtml(ben, famAge)
+        + '<button type="button" class="hp-member is-more" id="hpMore">'
+        + '<span class="hp-avatar">' + PLUS_ICON + '</span>'
+        + '<span class="nm">更多成员</span><span class="ag">在下一步选择</span></button>';
+      document.getElementById('hpMore').addEventListener('click', goFamilyEntry);
+    } else if (isSelf) {
+      countEl.textContent = '正在为自己查找';
+      membersEl.innerHTML = memberCardHtml('本人', selfAge);
+    } else {
+      countEl.textContent = '尚未建立家庭画像';
+      membersEl.innerHTML = '<div class="hp-empty">'
+        + '<span class="hp-avatar">' + PLUS_ICON + '</span>'
+        + '<span><span class="nm">建立家庭画像</span><br>'
+        + '<span class="ag">选择帮谁查 · 确认查询关系 · 一句话描述变化</span></span>'
+        + '</div>';
+      enterEl.textContent = '开始建立家庭画像';
+    }
+  }
+
+  /* ---------- 入口分流（沿用旧契约：data-target + session.target） ---------- */
+  // 家庭入口：target 沿用上次（parents/family），首次默认 parents；
+  // 「我的长辈」语义由 family.html 的「其他关系」折叠区完整承接，跳转契约不变。
+  function goFamilyEntry() {
+    const prev = store.read().target;
+    store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
+    location.href = 'family.html';
+  }
+
+  document.getElementById('hpEnter').addEventListener('click', goFamilyEntry);
+  document.querySelector('.hp-self-link').addEventListener('click', () => {
+    store.write({ target: 'self', demo: false, demoBanner: false });
+    location.href = 'self.html';
+  });
+
+  /* ---------- 模块 C：发现动态卡（只认校验通过的真实匹配记录） ---------- */
+  function renderDiscoverCard() {
+    const card = document.getElementById('discoverCard');
+    const txt = document.getElementById('dcTxt');
+    const lm = validLastMatch(store.read());
+    if (lm) {
+      card.classList.remove('is-empty');
+      txt.innerHTML = lm.count === 0
+        ? '上次未发现可能相关的权益，点击重新描述情况'
+        : '上次发现 <b>' + lm.count + ' 项</b>可能相关的权益，点击查看';
+    } else {
+      card.classList.add('is-empty');
+      txt.textContent = '完成一次情况确认后，这里会汇总为您发现的权益';
+    }
+  }
+  document.getElementById('discoverCard').addEventListener('click', () => {
+    location.href = discoverRouteTarget();
+  });
+
+  /* ---------- 模块 D：服务宫格 ---------- */
+  // 政策匹配：有会话痕迹 → 按统一路由继续；无会话 → family.html（统一路由的兜底）
+  document.getElementById('tileMatch').addEventListener('click', () => {
+    location.href = discoverRouteTarget();
+  });
+  // 暂无对应功能的入口：明确提示 + 指引到现有详情页能力，不跳转、不伪装
+  const TODO_MSG = {
+    '解读': '政策解读建设中：每条权益的「这是什么 / 为什么推荐 / 还需确认什么」已在详情页内，可先完成一次匹配后查看',
+    '办理': '办理指引建设中：每条权益的「怎么办理 / 去哪里核实」与官方渠道已在详情页内',
+    '权益': '我的权益规划中：当前可在底部「发现」里查看您的匹配结果',
+  };
+  document.querySelectorAll('.hg-tile.is-todo').forEach((btn) => {
+    btn.addEventListener('click', () => showToast(TODO_MSG[btn.dataset.todo] || '功能建设中'));
+  });
+
+  renderHomeProfile();
+  renderDiscoverCard();
+
+  // 城市相关文案等站点上下文就绪后再落笔（接口不可用时保持占位文案）
+  loadSiteContext().then(() => {
+    document.getElementById('demoEntryDesc').textContent = demoProfile().desc;
+    document.getElementById('footScope').textContent =
+      '数据范围：' + SITE.region + '公共服务政策数据（逐条标注责任部门与核验状态）';
+  });
+</script>
 <script>
   // 比赛演示模式：点击后先弹出虚拟案例确认卡，评委确认后再进入流程。
   // 案例内容随当前政策库覆盖城市变化（见 app.js 的 DEMO_PROFILES）。
@@ -256,55 +305,6 @@
       location.href = 'family.html';
     });
   }
-
-  // 与城市有关的静态文案，等站点上下文就绪后再落笔（接口不可用时保持占位文案）
-  loadSiteContext().then(() => {
-    document.getElementById('demoEntryDesc').textContent = demoProfile().desc;
-    document.getElementById('footScope').textContent =
-      '数据范围：' + SITE.region + ' · ' + SITE.policyCount + ' 条政策，逐条标注责任部门与文号';
-    document.getElementById('footSource').textContent =
-      '政策来源：各主管部门官方公开文件；每条政策的「政策来源」区可查看文号与原文链接';
-  });
-
-  // 入口分流：帮他人（父母/长辈）走家庭协助模式，为自己走本人模式
-  // 正常入口清除演示标记，避免正常使用时误显示演示提示
-  document.querySelectorAll('.choice.entry').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.choice.entry').forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      const target = btn.dataset.target;
-      store.write({ target: target, demo: false, demoBanner: false });
-      const next = (target === 'self') ? 'self.html' : 'family.html';
-      setTimeout(() => { location.href = next; }, 180);
-    });
-  });
-
-  // 数据可信度：实时拉取。失败时整块隐藏，绝不用写死的数字糊弄用户
-  (async function loadTrustStrip() {
-    const strip = document.getElementById('trustStrip');
-    const note = document.getElementById('trustNote');
-    try {
-      const d = await API.get('/api/policies');
-      const list = d.policies || [];
-      const total = d.total || list.length;
-      if (!total) return;
-
-      const verified = list.filter((p) => p.verification_status === 'verified').length;
-      const scenes = new Set();
-      list.forEach((p) => (p.life_scenes || []).forEach((s) => scenes.add(s)));
-
-      document.getElementById('statTotal').textContent = total;
-      document.getElementById('statVerified').textContent = verified;
-      document.getElementById('statScenes').textContent = scenes.size;
-
-      strip.hidden = false;
-      note.hidden = false;
-      strip.classList.add('animate-in', 'd1');
-      note.classList.add('animate-in', 'd2');
-    } catch (e) {
-      // 接口不可用：保持隐藏
-    }
-  })();
 </script>
 </body>
 </html>

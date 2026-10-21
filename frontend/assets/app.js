@@ -233,11 +233,11 @@ function statusBadge(status, sourcePending, sourceVerified) {
   let text = status || '可能相关';
   if (status === '待确认') cls = 'confirm';
   let html = `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
-  // 来源核验状态：已核验 ✓；待核验时区分「有官方一手来源（国家依据已核，本地待确认）」与「来源未核验」
+  // 来源核验状态：来源已核验 ✓；待核验时区分「有官方一手来源（国家依据已核，本地待确认）」与「来源未核验」
   html += sourcePending
     ? (sourceVerified ? ' <span class="badge pending">本地待确认</span>'
                       : ' <span class="badge pending">来源待核验</span>')
-    : ' <span class="badge verified">✓ 已核验</span>';
+    : ' <span class="badge verified">✓ 来源已核验</span>';
   return html;
 }
 
@@ -293,7 +293,7 @@ function sourceBlock(r) {
   if (r.source_publish_date) rows.push(['发布时间', r.source_publish_date]);
   const verifiedState = r.source_pending
     ? (r.source_official_url ? '国家依据已核验 · 本地待确认' : '来源待核验')
-    : '已核验' + (r.source_checked_at ? ' · ' + r.source_checked_at : '');
+    : '来源已核验' + (r.source_checked_at ? ' · ' + r.source_checked_at : '');
   rows.push(['核验状态', verifiedState]);
 
   const rowsHtml = rows.map((x) => `<div class="src-row"><span class="k">${escapeHtml(x[0])}</span>`
@@ -1416,7 +1416,7 @@ function renderEvidenceChain(ev, opts) {
         <div class="ecr"><span class="k">${escapeHtml(r[0])}</span><span class="v">${escapeHtml(r[1])}</span></div>`).join('')}</div>`
     : '<p class="ev-none">尚未核到一手文件，暂不列出来源信息，避免指向错误出处。</p>';
   const citBadge = cit.verified
-    ? '<span class="badge verified">✓ 已核验</span>'
+    ? '<span class="badge verified">✓ 来源已核验</span>'
     : (cit.official_url ? '<span class="badge pending">本地待确认</span>'
                         : '<span class="badge pending">来源待核验</span>');
 
@@ -1837,4 +1837,188 @@ function renderTopbar(title, parentHref, sub) {
       goToParent(parentHref);
     });
   }
+}
+
+/* ==========================================================================
+   首页重设计新增（2026-10-20）：发现路由 / 匹配摘要校验 / 底部导航
+   仅追加，不改动上方任何既有函数。
+   ========================================================================== */
+
+/**
+ * 校验「最近一次真实匹配」记录（pf_last_match，由 discover/self 页在
+ * 匹配成功且结果正常渲染后写入）。任一条件不满足即视为无效，安全降级为空态：
+ * - count 必须是有限非负整数（Number.isInteger 已排除 NaN/Infinity/小数）
+ * - mode 只允许 self / family（由真实执行匹配的页面写入，非前端推断）
+ * - ts 必须是有效数字、不晚于当前时间、且不超过 24 小时（防过期会话残留）
+ */
+function validLastMatch(session) {
+  const m = session && session.pf_last_match;
+  if (!m || typeof m !== 'object') return null;
+  if (!Number.isInteger(m.count) || m.count < 0) return null;
+  if (m.mode !== 'self' && m.mode !== 'family') return null;
+  const now = Date.now();
+  if (typeof m.ts !== 'number' || !isFinite(m.ts) || m.ts > now) return null;
+  if (now - m.ts > 24 * 60 * 60 * 1000) return null;
+  return m;
+}
+
+/**
+ * 「发现」统一路由：底部导航与首页发现动态卡共用同一实现。
+ * 优先级（已确认，不得调整）：
+ *   1) 有效的 pf_last_match 优先——mode 由真实执行匹配的页面写入；
+ *   2) 双痕迹并存（selfText/selfProfile 与 text/beneficiary 同时存在，
+ *      旧会话无法分辨先后）→ 一律 discover.html（家庭协助为主流程）；
+ *   3) 仅本人痕迹 → self.html；仅家庭痕迹 → discover.html；
+ *   4) 会话全空 → family.html（现有业务流程中「发现」的真实起点）。
+ * 痕迹判定全部按 truthy（e2e 种子会写入空串，天然视为无痕迹）。
+ */
+function discoverRouteTarget() {
+  const s = store.read();
+  const lm = validLastMatch(s);
+  if (lm) return lm.mode === 'self' ? 'self.html' : 'discover.html';
+  const hasSelf = !!(s.selfText || (s.selfProfile && s.selfProfile.mode === 'self'));
+  const hasFam = !!(s.text || s.beneficiary);
+  if (hasSelf && hasFam) return 'discover.html';
+  if (hasSelf) return 'self.html';
+  if (hasFam) return 'discover.html';
+  return 'family.html';
+}
+
+/**
+ * 底部导航（只连接真实存在的功能）：
+ *   首页 → index.html；发现 → discoverRouteTarget()；
+ *   咨询 → 暂未开放，点击给出明确提示（不伪装成可用页）；
+ *   我的 → family.html（现有查询关系管理页）。
+ * active: 'home' | 'discover' | 'consult' | 'mine'
+ */
+function renderBottomNav(active) {
+  const icons = {
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg>',
+    discover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
+    consult: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 1 0-3.1 6.3L21 20z"/></svg>',
+    mine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>',
+  };
+  const tabs = [
+    { key: 'home', label: '首页' },
+    { key: 'discover', label: '发现' },
+    { key: 'consult', label: '咨询', disabled: true },
+    { key: 'mine', label: '我的' },
+  ];
+  return '<nav class="tabbar" aria-label="底部导航">'
+    + tabs.map(function (t) {
+      const isActive = t.key === active;
+      const disabled = !!t.disabled;
+      const attrs = 'type="button" class="tab-item' + (isActive ? ' is-active' : '')
+        + (disabled ? ' is-disabled' : '') + '"'
+        + ' data-tab="' + t.key + '"'
+        + (isActive ? ' aria-current="page"' : '')
+        + (disabled ? ' aria-disabled="true"' : '');
+      return '<button ' + attrs + '>' + icons[t.key]
+        + '<span>' + escapeHtml(t.label) + '</span></button>';
+    }).join('')
+    + '</nav>';
+}
+
+function mountBottomNav(active) {
+  const app = document.querySelector('.app');
+  if (!app || app.querySelector('.tabbar')) return;
+  app.classList.add('has-tabbar');
+  app.insertAdjacentHTML('beforeend', renderBottomNav(active));
+  const root = app.querySelector('.tabbar');
+  if (!root) return;
+  root.addEventListener('click', function (e) {
+    const btn = e.target.closest('.tab-item');
+    if (!btn) return;
+    const key = btn.dataset.tab;
+    if (key === 'consult') {
+      showToast('咨询功能暂未开放：核实方式与官方渠道可在每条政策的详情页内查看');
+      return;
+    }
+    if (key === 'discover') {
+      location.href = discoverRouteTarget();
+      return;
+    }
+    if (key === 'home') location.href = 'index.html';
+    if (key === 'mine') {
+      openMineSheet(btn);
+      return;
+    }
+  });
+}
+
+/* ==========================================================================
+   「我的」底部弹层（首页重设计 D1 · 2026-10-20）
+   - 只展示当前会话真实数据，不新增页面、不伪造个人信息
+   - 「重置本次查询」为二次确认：第一次点击仅进入确认态并展示影响范围，
+     第二次点击才执行 store.clear()（只清 policy_finder_session 会话对象，
+     不触碰政策数据、后端与其他 sessionStorage 键）
+   ========================================================================== */
+function mineSessionLines() {
+  const s = store.read();
+  if (s.beneficiary) {
+    const age = (s.profile && typeof s.profile.age === 'number') ? s.profile.age + ' 岁' : '';
+    return { mode: '家庭协助', relation: (s.operator || '未选择') + ' → ' + s.beneficiary, extra: age };
+  }
+  if (s.selfProfile && s.selfProfile.mode === 'self') {
+    const age = (typeof s.selfProfile.age === 'number') ? s.selfProfile.age + ' 岁' : '';
+    return { mode: '本人模式', relation: '本人', extra: age };
+  }
+  return { mode: '尚未开始', relation: '尚未建立家庭画像', extra: '' };
+}
+
+function mineSheetHtml(d) {
+  return '<div class="mine-sheet" role="dialog" aria-modal="true" aria-label="我的查询">'
+    + '<div class="ms-head"><span class="ms-title">我的查询</span>'
+    + '<button type="button" class="ms-close" aria-label="关闭">✕</button></div>'
+    + '<div class="ms-rows">'
+    + '<div class="ms-row"><span class="k">查询模式</span><span class="v">' + escapeHtml(d.mode) + '</span></div>'
+    + '<div class="ms-row"><span class="k">查询关系</span><span class="v">' + escapeHtml(d.relation) + '</span></div>'
+    + (d.extra ? '<div class="ms-row"><span class="k">画像年龄</span><span class="v">' + escapeHtml(d.extra) + '</span></div>' : '')
+    + '</div>'
+    + '<div class="ms-actions">'
+    + '<button type="button" class="ms-btn" data-ms="family">重新评估家庭情况</button>'
+    + '<button type="button" class="ms-btn ghost" data-ms="self">为自己查找</button>'
+    + '<button type="button" class="ms-btn danger" data-ms="reset">重置本次查询</button>'
+    + '</div>'
+    + '<p class="ms-note ms-reset-note">重置将清空本次会话数据：家庭画像、已填写的情况描述与最近一次匹配记录；不影响任何政策数据，也不影响其他页面。</p>'
+    + '<p class="ms-note">结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。</p>'
+    + '</div>';
+}
+
+function openMineSheet(trigger) {
+  const existed = document.getElementById('mineOverlay');
+  if (existed) { existed.remove(); return; }   // 再点一次「我的」= 关闭
+  const overlay = document.createElement('div');
+  overlay.id = 'mineOverlay';
+  overlay.className = 'mine-overlay';
+  overlay.innerHTML = mineSheetHtml(mineSessionLines());
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); if (trigger && trigger.focus) trigger.focus(); };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  overlay.querySelector('.ms-close').addEventListener('click', close);
+  overlay.querySelector('[data-ms="family"]').addEventListener('click', () => {
+    const prev = store.read().target;
+    store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
+    location.href = 'family.html';
+  });
+  overlay.querySelector('[data-ms="self"]').addEventListener('click', () => {
+    store.write({ target: 'self', demo: false, demoBanner: false });
+    location.href = 'self.html';
+  });
+  const resetBtn = overlay.querySelector('[data-ms="reset"]');
+  resetBtn.addEventListener('click', () => {
+    if (resetBtn.dataset.armed !== '1') {
+      // 第一次点击：仅进入确认态，明确展示影响范围，不执行任何清除
+      resetBtn.dataset.armed = '1';
+      resetBtn.textContent = '确认重置？再次点击执行';
+      resetBtn.classList.add('is-armed');
+      const note = overlay.querySelector('.ms-reset-note');
+      if (note) note.classList.add('is-armed');
+      return;
+    }
+    store.clear();
+    location.href = 'index.html';
+  });
+  overlay.querySelector('.ms-close').focus();
 }

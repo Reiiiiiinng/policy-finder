@@ -66,25 +66,103 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 console.log('== 问题1：首页首屏减负 ==');
 {
   const html = read('frontend/index.html');
-  const heroEnd = html.indexOf('</header>');
+  const welcomeEnd = html.indexOf('</header>');
   const entryAt = html.indexOf('id="entry"');
-  check('首屏 hero 存在', heroEnd > 0);
-  check('入口区在 hero 之后（首屏优先顺序）', entryAt > 0 && entryAt < heroEnd + 4000 && entryAt > html.indexOf('<header'));
-  // 入口应紧跟首屏：中间不能夹着 how-card / idea-card
+  check('欢迎区存在（home-hello）', welcomeEnd > 0 && /home-hello/.test(html));
+  check('旧大标题 hero 已移除', !/class="hero"/.test(html) && !/hero-title/.test(html));
+  check('画像卡在欢迎区之后（首屏优先顺序）', entryAt > 0 && entryAt < welcomeEnd + 4000 && entryAt > html.indexOf('<header'));
+  // 画像卡应紧跟欢迎区：中间不能夹着说明性大块
   const between = html.slice(html.indexOf('</header>'), entryAt);
-  check('入口与首屏之间无说明性大块',
+  check('画像卡与欢迎区之间无说明性大块',
     !/how-card|idea-card|trust-strip|role-diff/.test(between), between.slice(0, 120));
-  check('hero 只有标题+一句话定位+下跳',
-    !/hero-eyebrow/.test(html.slice(html.indexOf('<header'), heroEnd)), 'hero-eyebrow 应移除');
-  check('一句话定位保留', /说出家里发生了变化|主动找到需要它的人/.test(html));
-  check('首屏提供入口指引', /hero-jump/.test(html));
-  check('核心理念未删除', /人找政策/.test(html) && /政策找人/.test(html));
-  check('核心理念压缩为 idea-flow', /idea-flow/.test(html) && /idea-pips/.test(html));
-  check('说明性内容仍在页面内（未删）',
-    /how-card/.test(html) && /trust-strip/.test(html) && /role-diff/.test(html));
-  check('三个入口 data-target 未变',
-    /data-target="parents"/.test(html) && /data-target="family"/.test(html) && /data-target="self"/.test(html));
+  check('一句话定位保留（新版欢迎文案）', /为您主动发现可能相关的政策与服务/.test(html));
+  check('旧三纵向入口卡已移除（结构重设计硬标准）', !/choice entry/.test(html) && !/entry-icon/.test(html));
+  check('旧理念/流程/角色说明块已移出首页',
+    !/idea-card/.test(html) && !/how-card/.test(html) && !/role-diff/.test(html) && !/trust-strip/.test(html));
+  check('无统计数字展示（不引入政策条数/已核来源计数）',
+    !/policyCount/.test(html) && !/statTotal/.test(html) && !/trustStrip/.test(html));
+  // 结构重设计四要件
+  check('家庭画像卡存在', /home-profile/.test(html) && /hp-enter/.test(html));
+  check('发现动态卡存在', /home-discover/.test(html) && /id="discoverCard"/.test(html));
+  check('服务宫格 2×2 四项齐全',
+    /home-grid/.test(html)
+    && ['政策匹配', '政策解读', '办理指引', '我的权益'].every((t) => html.indexOf(t) >= 0));
+  check('未开放入口明确标注建设中（不伪装可用）',
+    (html.match(/is-todo/g) || []).length >= 3 && /t-soon/.test(html));
+  check('底部导航挂载且首页为当前页',
+    /mountBottomNav\('home'\)/.test(html));
+  // 入口语义：家庭入口保留 parents 契约，本人入口保留 self 契约；
+  // 「我的长辈」由 family.html「其他关系」折叠区承接（见问题2）
+  check('家庭入口 data-target="parents" 保留', /data-target="parents"/.test(html));
+  check('本人入口 data-target="self" 保留', /data-target="self"/.test(html));
+  check('跳转契约保留（family.html + self.html）',
+    /family\.html/.test(html) && /self\.html/.test(html));
   check('Demo 入口保留', /id="demoEntry"/.test(html) && /showDemoConfirm/.test(html));
+  check('合规声明保留', /不代表已符合政策资格/.test(html) && /主管部门核定/.test(html));
+}
+
+console.log('== 问题1b：发现路由与匹配摘要（首页重设计新增） ==');
+{
+  const app = read('frontend/assets/app.js');
+  const disc = read('frontend/discover.html');
+  const self_ = read('frontend/self.html');
+  const idx = read('frontend/index.html');
+  check('pf_last_match 仅在结果渲染后写入（discover）',
+    disc.indexOf('pf_last_match') > disc.indexOf('bindAll(data)'));
+  check('pf_last_match 仅在结果渲染后写入（self）',
+    self_.indexOf('pf_last_match') > self_.indexOf('bindAll(data)'));
+  check('count 取自真实 results（不硬编码数量）',
+    /\(data\.results \|\| \[\]\)\.length/.test(disc) && /\(data\.results \|\| \[\]\)\.length/.test(self_));
+  check('读取校验：count 为有限非负整数', /Number\.isInteger\(m\.count\) \|\| m\.count < 0/.test(app));
+  check('读取校验：mode 白名单 self/family', /m\.mode !== 'self' && m\.mode !== 'family'/.test(app));
+  check('读取校验：24 小时时效', /24 \* 60 \* 60 \* 1000/.test(app));
+  check('读取校验：拒绝未来时间戳', /m\.ts > now/.test(app));
+  check('路由规则：双痕迹并存优先 discover（兼容规则）',
+    /hasSelf && hasFam\) return 'discover\.html'/.test(app));
+  check('路由规则：有效 pf_last_match 优先于会话痕迹',
+    app.indexOf('validLastMatch(s)') >= 0
+    && app.indexOf('validLastMatch(s)') < app.indexOf('hasSelf && hasFam'));
+  check('路由规则：空会话兜底 family.html', /return 'family\.html'/.test(app));
+  check('首页发现卡与底部导航使用统一路由', /discoverRouteTarget\(\)/.test(idx));
+  check('「咨询」未伪装成可用导航（明确暂未开放）',
+    /aria-disabled="true"/.test(app) && /暂未开放/.test(app));
+}
+
+console.log('== 问题1c：「我的」底部弹层（D1） ==');
+{
+  const app = read('frontend/assets/app.js');
+  check('「我的」不再直接跳转 family.html（改为弹层）',
+    /key === 'mine'\) \{\s*openMineSheet/.test(app));
+  check('弹层读取真实会话（家庭/本人/未开始三态）',
+    /function mineSessionLines/.test(app)
+    && /s\.beneficiary/.test(app)
+    && /s\.selfProfile && s\.selfProfile\.mode === 'self'/.test(app));
+  check('重置为二次确认（armed 状态，首点不执行）',
+    /dataset\.armed !== '1'/.test(app) && /确认重置？再次点击执行/.test(app));
+  check('重置影响范围明示（画像/描述/匹配记录，且不影响政策数据）',
+    /家庭画像、已填写的情况描述与最近一次匹配记录/.test(app)
+    && /不影响任何政策数据/.test(app));
+  check('重置仅清会话对象（store.clear）', /store\.clear\(\)/.test(app));
+  check('弹层按需挂载 body，不改首页主体结构',
+    /document\.body\.appendChild\(overlay\)/.test(app));
+  check('支持关闭：遮罩/Esc/关闭钮/toggle', /e\.target === overlay/.test(app)
+    && /e\.key === 'Escape'/.test(app) && /existed\.remove\(\)/.test(app));
+}
+
+console.log('== 问题1d：发现/本人页补挂底部导航（D3） ==');
+{
+  const disc = read('frontend/discover.html');
+  const self_ = read('frontend/self.html');
+  const fam = read('frontend/family.html');
+  const pol = read('frontend/policy.html');
+  check('discover.html 已挂载底部导航（选中「发现」）',
+    /mountRelationStrip\(\);\s*\n\s*mountBottomNav\('discover'\)/.test(disc));
+  check('self.html 已挂载底部导航（选中「发现」）',
+    /mountRelationStrip\(\);\s*\n\s*mountBottomNav\('discover'\)/.test(self_));
+  check('family.html 本轮不挂载（表单页保持原状）', !/mountBottomNav/.test(fam));
+  check('policy.html 本轮不挂载（三层返回链保持原状）', !/mountBottomNav/.test(pol));
+  check('index.html 仍为「首页」选中态',
+    /mountBottomNav\('home'\)/.test(read('frontend/index.html')));
 }
 
 console.log('== 问题2：父母 / 长辈入口区分 ==');

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf7f1">
+  <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="查看政策依据、适用条件、官方来源与办理方式，并决定下一步怎么核实。">
   <title>政策找人 · 政策依据</title>
   <link rel="stylesheet" href="assets/style.css">
@@ -29,9 +29,8 @@
   const _navSession = store.read();
   const _navProfile = _navSession.profile || _navSession.selfProfile || null;
   const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
-  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html', '第 3 步');
+  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html', '第 3 步 · 查看依据');
   mountDemoBanner();
-  mountDemoProgress(4);
   mountFlow(3);
   mountRelationStrip();
 
@@ -185,7 +184,7 @@
     if (clean(src.document_no)) rows.push(['文号', clean(src.document_no), '']);
     if (clean(src.publish_date)) rows.push(['发布时间', clean(src.publish_date), '']);
     if (clean(src.related_document)) rows.push(['相关依据', clean(src.related_document), '']);
-    rows.push(['核验状态', pending ? (clean(src.official_url) ? '国家依据已核验 · 本地待确认' : '来源待核验') : '已核验', '']);
+    rows.push(['核验状态', pending ? (clean(src.official_url) ? '国家依据已核验 · 本地待确认' : '来源待核验') : '来源已核验', '']);
     rows.push(['核验时间', clean(ver.checked_at) || '未提供', '']);
 
     const rowsHtml = rows.map((r) => {
@@ -206,7 +205,7 @@
     const verBadge = pending
       ? (clean(src.official_url) ? '<span class="badge pending">本地待确认</span>'
                                  : '<span class="badge pending">来源待核验</span>')
-      : '<span class="badge verified">✓ 已核验</span>';
+      : '<span class="badge verified">✓ 来源已核验</span>';
     const tcStatus = `
       <div class="tc-status">
         ${verBadge}
@@ -294,7 +293,6 @@
       </div>`;
 
     bindFinalStep(id, selfMode, backHref);
-    mountFlow(4);
     mountRelationStrip();
   }
 

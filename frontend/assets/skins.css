@@ -6,11 +6,11 @@
      权益发现被组织成一份「给家庭的简报」：
      大标题是首屏重心，优先关注是一块完整的暖色版面，
      首条重点权益是头条卡（更大、更醒目），其余条目次级排布。
-     配色：沙色暖底 #F6EEDD + 深松绿 #175843 + 编辑感橙 #E8792B。
+     配色：米白底 #f7f5ee + 政务绿 #2e7d4f + 警示橙 #e8833a。
    - body.skin-b：方案 B —— 极简行式排版
      拆掉卡片盒子：权益列表是「分组标题 + 行」的形态，
      靠发丝线、对齐、字重与留白分层，几乎不用色块与阴影。
-     配色：纯白底 + 近黑墨色 #1B2430 + 深绿 #0A3D2E 只做状态标识。
+     配色：纯白底 + 近黑墨色 #1f2b24 + 深绿 #1b5e3b 只做状态标识。
 
    原则：
    1. 只覆盖设计变量与展示样式，不改布局机制：
@@ -55,8 +55,8 @@
   gap: 2px;
   padding: 3px;
   border-radius: 999px;
-  background: rgba(28, 37, 33, 0.84);
-  box-shadow: 0 6px 20px rgba(28, 37, 33, 0.25);
+  background: rgba(31, 43, 36, 0.84);
+  box-shadow: 0 6px 20px rgba(31, 43, 36, 0.25);
 }
 
 .skin-switch .ss-btn {
@@ -64,7 +64,7 @@
   border: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.78);
-  font: 600 12px/1 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 600 12px/1 "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   padding: 7px 11px;
   border-radius: 999px;
   cursor: pointer;
@@ -73,7 +73,7 @@
 
 .skin-switch .ss-btn.is-on {
   background: #ffffff;
-  color: #1c2521;
+  color: #1f2b24;
 }
 
 .skin-switch .ss-btn:focus-visible {
@@ -86,55 +86,55 @@
    ================================================================ */
 body.skin-c {
   /* 沙色暖底 —— 与原版的冷白底拉开明显色温差 */
-  --cream: #F6EEDD;
-  --cream-2: #EFE4CC;
-  --card: #FFFCF5;
-  --line: #E4D6BB;
-  --line-soft: #EDE2CC;
+  --cream: #f7f5ee;
+  --cream-2: #f0eee3;
+  --card: #ffffff;
+  --line: #efeddf;
+  --line-soft: #f4f2e9;
 
   /* 深松绿主色 */
-  --brand: #175843;
-  --brand-mid: #1F6B52;
-  --brand-dark: #114232;
-  --brand-deep: #0C3226;
-  --brand-soft: #E7F0E8;
-  --brand-wash: #F1F7F1;
-  --brand-line: #CBDECF;
+  --brand: #2e7d4f;
+  --brand-mid: #3a8b5c;
+  --brand-dark: #1b5e3b;
+  --brand-deep: #154b2e;
+  --brand-soft: #e3f1e7;
+  --brand-wash: #eef5ef;
+  --brand-line: #cde2d3;
 
   /* 文字：暖调深棕墨 */
-  --ink: #33291E;
-  --ink-2: #4A3E2F;
-  --muted: #857763;
-  --muted-2: #A79A85;
+  --ink: #1f2b24;
+  --ink-2: #3e4a42;
+  --muted: #5a685e;
+  --muted-2: #8a948c;
 
   /* 待确认橙（文字级，保证对比度） */
-  --warn: #B55A0C;
-  --warn-soft: #FCEFD9;
-  --warn-line: #EFDAB6;
+  --warn: #b05a1a;
+  --warn-soft: #fbefe2;
+  --warn-line: #f2d9bd;
 
   /* 编辑感强调橙：只点「头条卡」「优先关注」等关键位置 */
-  --accent: #E8792B;
-  --accent-soft: #FBEEDD;
+  --accent: #e8833a;
+  --accent-soft: #fbefe2;
 
   /* 信任蓝沿用，色温微调 */
-  --trust: #F1F6FC;
-  --trust-ink: #1D55C8;
-  --trust-line: #D8E5F8;
+  --trust: #eef3f7;
+  --trust-ink: #5b7a99;
+  --trust-line: #d8e2ea;
 
   /* 形态：饱满圆角 + 暖阴影 */
   --radius: 18px;
   --radius-lg: 22px;
   --radius-xl: 28px;
-  --shadow: 0 6px 20px rgba(78, 61, 38, 0.10);
-  --shadow-sm: 0 2px 6px rgba(78, 61, 38, 0.06);
-  --shadow-lg: 0 14px 36px rgba(78, 61, 38, 0.14);
-  --ring: 0 0 0 3px rgba(232, 121, 43, 0.30);
+  --shadow: 0 6px 20px rgba(31, 43, 36, 0.10);
+  --shadow-sm: 0 2px 6px rgba(31, 43, 36, 0.06);
+  --shadow-lg: 0 14px 36px rgba(31, 43, 36, 0.14);
+  --ring: 0 0 0 3px rgba(46, 125, 79, 0.22);
 
   background: var(--cream);
 }
 
 @media (min-width: 560px) {
-  body.skin-c { background: #EDE1C8; }
+  body.skin-c { background: #efece1; }
 }
 
 /* ---- 首屏：大标题是视觉重心，说明文字退居辅助 ---- */
@@ -146,7 +146,7 @@ body.skin-c .result-hero {
 body.skin-c .result-hero::before {
   content: '权益发现简报';
   display: inline-block;
-  font: 700 12px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 700 12px/1 "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   letter-spacing: 3px;
   color: var(--brand-mid);
   background: var(--brand-soft);
@@ -168,7 +168,7 @@ body.skin-c .result-hero .result-title {
 /* 关键词强调：深绿字 + 橙色底衬笔触，克制但一眼可见 */
 body.skin-c .result-hero .hl {
   color: var(--brand-dark);
-  background: linear-gradient(transparent 68%, rgba(232, 121, 43, 0.28) 68%, rgba(232, 121, 43, 0.28) 94%, transparent 94%);
+  background: linear-gradient(transparent 68%, rgba(232, 131, 58, 0.28) 68%, rgba(232, 131, 58, 0.28) 94%, transparent 94%);
   border-radius: 2px;
   padding: 0 2px;
 }
@@ -184,8 +184,8 @@ body.skin-c .result-hero .result-sub {
 body.skin-c .tier-groups { gap: 14px; }
 
 body.skin-c .tier-block.is-focus-block {
-  background: linear-gradient(180deg, #FBF3E0 0%, #F8EFDC 100%);
-  border: 1px solid #EBDCC0;
+  background: linear-gradient(180deg, #faf7ec 0%, #f6f1e2 100%);
+  border: 1px solid #efe9d8;
   border-radius: var(--radius-lg);
   padding: 14px 12px 12px;
 }
@@ -230,8 +230,8 @@ body.skin-c .tier-head.is-focus .th-desc {
 
 /* ---- 头条卡：第一条重点权益明显大于其余条目（非对称节奏） ---- */
 body.skin-c .is-focus-items .result-card:first-child {
-  background: #FFFCF5;
-  border: 1px solid #EBDCC0;
+  background: #ffffff;
+  border: 1px solid #efe9d8;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 18px 16px 14px;
@@ -263,7 +263,7 @@ body.skin-c .is-focus-items .result-card:first-child .rc-label {
 
 /* 头条之后的重点权益： quieter 的次级卡 */
 body.skin-c .is-focus-items .result-card:first-child ~ .result-card {
-  background: rgba(255, 252, 245, 0.72);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   box-shadow: none;
@@ -271,7 +271,7 @@ body.skin-c .is-focus-items .result-card:first-child ~ .result-card {
 
 /* ---- 折叠区：退为安静的次级信息 ---- */
 body.skin-c .more-toggle {
-  background: rgba(255, 252, 245, 0.8);
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
 }
@@ -308,11 +308,11 @@ body.skin-c .badge.confirm {
 
 /* 顶栏：暖沙纸感 + 橙调微光晕 */
 body.skin-c .topbar {
-  background: linear-gradient(180deg, #FBF5E8 0%, #F6EDDA 100%);
+  background: linear-gradient(180deg, #faf7ec 0%, #f6f1e2 100%);
 }
 
 body.skin-c .topbar::after {
-  background: radial-gradient(circle at 35% 35%, rgba(232, 121, 43, 0.12), rgba(232, 121, 43, 0) 70%);
+  background: radial-gradient(circle at 35% 35%, rgba(232, 131, 58, 0.12), rgba(232, 131, 58, 0) 70%);
 }
 
 /* 小节标题符号：绿橙双色短棒 —— 全站记忆点 */
@@ -334,37 +334,37 @@ body.skin-c .section-title::before {
 body.skin-b {
   /* 冷白主底 + 浅灰分层 */
   --cream: #FFFFFF;
-  --cream-2: #F5F7FA;
+  --cream-2: #f0eee3;
   --card: #FFFFFF;
-  --line: #E4E9F0;
-  --line-soft: #EEF1F6;
+  --line: #efeddf;
+  --line-soft: #f4f2e9;
 
   /* 深绿只做重点状态与关键标识 */
-  --brand: #0A3D2E;
-  --brand-mid: #0F4C39;
-  --brand-dark: #0A3D2E;
-  --brand-deep: #072B20;
-  --brand-soft: #EDF4F0;
-  --brand-wash: #F6F9F7;
-  --brand-line: #D7E3DC;
+  --brand: #1b5e3b;
+  --brand-mid: #2e7d4f;
+  --brand-dark: #1b5e3b;
+  --brand-deep: #154b2e;
+  --brand-soft: #e3f1e7;
+  --brand-wash: #eef5ef;
+  --brand-line: #cde2d3;
 
   /* 近黑墨色文字层级 */
-  --ink: #1B2430;
-  --ink-2: #333E50;
-  --muted: #647488;
-  --muted-2: #8B97A9;
+  --ink: #1f2b24;
+  --ink-2: #3e4a42;
+  --muted: #5a685e;
+  --muted-2: #8a948c;
 
-  --warn: #9A5B12;
-  --warn-soft: #FAF4E8;
-  --warn-line: #EADFCA;
+  --warn: #b05a1a;
+  --warn-soft: #fbefe2;
+  --warn-line: #f2d9bd;
 
-  --trust: #F5F8FC;
-  --trust-ink: #1D4FD7;
-  --trust-line: #DEE7F6;
+  --trust: #eef3f7;
+  --trust-ink: #5b7a99;
+  --trust-line: #d8e2ea;
 
-  --pending: #5D7280;
-  --pending-soft: #F1F4F8;
-  --pending-line: #DFE5EC;
+  --pending: #61707c;
+  --pending-soft: #eff2f5;
+  --pending-line: #dee4ea;
 
   /* 形态：小圆角、近乎无阴影、发丝线分层 */
   --radius: 8px;
@@ -373,15 +373,15 @@ body.skin-b {
   --radius-xl: 12px;
   --shadow: none;
   --shadow-sm: none;
-  --shadow-lg: 0 10px 28px rgba(27, 36, 48, 0.10);
-  --ring: 0 0 0 3px rgba(10, 61, 46, 0.35);
+  --shadow-lg: 0 10px 28px rgba(31, 43, 36, 0.10);
+  --ring: 0 0 0 3px rgba(27, 94, 59, 0.35);
 
   background: var(--cream);
   line-height: 1.62;
 }
 
 @media (min-width: 560px) {
-  body.skin-b { background: #EEF1F5; }
+  body.skin-b { background: #efece1; }
 }
 
 /* ---- 首屏：排版驱动，大而紧的黑字标题 ---- */

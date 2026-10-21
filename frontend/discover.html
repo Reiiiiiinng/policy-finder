@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf7f1">
+  <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="用一句话描述家人的生活变化，核对 AI 的理解，发现可能遗漏的公共服务权益。">
   <title>政策找人 · 确认情况</title>
   <link rel="stylesheet" href="assets/style.css">
@@ -59,6 +59,7 @@
   mountDemoProgress(1);
   mountFlow(1);
   mountRelationStrip();
+  mountBottomNav('discover');
 
   const session = store.read();
   // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
@@ -209,6 +210,10 @@
       });
 
     bindAll(data);
+
+    // 首页「发现动态」数据源：仅在匹配成功且结果正常渲染后写入（覆盖写=最近一次真实结果；
+    // 上方任何请求失败都会提前 return，不会覆盖旧记录）
+    store.write({ pf_last_match: { count: (data.results || []).length, mode: 'family', ts: Date.now() } });
 
     // 从政策详情返回时，恢复进入详情前的滚动位置并高亮刚看过的政策。
     // 只在有有效记录时执行，不影响正常的补充信息局部刷新。
