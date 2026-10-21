@@ -29,6 +29,10 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 FRONTEND_DIR = os.path.join(ROOT_DIR, "frontend")
 PORT = int(os.environ.get("PORT", "8000"))
 
+# 端到端自测回传端点（/__e2e_log）只在本地开发与测试里需要。
+# 部署到公网时用 POLICY_ENV=production 关掉，避免把调试通道暴露出去。
+E2E_ENABLED = os.environ.get("POLICY_ENV", "dev").strip().lower() != "production"
+
 DB = engine.load_database()
 
 DISCLAIMER = (
@@ -122,6 +126,8 @@ class Handler(SimpleHTTPRequestHandler):
             })
 
         if path == "/__e2e_log":
+            if not E2E_ENABLED:
+                return _json(self, {"error": "not found"}, 404)
             # GET：?peek=1 只读取不重置，供测试脚本轮询；否则重置
             if "peek" not in (urlparse(self.path).query or ""):
                 E2E_LOG["lines"] = []
@@ -276,6 +282,8 @@ class Handler(SimpleHTTPRequestHandler):
             })
 
         if path == "/__e2e_log":
+            if not E2E_ENABLED:
+                return _json(self, {"error": "not found"}, 404)
             _e2e_record(payload)
             return _json(self, {"ok": True})
 

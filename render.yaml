@@ -1,0 +1,27 @@
+# Render 部署配置（免费档）
+#
+# 用法：在 Render 新建 Blueprint，连上本仓库，Render 会读这个文件自动建服务。
+# 注意 Render 只读默认分支（main）的 render.yaml，所以这份配置要先合到 main。
+#
+# 项目本身只有一个 Python 标准库写的 HTTP 服务，不装任何第三方包，
+# 因此 buildCommand 不需要执行 pip install。
+services:
+  - type: web
+    name: policy-finder
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: "python --version"
+    # 必须监听 0.0.0.0 且读 PORT 环境变量，server.py 两者都支持
+    startCommand: "python backend/server.py"
+    healthCheckPath: /api/health
+    envVars:
+      # 关掉 /__e2e_log 调试端点
+      - key: POLICY_ENV
+        value: production
+      # 广州库；换佛山改成 foshan
+      - key: POLICY_DB
+        value: guangzhou
+      - key: PYTHON_VERSION
+        value: "3.12.6"
