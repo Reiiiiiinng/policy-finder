@@ -428,6 +428,21 @@ function hideRefreshBar() {
   if (el) el.remove();
 }
 
+/**
+ * 匹配请求时序保护：每次发起匹配都会取得递增版本号，只有最新版本的
+ * 成功或失败结果可以写数据、重绘界面和结束进行中状态。
+ */
+let MATCH_REQUEST_SEQ = 0;
+
+function beginMatchRequest() {
+  MATCH_REQUEST_SEQ += 1;
+  return MATCH_REQUEST_SEQ;
+}
+
+function isLatestMatchRequest(requestId) {
+  return requestId === MATCH_REQUEST_SEQ;
+}
+
 /* ==========================================================================
    AI 发现过程
    原则：每一个 ✓ 都对应一次真实接口的返回，不使用 setTimeout 伪造进度。
@@ -1497,11 +1512,28 @@ function renderResultCards(data, opts) {
 
   const oneCard = (r, isLead) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
-    const reasons = (r.ai_reason || [])
-      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`).join('');
+    // 「其他可能相关」组（tier !== 强相关）用紧凑版：推荐理由与待确认项各只留第一条，
+    // 其余折成一句指路文案（详情页仍完整展示，不删数据）。
+    // 优先关注组保持完整信息，不做任何删减。
+    const isCompact = !isLead && r.tier !== '强相关';
+    const reasonItems = (r.ai_reason || [])
+      .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`);
+    /* A 方向（2026-10-21）：默认理由条数收敛——主卡 2 条核心理由（其余指路
+       「查看推荐依据」展开的证据链）、紧凑卡 1 条（指路详情页）；
+       优先关注组普通卡保持完整，不做删减。 */
+    const reasonLimit = isCompact ? 1 : (isLead ? 2 : reasonItems.length);
+    const shownReasons = reasonItems.slice(0, reasonLimit);
+    const restReasons = reasonItems.length - shownReasons.length;
+    const moreReasonHint = isLead ? '可展开「查看推荐依据」查看' : '可在详情页查看';
+    const reasons = shownReasons.join('')
+      + (restReasons > 0
+        ? `<li class="ri-more">另有 ${restReasons} 条推荐说明，${moreReasonHint}</li>`
+        : '');
 
     const missing = filterAnsweredMissing(r.missing_information, profile);
-    const shown = missing.slice(0, 2);
+    /* A 方向：主卡与紧凑卡默认只保留最关键的一条待确认项（解释随详情查看），
+       优先关注组普通卡仍展示 2 条并附解释。 */
+    const shown = missing.slice(0, (isCompact || isLead) ? 1 : 2);
     const rest = missing.length - shown.length;
     const missingHtml = missing.length ? `
       <div class="rc-block is-warm">
@@ -1511,7 +1543,7 @@ function renderResultCards(data, opts) {
             const t = personalize(x, profile);
             return `<li>
               <div class="mi-q">${escapeHtml(t)}</div>
-              <div class="mi-why">${escapeHtml(explainMissing(t))}</div>
+              ${(isCompact || isLead) ? '' : `<div class="mi-why">${escapeHtml(explainMissing(t))}</div>`}
             </li>`;
           }).join('')}
           ${rest > 0 ? `<li class="mi-more">另有 ${rest} 项待确认内容，进入详情查看</li>` : ''}
@@ -1521,11 +1553,17 @@ function renderResultCards(data, opts) {
     // 分组标题已经说明了「优先关注 / 其他可能相关」，
     // 单卡再挂一条分层色条属于重复信息，这里去掉以减轻信息密度。
 
-    /* ---- v6 主权益卡（仅 focus[0]）：统一左基线 + 主次按钮 ----
-       主按钮复用本卡已有的 data-ev-toggle 内联展开（不新增抽屉、
-       不新增接口）；次按钮走既有 policy.html 详情路由（与整卡
-       点击同路），并先记录列表位置以保住返回定位。 */
+    /* ---- A 方向主权益卡（仅 focus[0]）：信息按阅读顺序前置 ----
+       默认展示：名称与分类（头部绿带）、相关性状态（徽章）、来源部门一行、
+       2 条核心理由、1 条最关键待确认项、并排的两个操作入口
+       （查看办理方式 → 真实详情页 policy.html；查看推荐依据 → 卡内证据链）。
+       完整来源四行块与证据链开关默认收起：完整理由、全部条件与来源字段
+       由「查看推荐依据」展开的证据链与详情页承载，不在首屏占版面。 */
     if (isLead) {
+      // 主卡：把「为什么是这一项」讲清楚（家庭关联）
+      const leadWhySub = profile.mode === 'self'
+        ? '结合您描述的生活变化，这一项被列为优先关注'
+        : '结合您描述的长辈生活变化与家庭情况，这一项被列为优先关注';
       return `
       <article class="result-card is-lead" data-id="${escapeHtml(r.policy_id)}" tabindex="0" role="button">
         <div class="lead-top">
@@ -1535,27 +1573,28 @@ function renderResultCards(data, opts) {
         </div>
         <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
         <p class="result-meta">${meta}</p>
+        ${r.source_department ? `<p class="lead-dept">${escapeHtml(r.source_department)}</p>` : ''}
 
         ${renderValidityNote(r.validity)}
         ${renderThresholdNote(r.threshold_signal)}
 
         <div class="rc-block is-lead-why">
           <div class="rc-label">为什么推荐</div>
+          <p class="rc-lead-sub">${escapeHtml(leadWhySub)}</p>
           <ul class="reason-list">${reasons || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>'}</ul>
         </div>
 
         ${missingHtml}
         ${sourceBlock(r)}
 
+        <div class="lead-actions">
+          <a type="button" class="lead-btn is-primary" data-lead-detail="${escapeHtml(r.policy_id)}"
+             href="policy.html?id=${encodeURIComponent(r.policy_id)}">查看办理方式<span class="arrow" aria-hidden="true">→</span></a>
+          <button type="button" class="lead-btn is-secondary" data-lead-why="${escapeHtml(r.policy_id)}">查看推荐依据</button>
+        </div>
         <button type="button" class="ev-toggle" data-ev-toggle="${escapeHtml(r.policy_id)}"
                 aria-expanded="false">看证据链（依据什么 · 要求什么 · 出自哪里）</button>
         <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
-
-        <div class="lead-actions">
-          <button type="button" class="lead-btn is-primary" data-lead-why="${escapeHtml(r.policy_id)}">看看为什么推荐</button>
-          <a type="button" class="lead-btn is-secondary" data-lead-detail="${escapeHtml(r.policy_id)}"
-             href="policy.html?id=${encodeURIComponent(r.policy_id)}">看怎么办理</a>
-        </div>
       </article>`;
     }
 
@@ -1594,9 +1633,49 @@ function renderResultCards(data, opts) {
   const focus = list.filter((r) => r.tier === '强相关');
   const others = list.filter((r) => r.tier !== '强相关');
 
+  /* ---- 结果概览：两个分组锚点 + 本次结果的真实分类分布 ----
+     计数一律来自本次 list，不引用全库统计、不写死任何数字；
+     分类名直接取 r.category 原始值（养老服务 / 健康服务 / 医疗保障 / 养老保障），
+     不做同义映射，也不补数据里没有的类别。缺 category 的条目不参与统计。
+     只有两个分组同时存在时才有「跳转」价值，此时才渲染概览；
+     单分组或缺组时不渲染，避免出现指向不存在区块的空锚点。 */
+  const catNames = [];
+  const catCount = {};
+  list.forEach((r) => {
+    const c = (r && r.category) ? String(r.category) : '';
+    if (!c) return;
+    if (!catCount[c]) { catCount[c] = 0; catNames.push(c); }
+    catCount[c] += 1;
+  });
+  const catItems = catNames
+    .map((c) => [c, catCount[c]])
+    .sort((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : 1));
+
+  const ovChips = [];
+  if (focus.length) {
+    ovChips.push('<a class="ro-chip is-focus" href="#rsFocus">'
+      + '<span class="ro-n">' + focus.length + '</span>'
+      + '<span class="ro-t">优先关注</span></a>');
+  }
+  if (others.length) {
+    ovChips.push('<a class="ro-chip" href="#rsMore">'
+      + '<span class="ro-n">' + others.length + '</span>'
+      + '<span class="ro-t">其他可能相关</span></a>');
+  }
+  const ovCats = catItems.length > 1
+    ? '<p class="ro-cats">本次结果涉及'
+      + catItems.map((x) => '<span class="ro-cat">' + escapeHtml(x[0])
+        + ' <b>' + x[1] + '</b></span>').join('') + '</p>'
+    : '';
+  const overviewHtml = ovChips.length > 1
+    ? '<div class="result-overview" aria-label="本次结果概览">'
+      + '<div class="ro-chips">' + ovChips.join('') + '</div>' + ovCats
+      + '</div>'
+    : '';
+
   const focusHtml = focus.length
     ? `<div class="tier-block is-focus-block">
-         <div class="tier-head is-focus">
+         <div class="tier-head is-focus" id="rsFocus">
            <span class="th-name">优先关注</span>
            <span class="th-count">${focus.length} 项</span>
            <span class="th-desc">AI 从您的描述中识别到了对应的生活变化，建议先了解这几项</span>
@@ -1607,7 +1686,7 @@ function renderResultCards(data, opts) {
 
   // 折叠区：默认收起，展开状态由 bindResultGroups 恢复
   const othersHtml = others.length
-    ? `<div class="more-group" data-more-group>
+    ? `<div class="more-group" data-more-group id="rsMore">
          <button type="button" class="more-toggle" id="moreToggle"
                  aria-expanded="false" aria-controls="moreItems">
            <span class="mt-label">其他可能相关 ${others.length} 项</span>
@@ -1623,9 +1702,11 @@ function renderResultCards(data, opts) {
     : '';
 
   const focusCount = focus.length;
-  const summary = focusCount
-    ? `建议优先了解其中 ${focusCount} 项`
-    : '暂未识别到优先关注项，以下均需进一步确认';
+  /* A 方向（2026-10-21）：概览锚点已承担「优先几项 / 其他几项」的计数与分类分布，
+     有优先项时不再重复一行建议句；无优先项时这句话是唯一的引导，保留。 */
+  const summaryHtml = focusCount
+    ? ''
+    : '<p class="result-summary">暂未识别到优先关注项，以下均需进一步确认</p>';
 
   // V1.1 文案（本轮确认）：三套视觉方案共用同一主标题
   // 「AI 为您发现了这些可能遗漏的权益」，真实数量移入副题；
@@ -1633,20 +1714,23 @@ function renderResultCards(data, opts) {
   const subLine = profile.mode === 'self'
     ? `共发现 ${list.length} 项可能相关权益 · 基于您确认的情况整理`
     : `共发现 ${list.length} 项可能相关权益 · 基于您确认的家庭情况整理`;
+  /* A 方向首屏收敛（只动展示顺序，不动数据与匹配）：
+     1) 结果就绪后不再保留「AI 处理过程」独立块——过程说明已在加载态完整展示过，
+        renderAiFlowDone 保留备用、暂不调用，不让过程说明挤占主推荐区；
+     2) 免责合并为一句（引擎 notice 与固定口径原先是两层近似重复的说明，
+        页脚仍有同口径兜底声明），不删任何风险表述；
+     3) 尾部的「AI 发现的生活场景」归纳块与概览分类行、上方确认台重复，不再渲染
+        （renderSceneSummary 保留备用）。 */
   return `
     <div class="section">
       <div class="result-hero">
         <h2 class="section-title result-title" id="resultAnchor">AI 为您发现了这些<span class="hl">可能遗漏的权益</span></h2>
         <p class="result-sub">${escapeHtml(subLine)}</p>
       </div>
-      ${renderAiFlowDone()}
-      <p class="result-summary">${escapeHtml(summary)}</p>
-      <p class="hint" style="margin:-4px 0 10px">
-        以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
-      </p>
-      <div class="notice">${escapeHtml(data.notice || '')}</div>
+      ${overviewHtml}
+      ${summaryHtml}
+      <div class="notice is-caveat">以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。</div>
       <div class="tier-groups">${focusHtml}${othersHtml}</div>
-      ${renderSceneSummary(list)}
     </div>`;
 }
 
@@ -1715,16 +1799,22 @@ function bindResultGroups() {
  * 实现「用户纠正 AI」—— 这是本轮人机协同的核心闭环。
  */
 function bindSceneChips(currentData, onChange) {
-  const base = (currentData && currentData.profile) || {};
+  const profile = (currentData && currentData.profile) || {};
+  let latestScenes = Array.from(new Set(profile.scenes || []));
   document.querySelectorAll('[data-scene]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.scene;
-      const on = btn.dataset.on === '1';
+      // 连续点击时 DOM 仍可能是上一次渲染的状态，因此以本地最新集合为准，
+      // 并在请求返回前同步更新标签，避免第二次点击基于旧快照覆盖第一次选择。
+      const on = latestScenes.indexOf(name) >= 0;
       const next = on
-        ? (base.scenes || []).filter((s) => s !== name)
-        : (base.scenes || []).concat([name]);
-      const unique = Array.from(new Set(next));
-      if (onChange) onChange(unique);
+        ? latestScenes.filter((s) => s !== name)
+        : latestScenes.concat([name]);
+      latestScenes = Array.from(new Set(next));
+      btn.dataset.on = on ? '0' : '1';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+      btn.classList.toggle('is-on', !on);
+      if (onChange) onChange(latestScenes.slice());
     });
   });
 }
@@ -1794,7 +1884,14 @@ function bindEvidenceToggles(resultsById) {
       e.stopPropagation();
       const card = btn.closest('.result-card');
       const t = card && card.querySelector('[data-ev-toggle]');
-      if (t) t.click();
+      if (t) {
+        t.click();
+        /* A 收尾：展开/收起后同步本按钮文案。ev-toggle 的 aria-expanded
+           是展开状态的唯一事实源，这里只读它，不维护第二份状态。
+           两段文案等长（6 字），按钮宽度不变、不引起排版跳动。 */
+        const open = t.getAttribute('aria-expanded') === 'true';
+        btn.textContent = open ? '收起推荐依据' : '查看推荐依据';
+      }
     });
   });
   document.querySelectorAll('[data-lead-detail]').forEach((a) => {

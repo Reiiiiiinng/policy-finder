@@ -5074,3 +5074,281 @@ body.skin-b .result-card:not(.is-lead) .ev-toggle {
 @media (prefers-reduced-motion: reduce) {
   .mine-sheet { animation: none; }
 }
+
+/* ================================================================
+   P2 · 结果页重构（2026-10-21）
+   ----------------------------------------------------------------
+   1) .result-overview：两个分组锚点 + 本次结果的真实分类分布
+   2) .is-lead 主卡：补一句「为什么是这一项」，主操作收敛为一个 CTA
+   3) .more-inner 内的卡：紧凑版（收间距与图标，正文不低于 13.5px）
+   数据、三态徽章、来源字段一律不动，本段只负责展示层。
+   ================================================================ */
+
+/* ---- 1) 结果概览 ---- */
+.result-overview {
+  margin: 12px 0 2px;
+}
+
+.ro-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.ro-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-decoration: none;
+  color: var(--ink-2);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.ro-chip.is-focus {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+}
+
+.ro-chip:active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.ro-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.ro-n {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--brand-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.ro-t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ro-cats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 8px 2px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-2);
+}
+
+.ro-cat {
+  white-space: nowrap;
+}
+
+.ro-cat b {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* 免责句并进同一条提示卡：引擎 notice + 一句固定口径，
+   拆成两个独立卡片会在首屏堆出两层「以下均为…」的重复说明 */
+.notice.is-caveat .nc-line {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted-2);
+}
+
+/* 锚点跳转后留一点呼吸位，别把分组标题顶死在视口最上沿 */
+#rsFocus,
+#rsMore {
+  scroll-margin-top: 12px;
+}
+
+/* ---- 2) 主卡：位置说明 + 单一主操作 ---- */
+.result-card.is-lead .rc-lead-sub {
+  margin: -2px 0 9px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  /* 主卡为「白卡 + 顶部绿带」：副标题落在白色正文区，必须用正文色系；
+     早先按整卡深底写成半透明白，导致白底白字（P2 验收时发现并修正）。 */
+  color: var(--muted);
+}
+
+.result-card.is-lead .lead-actions .lead-btn {
+  width: 100%;
+  gap: 6px;
+}
+
+.result-card.is-lead .lead-btn .arrow {
+  font-weight: 700;
+  transition: transform 0.18s ease;
+}
+
+.result-card.is-lead .lead-btn:active .arrow {
+  transform: translateX(2px);
+}
+
+/* ---- 3) 「其他可能相关」紧凑卡：只收间距与图标，不缩正文 ---- */
+.more-inner .result-card {
+  padding: 13px 14px 12px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+}
+
+.more-inner .result-head {
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.more-inner .rc-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.more-inner .rc-ic svg {
+  width: 18px;
+  height: 18px;
+}
+
+.more-inner .result-name {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.more-inner .result-meta {
+  margin-top: 2px;
+}
+
+.more-inner .result-badges {
+  flex: 1 0 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  max-width: none;
+  text-align: left;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.more-inner .rc-block {
+  margin-top: 9px;
+  padding: 9px 11px;
+}
+
+.more-inner .rc-label {
+  margin-bottom: 5px;
+}
+
+.more-inner .rc-block .reason-list li {
+  margin-bottom: 2px;
+  line-height: 1.6;
+}
+
+.more-inner .missing-list li {
+  margin-bottom: 6px;
+}
+
+.more-inner .src-rows {
+  gap: 3px;
+}
+
+.more-inner .ev-toggle {
+  margin-top: 9px;
+}
+
+.more-inner .result-foot {
+  margin-top: 9px;
+  padding-top: 8px;
+}
+
+/* 理由被折成「另有 N 条」时的提示行：不加圆点，弱化处理 */
+.reason-list li.ri-more {
+  padding-left: 0;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.reason-list li.ri-more::before {
+  display: none;
+}
+
+/* ================================================================
+   A 方向 UI（2026-10-21）：首屏收敛 + 主卡两按钮 + 紧凑卡扫读化
+   原则：只追加，不改动上方任何既有规则；不删数据，只调默认展示层级。
+   ================================================================ */
+
+/* ---- 1) 主卡：来源四行块与证据链开关默认收起 ----
+   来源摘要仍可见（头部新增部门一行 + 核验徽章），完整来源与证据链
+   由「查看推荐依据」展开的证据链第 3 步与详情页承载。 */
+.result-card.is-lead .rc-block.is-trust,
+.result-card.is-lead .ev-toggle {
+  display: none;
+}
+
+/* 主卡头部：政策来源部门一行（真实字段 source_department，缺失不渲染）。
+   与 lead-top / result-name / result-meta 同一条绿带，负边距拉通背景。 */
+.lead-dept {
+  margin: -7px -16px 0;
+  padding: 0 16px 13px;
+  background: #2e7d4f;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* 主卡主按钮箭头对齐：与次按钮并排时保持两枚按钮等宽 */
+.result-card.is-lead .lead-actions {
+  margin-top: 13px;
+}
+
+/* ---- 2) 紧凑卡（其他可能相关）：扫读优先 ----
+   来源四行块、证据链开关、「为什么需要确认」解释默认收起：
+   核验状态保留在徽章行，完整信息走详情入口；与主卡同一套收敛口径。 */
+.more-inner .rc-block.is-trust,
+.more-inner .ev-toggle,
+.more-inner .mi-why {
+  display: none;
+}
+
+/* 收起来源块与解释后，待确认块与详情入口之间的衔接更紧凑 */
+.more-inner .rc-block.is-warm {
+  margin-top: 8px;
+}
+
+/* ================================================================
+   A 方向收尾修复（2026-10-21）
+   ================================================================ */
+
+/* ---- 修复 1：主卡证据链展开后，核验徽章落回浅色底 ----
+   「主卡绿带上的半透明白徽章」规则（.result-card.is-lead .badge）
+   会外溢到展开后的证据链内——白字落在浅底半透明白上不可读。
+   这里只把 .ev-slot 内的徽章恢复为基础配色；作用域不含卡片头部，
+   默认状态下的徽章（绿带与紧凑卡上）不受影响。 */
+.result-card.is-lead .ev-slot .badge.verified {
+  background: var(--trust-ink);
+  color: #fff;
+  border: 1px solid var(--trust-ink);
+}
+
+.result-card.is-lead .ev-slot .badge.pending {
+  background: var(--pending-soft);
+  color: var(--pending);
+  border: 1px solid var(--pending-line);
+}

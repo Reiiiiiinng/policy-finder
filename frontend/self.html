@@ -58,7 +58,6 @@
 </div>
 
 <script src="assets/app.js"></script>
-<script src="assets/skin-switcher.js"></script>
 <script>
   renderTopbar('本人权益发现', 'index.html', '本人模式');
   mountDemoBanner();
@@ -72,6 +71,22 @@
 
   const input = document.getElementById('situation');
   const area = document.getElementById('resultArea');
+
+  /**
+   * A4：记录「被点击的生活事件 chip」——重匹配后用它当滚动恢复的锚点。
+   * 监听挂在 #resultArea 上（该元素本身不随 innerHTML 重建，所以监听不会失效），
+   * capture 阶段先于 bindSceneChips 的 click 回调执行，拿到的是点击瞬间的状态。
+   */
+  let sceneTap = null;
+  area.addEventListener('click', (e) => {
+    const chip = e.target && e.target.closest ? e.target.closest('.scene-chip') : null;
+    sceneTap = chip ? {
+      scene: chip.dataset.scene,
+      wasOn: chip.dataset.on,
+      viewportY: chip.getBoundingClientRect().top,
+      scrollY: window.scrollY,
+    } : null;
+  }, true);
 
   // 「还有一些情况」的展示状态（纯展示层，不参与任何匹配）：
   // 预览名单在一次分析内保持稳定，不因点击某个情况而重新洗牌。
@@ -129,6 +144,7 @@
    */
   async function runMatch(opts) {
     opts = opts || {};
+    const requestId = beginMatchRequest();
     // 注意：这里**不** await loadSiteContext()。
     // 站点上下文在页面加载时就已开始请求，等两次匹配请求回来时必然已就绪；
     // 若在此 await，会额外推迟渲染，导致详情页返回后的滚动位置恢复错过重试窗口。
@@ -150,18 +166,26 @@
       if (!isRefresh) {
         // 第 1 步：真实调用画像接口，返回后才打勾前两步
         await API.post('/api/profile', { text: text, mode: 'self' });
+        if (!isLatestMatchRequest(requestId)) return;
         updateAiFlow(2);
       }
+      if (!isLatestMatchRequest(requestId)) return;
       data = await API.match({
         text: text,
         mode: 'self',
         profile: saved.selfProfile || {},
       });
+      if (!isLatestMatchRequest(requestId)) return;
       if (!isRefresh) updateAiFlow(4);
     } catch (e) {
+      if (!isLatestMatchRequest(requestId)) return;
       area.style.minHeight = '';
       hideRefreshBar();
-      area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      if (isRefresh) {
+        showToast('更新失败：生活变化已保留，请稍后重试', 2800);
+      } else {
+        area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      }
       return;
     }
 
@@ -233,11 +257,40 @@
 
   /**
    * 局部刷新后把页面放回点击前的位置，避免跳顶。
-   * chip 会在「已识别 / 可选」两组之间移动，不再锚定 chip 本身；
+   * chip 会在「已识别 / 可选」两组之间移动，因此不以它为绝对锚点；
    * 关键条件按钮位置不动，仍锚定它自己的视口位置。
+   * A4：在 scrollY 基准之上，若能确认本次点击的 chip 就是重渲染后的同一个元素、
+   * 状态确实变了且仍可见，再按它自身的视口位移做相对补偿。
    */
+  function sceneChipAnchor(restore) {
+    const sel = '.scene-chip[data-scene="' + CSS.escape(String(restore.scene)) + '"]';
+    const all = document.querySelectorAll(sel);
+    if (all.length !== 1) return null;                      // 1) 身份不唯一 → 不猜
+    const chip = all[0];
+    if (chip.dataset.on === restore.wasOn) return null;     // 2) 状态没翻转 → 不是本次重渲染的结果
+    if (chip.getBoundingClientRect().height <= 0) return null; // 3) 不可见
+    const extra = chip.closest('[data-scene-extra]');
+    if (extra && (extra.hasAttribute('hidden') || extra.getBoundingClientRect().height <= 0)) {
+      return null;                                          // 3) 落在收起的折叠区里
+    }
+    // 4) 点击时的视口纵坐标要真的在视口内（底部留出 tabbar 高度）
+    if (!(restore.viewportY >= 0 && restore.viewportY <= window.innerHeight - 56)) return null;
+    return chip;
+  }
+
   function restorePosition(restore) {
     if (restore && typeof restore.scrollY === 'number') {
+      // A4：相对补偿。用当前滚动量做基准而不是设绝对位置——本函数会被调用两次
+      //（runMatch 里同步一次、rAF 里再清掉 minHeight 后一次），
+      // 第二次算出的 delta 约为 0，天然幂等，不会把第一次的补偿抵消掉。
+      if (restore.scene && typeof restore.viewportY === 'number') {
+        const chip = sceneChipAnchor(restore);
+        if (chip) {
+          const delta = chip.getBoundingClientRect().top - restore.viewportY;
+          window.scrollTo(0, Math.max(0, window.scrollY + delta));
+          return;
+        }
+      }
       window.scrollTo(0, restore.scrollY);
       return;
     }
@@ -292,18 +345,25 @@
   function bindScenes(current) {
     bindSceneChips(current, function (scenes) {
       // 点击瞬间记下滚动位置：chip 会在两组之间移动，锚定它本身会把页面拽走。
-      const scrollY = window.scrollY;
+      const tap = sceneTap;
+      const scrollY = tap ? tap.scrollY : window.scrollY;
       // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
       const profile = Object.assign({}, current.profile, {
+        scenes: scenes,
         confirmed_scenes: scenes,
         scenes_edited: true,
       });
       store.write({ selfProfile: profile });
       runMatch({
-        restore: { scrollY: scrollY },
+        // A4：带上被点 chip 的身份 / 点击前状态 / 点击时视口位置，
+        // 由 restorePosition 逐条校验后再决定是否补偿；没有记录时只带 scrollY。
+        restore: tap
+          ? { scrollY: scrollY, scene: tap.scene, wasOn: tap.wasOn, viewportY: tap.viewportY }
+          : { scrollY: scrollY },
         keepHeight: true,
         busyTitle: '已按您调整的生活变化重新匹配',
       });
+      sceneTap = null;   // 一次点击只消费一次，避免残留记录影响后续恢复
     });
   }
 

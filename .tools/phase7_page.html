@@ -109,9 +109,10 @@ async function run(){
     /AI\s*为您发现了这些可能遗漏的权益/.test(anchor), anchor);
   check('副题显示真实总数 10 项',
     /共发现\s*10\s*项可能相关权益/.test((q('.result-sub')||{}).textContent || ''), (q('.result-sub')||{}).textContent || '');
+  // A 方向（2026-10-21）：概览承担计数，本场景有优先项，建议行应不再渲染
   var summary = (q('.result-summary')||{}).textContent || '';
-  check('顶部显示「建议优先了解其中 6 项」',
-    /建议优先了解其中\s*6\s*项/.test(summary), summary);
+  check('有优先项时顶部不重复建议行（A 方向）',
+    !q('.result-summary') && D().body.textContent.indexOf('建议优先了解其中') < 0, summary);
   check('顶部不使用「强相关」', D().body.textContent.indexOf('强相关') < 0);
   check('顶部不使用「最符合」「已符合资格」（肯定语境）',
     !/最符合/.test(D().body.textContent));

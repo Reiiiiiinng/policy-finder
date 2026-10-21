@@ -145,7 +145,8 @@ async function run() {
   check('顶部显示 AI 固定主标题', /AI\s*为您发现了这些可能遗漏的权益/.test(D().body.textContent),
     (D().querySelector('#resultAnchor')||{}).textContent);
   check('副题显示真实总数', /共发现\s*\d+\s*项可能相关权益/.test(D().body.textContent));
-  check('顶部显示建议优先了解 N 项', /建议优先了解其中\s*\d+\s*项/.test(D().body.textContent));
+  // A 方向（2026-10-21）：概览锚点承担优先项计数，有优先项时不再重复「建议优先了解」行
+  check('有优先项时顶部不重复建议行（A 方向）', D().body.textContent.indexOf('建议优先了解其中') < 0);
   check('结果卡已渲染', qa('.result-card').length > 0, 'n=' + qa('.result-card').length);
   check('优先关注卡片排在折叠区之前', (function(){
     var firstFocus = q('.tier-head.is-focus');

@@ -343,8 +343,10 @@ console.log('== 问题6：结果信息层级（本阶段只检查不改） ==');
   };
   const norm = checkOrder(normTpl,
     ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'result-foot']);
+  // A 方向（2026-10-21）：主卡两个操作入口（查看办理方式 / 查看推荐依据）前移到
+  // 证据链开关之前——默认状态下用户先看到行动入口，证据链由「查看推荐依据」驱动。
   const lead = checkOrder(leadTpl,
-    ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'ev-toggle', 'lead-actions']);
+    ['result-name', '为什么推荐', 'missingHtml', 'sourceBlock(r)', 'lead-actions', 'ev-toggle']);
   check('普通卡信息层级顺序合理', norm.ok, '缺失=' + norm.missing);
   check('焦点主权益卡信息层级顺序合理', lead.ok, '缺失=' + lead.missing);
 
