@@ -1600,6 +1600,8 @@ function renderResultCards(data, opts) {
     // 引擎给的 ai_reason 第一条通常是「年龄/户籍等硬条件命中」，最能说明为什么是它。
     const reasons = (r.ai_reason || [])
       .map((x) => `<li>${escapeHtml(personalize(x, profile))}</li>`);
+    // V14 卡面的「为什么」只留一条：有摘要就用摘要（它本身就是第一条理由），
+    // 不再把同一条原文在下面重复列一遍。其余理由仍全部保留在折叠里。
     const reasonFirst = reasons[0]
       || '<li>暂无可用于判断的具体情况，建议补充描述后重新匹配。</li>';
     const reasonRest = reasons.slice(1);
@@ -1612,11 +1614,15 @@ function renderResultCards(data, opts) {
 
     // 卡面摘要：只取第一条理由原文做称呼替换，写成「推荐理由：…」一行。
     // 完整理由仍在下方「为什么推荐」块里（原文未改动），摘要只是让人一眼看到为什么。
+    //
+    // V14 之后这一行不再单独排版：它被并进下面的「与家庭情况的关联」框里，
+    // 由 rc-brief 承接第二句话。变量保留是为了让「推荐理由 → 为什么推荐 →
+    // 还需确认 → 来源」这个层级顺序在模板里仍然看得出先后。
     const brief = reasonBrief(profile && profile.relation
       ? personalize((r.ai_reason || [])[0] || '', profile)
       : ((r.ai_reason || [])[0] || ''));
     const briefHtml = brief
-      ? `<p class="rc-brief"><span class="rb-k">推荐理由</span>${escapeHtml(brief)}</p>` : '';
+      ? `<span class="rc-brief">${escapeHtml(brief)}</span>` : '';
 
     // 匹配给谁 + 符合度。符合度直接用引擎 score，这里是相对分不是概率；
     // 文案写「符合度」并带 % ，但下方一定会说明它不是资格结论。
@@ -1685,8 +1691,19 @@ function renderResultCards(data, opts) {
     // 「推荐度高」只标最先出现的那一张卡：它是「优先关注」组的第一条，
     // 也就是当前排序里最值得先看的一条，不另算分数、不改排序。
     const isLeadCard = !!(opts && opts.lead);
+
+    // V14 优先卡：把原来的「8 个纵向区块」压成原型那样一段，
+    // 理由只留一条、待确认只留一句，其余全部收进卡尾两个入口。
+    // 信息没删——「另外 N 条理由」「还需确认 N 项 · 政策来源」都还在，
+    // 只是从「常驻卡面」变成「点一下才展开」，首屏因此能同时看到标题、
+    // 推荐给谁、为什么、下一步。
+    const condFirst = ((r.evidence && r.evidence.policy_conditions) || [])
+      .find((c) => c.state !== 'met');
+    const condLine = missing.length
+      ? `还需确认：${escapeHtml(personalize(missing[0], profile))}`
+      : (condFirst ? `还需确认：${escapeHtml(condFirst.label)}` : '');
     return `
-      <article class="result-card${isLeadCard ? ' has-tier' : ''}" data-id="${escapeHtml(r.policy_id)}">
+      <article class="result-card${isLeadCard ? ' has-tier is-lead' : ''}" data-id="${escapeHtml(r.policy_id)}">
         ${isLeadCard ? '<span class="rc-tier">推荐度高</span>' : ''}
         <div class="result-head">
           <div class="result-head-main">
@@ -1703,18 +1720,29 @@ function renderResultCards(data, opts) {
           <span class="rc-fit"><span class="rc-fit-k">符合度</span><b class="rc-fit-v">${pct}%</b></span>
         </div>
 
-        ${briefHtml}
+        <!-- 关联理由：卡面只一句，其余理由折叠在「另外 N 条理由」里，一条都不丢 -->
+        <div class="reason-box">
+          <div class="reason-title">与家庭情况的关联</div>
+          <ul class="reason-list">${briefHtml
+            ? `<li class="rc-brief-item"><span class="rb-k">推荐理由</span>${briefHtml}</li>`
+            : reasonFirst}</ul>
+          ${restReasonHtml}
+        </div>
+
+        ${condLine ? `<div class="condition-row">
+          <span class="condition-dot" aria-hidden="true">!</span>
+          <span>${condLine}</span>
+        </div>` : ''}
 
         ${condChips ? `<div class="cond-chips">${condChips}</div>` : ''}
-        ${citeLine}
-
-        <div class="rc-block">
-          <div class="rc-label">为什么推荐</div>
-          <ul class="reason-list">${reasonFirst}</ul>${restReasonHtml}
-        </div>
 
         ${renderValidityNote(r.validity)}
         ${renderThresholdNote(r.threshold_signal)}
+
+        <div class="priority-footer">
+          <p class="rc-cite-line">${docNo ? `政策依据：${escapeHtml(docNo)}` : '政策依据：见详情'}</p>
+          <a class="evidence-link" href="policy.html?id=${encodeURIComponent(r.policy_id)}">为什么推荐　›</a>
+        </div>
 
         <details class="rc-fold">
           <summary class="rc-fold-sum">${foldSum}</summary>
@@ -1826,9 +1854,40 @@ function renderResultCards(data, opts) {
 
 
   const focusCount = focus.length;
+  // 这句仍保留（有 4 处端到端断言在读它），但不再单独占一个 .result-summary 块——
+  // V14 把「建议优先了解」挪到了分组标题上，这里留作分段下方的一句过渡，
+  // 让「总数 → 优先几项 → 具体卡」三步读下来不断。
   const summary = focusCount
     ? `建议优先了解其中 ${focusCount} 项`
     : '暂未识别到优先关注项，以下均需进一步确认';
+
+  // 发现导语卡（V14）：先用一句话说「发现了什么」，再给三个真实分类计数。
+  // 计数按引擎返回的 category 聚合取前三——不套用原型里写死的
+  // 「养老照护 / 医疗保障 / 健康管理」，那是设计占位，真实库的分类未必如此。
+  const catMap = new Map();
+  list.forEach((r) => {
+    const c = String(r.category || '').trim();
+    if (!c) return;
+    catMap.set(c, (catMap.get(c) || 0) + 1);
+  });
+  const catTop = Array.from(catMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const catCounts = catTop.length >= 2
+    ? `<div class="disc-counts">${catTop.map(([name, n]) => `
+        <div class="disc-count"><strong>${n}</strong><span>${escapeHtml(name)}</span></div>`).join('')}</div>`
+    : '';
+  // 导语标题同样避开原型的通用文案，直接报这次真实找到的数量与重点项数。
+  const introTitle = focusCount
+    ? `为您的家庭找到 ${list.length} 项可能相关的服务`
+    : `找到 ${list.length} 项可能相关的服务`;
+  const discIntro = `
+    <section class="disc-intro">
+      <div class="disc-kicker"><span class="spark" aria-hidden="true">✦</span>家庭权益发现</div>
+      <h2>${escapeHtml(introTitle)}</h2>
+      <p>根据您填写的情况整理。以下为初步线索，不代表已经符合申请资格。</p>
+      ${catCounts}
+    </section>`;
 
   // 生活场景归纳保留，但放到结果列表之后：
   // 它与「优先关注 / 其他可能相关」是同一批信息的两种归纳，
@@ -1847,16 +1906,16 @@ function renderResultCards(data, opts) {
   // 不可点的计数，避免出现「看着能点、点了没反应」的假控件。
   return `
     <div class="section">
+      ${discIntro}
       <h2 class="section-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
       ${renderSegments(list)}
       ${renderAiFlowDone()}
       <p class="result-summary">${escapeHtml(summary)}</p>
-      <p class="hint" style="margin:-4px 0 10px">
-        以下均为「可能相关」的初步匹配结果，不代表已符合资格，建议逐项确认后再办理。
-      </p>
+      <p class="hint seg-sum" style="margin:-4px 0 10px">以下均为「可能相关」的初步匹配结果，不代表已符合资格。</p>
       <div class="notice">${escapeHtml(data.notice || '')}</div>
       <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
       ${renderSceneSummary(list)}
+      <p class="results-note">匹配结果仅用于辅助发现线索。具体资格、材料和办理方式，请以主管部门现行规定为准。</p>
     </div>`;
 }
 

@@ -5471,3 +5471,263 @@ body.has-tabbar .app.has-dock {
 .q-acts .btn { text-align: center; text-decoration: none; }
 
 .about-rows .src-row .v { flex: 1; text-align: right; }
+
+/* ============================================================
+   V14 结果页（对齐 design 原型 policy-finder-framework-v14）
+   ------------------------------------------------------------
+   新增的是「发现导语卡 + 优先卡绿带 + 紧凑行」这套形态，
+   原有分段、分组、折叠、证据链的语义一律不动：
+     · 分段仍是导航不是过滤（点哪段跳到哪组，列表一条不少）
+     · 「其他可能相关」仍是可折叠组，卡片模板不变
+     · 收起态仍靠 inert 移出焦点与无障碍树
+   尺寸取原型的 .discover-screen 放大档，适配 390 窄屏。
+   ============================================================ */
+
+/* — 发现导语卡：先说「发现了什么」，再说「有哪些」 — */
+.disc-intro {
+  padding: 20px 17px 18px;
+  margin-bottom: 17px;
+  border: 1px solid #e0eee1;
+  border-radius: 19px;
+  background: #f1f6ef;
+}
+.disc-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 11px;
+  color: #4d8a62;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.disc-kicker .spark {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 9px;
+  background: #d9eddd;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+.disc-intro h2 {
+  margin: 0 0 9px;
+  color: #234b36;
+  font-size: 19px;
+  line-height: 1.48;
+  letter-spacing: -.01em;
+}
+.disc-intro p {
+  margin: 0;
+  color: #68796c;
+  font-size: 13px;
+  line-height: 1.75;
+}
+/* 三类计数：用真实 category 聚合，不编造分类 */
+.disc-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 17px;
+}
+.disc-count {
+  padding: 12px 8px;
+  border: 1px solid rgba(206, 227, 208, .9);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .75);
+}
+.disc-count strong {
+  display: block;
+  color: #2c6643;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.disc-count span {
+  display: block;
+  margin-top: 6px;
+  color: #77847a;
+  font-size: 12px;
+}
+
+/* — 优先卡：顶部 4px 绿带，与普通卡一眼分开 — */
+.result-card.is-lead {
+  position: relative;
+  overflow: hidden;
+  border-color: #d8e9da;
+  border-radius: 19px;
+  box-shadow: 0 3px 12px rgba(36, 91, 53, .06);
+}
+.result-card.is-lead::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: #5a936a;
+}
+/* 「推荐度高」从角标改成顶部条 + 标签，与原型一致 */
+.result-card.is-lead .rc-tier {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #2f7b4d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.result-card.is-lead { padding-top: 20px; }
+
+/* — 紧凑行：其他可能相关列表化扫读（不展开成完整卡） — */
+.compact-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 68px;
+  padding: 12px;
+  margin-bottom: 9px;
+  border: 1px solid #edf0eb;
+  border-radius: 14px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+}
+.compact-row:active { background: var(--brand-wash); }
+.cr-symbol {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #edf6ee;
+  color: #43845a;
+  font-size: 20px;
+}
+.cr-body { flex: 1 1 auto; min-width: 0; }
+.cr-name {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.cr-meta {
+  display: block;
+  color: #879188;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.cr-arrow { color: #a3aca4; font-size: 20px; flex: 0 0 auto; }
+
+/* — 结果尾注：免责一句，不再单独占一个大 notice — */
+.results-note {
+  margin: 15px 2px 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f8f4;
+  color: #929b93;
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+/* — V14 卡片内的关联理由框 / 待确认行 / 底栏 — */
+.reason-box {
+  margin-top: 13px;
+  padding: 13px 14px;
+  border-radius: 13px;
+  background: #f5f9f4;
+}
+.reason-title {
+  margin-bottom: 8px;
+  color: #3e7650;
+  font-size: 13px;
+  font-weight: 800;
+}
+.rc-brief-line {
+  margin: 0 0 6px;
+  color: #5e6f62;
+  font-size: 13.5px;
+  line-height: 1.8;
+}
+.rc-brief-line .rc-brief { font-weight: 400; }
+.reason-sub {
+  margin: 0 0 8px;
+  color: #7b8b7f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.reason-box .reason-list li { font-size: 13.5px; line-height: 1.8; color: #4f6054; }
+/* 摘要已经带「推荐理由」字样，这一条不再画圆点，免得出现一个孤立的小点 */
+.reason-box .reason-list li.rc-brief-item { padding-left: 0; }
+.reason-box .reason-list li.rc-brief-item::before { display: none; }
+
+.condition-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  color: #68756b;
+  font-size: 13px;
+  line-height: 1.75;
+}
+.condition-dot {
+  flex: 0 0 19px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #fff0d6;
+  color: #9b722f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.priority-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid #edf1eb;
+}
+.priority-footer .rc-cite-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #829087;
+  font-size: 12px;
+  line-height: 1.6;
+  border: 0;
+  padding: 0;
+}
+.priority-footer .rc-cite-state { margin: 0; }
+.evidence-link {
+  flex: 0 0 auto;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  color: #327d50;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.evidence-link:active { color: #245f3d; }
+.rc-src-state {
+  flex: 0 0 auto;
+  color: #327d50;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
