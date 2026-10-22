@@ -497,6 +497,48 @@ console.log('== 底部一级导航与新增一级页 ==');
   //    键盘用户会跳进一片看不见的区域。收起时必须 inert。
   check('收起的分组移出焦点与无障碍树',
     /body\.setAttribute\('inert', ''\)/.test(app) && /body\.removeAttribute\('inert'\)/.test(app));
+
+  // ---- 04 咨询与核实 / 05 我的（按 v14 原型这���屏重做）----
+  // 「您可能想了解」曾经是三行纯文字，点了没有任何反应。
+  // 现在三条各自就地展开答案：用户在这一页问的，答案要落回这一页。
+  check('咨询页三条疑问可就地展开',
+    (cons.match(/data-ask="/g) || []).length === 3
+    && /aria-expanded/.test(cons) && /csl-answer/.test(cons));
+  check('咨询页三条答案都写了真实内容',
+    /ansWhy/.test(cons) && /ansQualify/.test(cons) && /ansChannel/.test(cons)
+    && /「可能相关」/.test(cons) && /「待确认」/.test(cons));
+  // 出门前准备三项是产品主张（少跑一趟）的落点，不能只剩一句口号。
+  check('咨询页有出门前的准备清单',
+    (cons.match(/class="prep-row"/g) || []).length === 3
+    && /政策名称或文件名称/.test(cons) && /需要确认的条件/.test(cons));
+  // 通用四问必须与详情页「要问清的问题」同源，而不是另编一套。
+  // 两页措辞略有出入（详情页是列表项、咨询页是问句），比对的是同一组要点。
+  check('咨询页通用四问与详情页同源',
+    /服务覆盖范围/.test(cons) && /申请入口/.test(cons)
+    && /需要准备哪些材料|需要哪些材料/.test(cons) && /发放方式/.test(cons)
+    && /服务覆盖范围/.test(pol) && /申请入口/.test(pol)
+    && /需要哪些材料/.test(pol) && /发放方式/.test(pol));
+
+  // 「我的家庭」只显示本次真实涉及的家人。预置父亲/母亲这类没发生过的成员
+  // 会让用户以为自己填过，属于编造事实。
+  check('我的家庭不预置没发生过的成员',
+    !/父亲（67岁）|母亲（64岁）/.test(mine)
+    && /readQuerySession\(\)/.test(mine) && /添加家人/.test(mine));
+  // 产品没有账号体系，就不能摆一个点了没反应的「立即登录」。
+  // 只看 HTML 里的按钮文字，不看注释——注释里提到这几个字是为了解释为什么不做。
+  check('我的页不摆假登录入口',
+    !/>\s*(立即登录|去登录|登录)\s*</.test(mine) && /无需登录/.test(mine));
+  // 我的服务四格必须都是真链接，不能是 <button> 占位。
+  check('我的服务四格都是可点的链接',
+    (mine.match(/class="mine-svc-item" href="/g) || []).length === 4);
+  check('关于我们默认收起且可展开',
+    /id="aboutToggle"[^>]*aria-expanded="false"/.test(mine)
+    && /id="aboutBox"[^>]*hidden/.test(mine) && /aria-controls="aboutBox"/.test(mine));
+  // 收藏与本次查询都要能清空，且清空只清本机。
+  check('我的页能清空本次查询',
+    /id="qClear"/.test(mine) && /store\.write\(\{ profile: \{\}, text: '' \}\)/.test(mine));
+  check('取消收藏只删这一条不跳页', /e\.stopPropagation\(\)/.test(mine)
+    && /filter\(\(x\) => x\.id !== id\)/.test(mine));
 }
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

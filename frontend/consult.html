@@ -3,59 +3,128 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf7f1">
-  <meta name="description" content="按主管部门查看咨询渠道与出门前的准备清单。本平台不代办、不做资格认定。">
-  <title>咨询 · 政策找人</title>
+  <meta name="theme-color" content="#fbfaf6">
+  <meta name="description" content="先弄清依据，再向官方核实。整理该问的问题与出门前的准备，本平台不代办、不做资格认定。">
+  <title>咨询与核实 · 政策找人</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
 
-  <div class="section">
-    <div class="card consult-lead">
-      <h2 class="cl-t">先问清，再出门</h2>
-      <p class="cl-d">
-        这里按主管部门列出你可以问的地方，以及去之前该带、该问的东西。
-        把该问的问清楚，通常可以少跑一趟。
-      </p>
-      <div class="notice">
-        本平台<strong>未接入在线咨询</strong>，不代办、不代为提交材料，也不做资格认定。
-        具体受理以主管部门答复为准。
-      </div>
+  <!-- 引导区：这一页到底是干什么的，一句话说清 -->
+  <section class="disc-intro csl-intro">
+    <div class="disc-kicker">需要进一步确认？</div>
+    <h2>先弄清依据，<br>再向官方核实</h2>
+    <p>政策找人帮助整理线索与问题，不替代主管部门答复，也不作资格认定。</p>
+  </section>
+
+  <h2 class="section-title">您可能想了解</h2>
+  <div class="csl-rows">
+    <button type="button" class="csl-row" data-ask="why">
+      <span class="csl-ic" aria-hidden="true">◇</span>
+      <span class="csl-body">
+        <strong>为什么推荐这项政策？</strong>
+        <small>查看家庭情况与政策条件的关联</small>
+      </span>
+      <span class="csl-arrow" aria-hidden="true">›</span>
+    </button>
+    <div class="csl-answer" id="ansWhy" hidden>
+      每一项的推荐理由都在它的详情页「为什么推荐给您？」里摊开：依据什么、这条权益要求什么、出自哪里。
+      本平台只做初步匹配，那几段就是你拿去核对的底稿。
+    </div>
+
+    <button type="button" class="csl-row" data-ask="qualify">
+      <span class="csl-ic" aria-hidden="true">?</span>
+      <span class="csl-body">
+        <strong>推荐了就代表能申请吗？</strong>
+        <small>了解「可能相关」和「待确认」的区别</small>
+      </span>
+      <span class="csl-arrow" aria-hidden="true">›</span>
+    </button>
+    <div class="csl-answer" id="ansQualify" hidden>
+      「可能相关」是根据您描述的情况初步匹配出的线索，还没有核对官方记录。
+      「待确认」指出的是这条权益里 AI 判断不了的部分，需要您或受理单位确认。
+      两者都不是资格认定，最终是否符合以主管部门审核为准。
+    </div>
+
+    <button type="button" class="csl-row" data-ask="channel">
+      <span class="csl-ic" aria-hidden="true">↗</span>
+      <span class="csl-body">
+        <strong>怎样找到官方咨询渠道？</strong>
+        <small>核对发布部门，再用该部门公布的联系方式</small>
+      </span>
+      <span class="csl-arrow" aria-hidden="true">›</span>
+    </button>
+    <div class="csl-answer" id="ansChannel" hidden>
+      先在政策详情页确认发布部门、文件名称和官方来源链接，再用该部门公布的服务窗口或政务服务热线咨询。
+      本平台不编热线号码，也不代为转交。
     </div>
   </div>
 
-  <div class="section">
-    <h2 class="section-title">按主管部门</h2>
-    <div id="deptList"><p class="hint">正在读取政策库……</p></div>
-  </div>
-
-  <div class="section">
-    <h2 class="section-title">通用四问</h2>
-    <div class="card">
-      <p class="hint">不管问哪一项，都建议把这四句话问清楚：</p>
-      <ul class="ask-list">
-        <li>本人（或这位长辈）在不在服务覆盖范围内？</li>
-        <li>申请入口在哪里——窗口、电话还是线上？</li>
-        <li>需要准备哪些材料，有没有指定格式？</li>
-        <li>适用的具体标准与发放方式是什么？</li>
-      </ul>
+  <!-- 出门前准备：三项都要带齐，如实不编造 -->
+  <h2 class="section-title">联系官方前，可以先准备</h2>
+  <div class="card csl-prep">
+    <div class="prep-row">
+      <span class="check" aria-hidden="true">✓</span>
+      <span><strong>政策名称或文件名称</strong><small>便于工作人员定位具体事项</small></span>
+    </div>
+    <div class="prep-row">
+      <span class="check" aria-hidden="true">✓</span>
+      <span><strong>需要确认的条件</strong><small>例如户籍、年龄、参保情况或办理地区</small></span>
+    </div>
+    <div class="prep-row">
+      <span class="check" aria-hidden="true">✓</span>
+      <span><strong>家庭成员的相关情况</strong><small>只提供办理咨询所需的信息，注意保护隐私</small></span>
     </div>
   </div>
 
-  <div class="footnote">
-    咨询结论由主管部门给出。本平台只帮您把该问的准备好。
+  <!-- 按主管部门：真实数据，部门从详情接口取，核验数读 verification.status -->
+  <h2 class="section-title">按主管部门咨询</h2>
+  <div id="deptList" class="csl-depts"><p class="hint">正在读取政策库……</p></div>
+
+  <!-- 用户自己关心的问题：上一轮问过的清单 -->
+  <h2 class="section-title">通用四问</h2>
+  <div class="card csl-ask">
+    <p class="hint">不管问哪一项，都建议把这四句话问清楚：</p>
+    <ul class="ask-list">
+      <li>本人（或这位长辈）在不在服务覆盖范围内？</li>
+      <li>申请入口在哪里——窗口、电话还是线上？</li>
+      <li>需要准备哪些材料，有没有指定格式？</li>
+      <li>适用的具体标准与发放方式是什么？</li>
+    </ul>
+  </div>
+
+  <div class="notice csl-note">
+    <strong>请以官方答复为准</strong>
+    <p>
+      本平台<strong>未接入在线咨询</strong>，不代办、不代为提交材料，也不做资格认定。
+      咨询结论由主管部门给出，这里只帮您把该问的准备好。
+    </p>
   </div>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
-  renderTopbar('咨询', null);
+  renderTopbar('咨询与核实', null);
   mountTabbar('consult');
   mountDemoBanner();
 
   const listEl = document.getElementById('deptList');
+
+  // 「您可能想了解」三条是就地展开的说明，不跳走、不弹窗——
+  // 用户在这一页问的问题，答案就该在这一页给出。
+  document.querySelectorAll('[data-ask]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const map = { why: 'ansWhy', qualify: 'ansQualify', channel: 'ansChannel' };
+      const box = document.getElementById(map[btn.dataset.ask]);
+      if (!box) return;
+      const open = btn.getAttribute('aria-expanded') === 'true';
+      box.hidden = open;
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      btn.classList.toggle('is-open', !open);
+    });
+  });
 
   // 不编热线号码：库里没有电话字段，编一个就是假信息。
   // 这里只聚合真实存在的 source_department，并说明渠道以官方公布为准。
@@ -95,8 +164,8 @@
       listEl.innerHTML = '<p class="hint">政策库里暂时没有可展示的主管部门。</p>';
       return;
     }
-    listEl.innerHTML = `<div class="dept-list">${Array.from(map.values()).map((r) => `
-      <div class="dept-card">
+    listEl.innerHTML = Array.from(map.values()).map((r) => `
+      <div class="card csl-dept">
         <div class="dept-top">
           <span class="dept-name">${escapeHtml(r.dept)}</span>
           <span class="dept-n">${r.n} 条政策</span>
@@ -108,7 +177,7 @@
           咨询渠道以该部门公布的服务窗口或政务服务热线为准。
           先按上面的四问把问题列好，再打过去。
         </p>
-      </div>`).join('')}</div>`;
+      </div>`).join('');
   })();
 </script>
 </body>

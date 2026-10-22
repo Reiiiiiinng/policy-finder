@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf7f1">
-  <meta name="description" content="查看收藏的政策与最近的查询记录。收藏只保存在本机。">
+  <meta name="theme-color" content="#fbfaf6">
+  <meta name="description" content="我的家庭、我的收藏与本次查询。收藏只保存在本机，不上传。">
   <title>我的 · 政策找人</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -12,29 +12,76 @@
 <div class="app">
   <div class="topbar"></div>
 
-  <div class="section">
-    <h2 class="section-title">我的收藏</h2>
-    <div id="savedList"></div>
-  </div>
+  <!-- 头部账号区：本产品没有账号体系，如实说明「不用登录」，
+       不做「立即登录」按钮 —— 点下去没东西可登，就是假功能。 -->
+  <section class="mine-id">
+    <div class="mine-face" aria-hidden="true">♙</div>
+    <div class="mine-id-body">
+      <strong>本地使用，无需登录</strong>
+      <small>收藏与查询只存在这台设备的浏览器里</small>
+    </div>
+  </section>
 
-  <div class="section">
-    <h2 class="section-title">本次查询</h2>
-    <div id="queryBox"></div>
-  </div>
+  <!-- 我的家庭：从本次查询里读真实对象，没有就不编 -->
+  <section class="card mine-fam">
+    <h2 class="section-title in-card">我的家庭 <span class="muted" id="famManage">管理 ›</span></h2>
+    <div class="fam-grid" id="famGrid"></div>
+  </section>
 
-  <div class="section">
-    <h2 class="section-title">关于</h2>
-    <div class="card">
-      <div class="src-rows about-rows">
-        <div class="src-row"><span class="k">数据范围</span><span class="v" id="aboutScope">读取中……</span></div>
-        <div class="src-row"><span class="k">存储位置</span><span class="v">收藏与查询只存在本机浏览器，不上传</span></div>
-        <div class="src-row"><span class="k">定位</span><span class="v">只做「可能相关」的初步提示，不做资格认定、不代办</span></div>
-      </div>
+  <h2 class="section-title">我的服务</h2>
+  <section class="card mine-svc">
+    <a class="mine-svc-item" href="#savedSec">
+      <span class="mine-svc-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>
+      </span>
+      <span class="mine-svc-t">我的收藏</span>
+    </a>
+    <a class="mine-svc-item" href="#querySec">
+      <span class="mine-svc-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </span>
+      <span class="mine-svc-t">本次查询</span>
+    </a>
+    <a class="mine-svc-item" href="consult.html">
+      <span class="mine-svc-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3 2v-5a7.5 7.5 0 1 1 16-4.5Z"/><path d="M8 10h8M8 13h5"/></svg>
+      </span>
+      <span class="mine-svc-t">咨询与核实</span>
+    </a>
+    <a class="mine-svc-item" href="discover.html">
+      <span class="mine-svc-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 20 7v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
+      </span>
+      <span class="mine-svc-t">权益评估</span>
+    </a>
+  </section>
+
+  <h2 class="section-title" id="savedSec">我的收藏</h2>
+  <div id="savedList"></div>
+
+  <h2 class="section-title" id="querySec">本次查询</h2>
+  <div id="queryBox"></div>
+
+  <!-- 关于：三条必须说清的事 -->
+  <button type="button" class="card mine-row" id="aboutToggle" aria-expanded="false" aria-controls="aboutBox">
+    <span class="mine-row-ic" aria-hidden="true">ⓘ</span>
+    <span class="mine-row-body">
+      <strong>关于我们</strong>
+      <small>数据范围 · 存储位置 · 产品定位</small>
+    </span>
+    <b class="mine-row-arrow" aria-hidden="true">›</b>
+  </button>
+  <div class="card about-box" id="aboutBox" hidden>
+    <div class="src-rows about-rows">
+      <div class="src-row"><span class="k">数据范围</span><span class="v" id="aboutScope">读取中……</span></div>
+      <div class="src-row"><span class="k">存储位置</span><span class="v">收藏与查询只存在本机浏览器，不上传</span></div>
+      <div class="src-row"><span class="k">定位</span><span class="v">只做「可能相关」的初步提示，不做资格认定、不代办</span></div>
     </div>
   </div>
 
-  <div class="footnote">
-    清空浏览器数据会同时清掉收藏与查询记录，这是本机保存的代价。
+  <div class="notice mine-note">
+    <strong>政策找人，助力家庭不错过每一份权益</strong>
+    <p>政策信息以政府发布为准，本平台仅提供信息参考。清空浏览器数据会同时清掉收藏与查询记录。</p>
   </div>
 </div>
 
@@ -53,6 +100,40 @@
 
   function writeSaved(arr) {
     try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  /**
+   * 我的家庭：只显示本次查询真实涉及的家人。
+   * 没查过就是「还没选」，不预置父亲/母亲这类没发生过的成员。
+   */
+  function paintFamily() {
+    const grid = document.getElementById('famGrid');
+    const s = readQuerySession();
+    const cells = [];
+    if (s && s.demo) {
+      cells.push({ face: '演', name: '演示案例', sub: '预置样例' });
+    } else if (s && s.beneficiary) {
+      cells.push({ face: s.beneficiary.slice(-2, -1) || '家', name: s.beneficiary, sub: s.mode === 'self' ? '本人' : '家庭成员' });
+    } else if (s && s.mode === 'self') {
+      cells.push({ face: '我', name: '本人', sub: '本人模式' });
+    }
+    cells.push({ face: '＋', name: '添加家人', sub: '', add: true });
+    grid.innerHTML = cells.map((c) => `
+      <div class="fam-cell${c.add ? ' is-add' : ''}">
+        <div class="fam-avatar">${escapeHtml(c.face)}</div>
+        <strong>${escapeHtml(c.name)}</strong>
+        ${c.sub ? `<div class="fam-sub">${escapeHtml(c.sub)}</div>` : ''}
+      </div>`).join('');
+    // 添加家人：本产品没有账号体系，新增成员的做法是回到发现页重新描述一次
+    const add = grid.querySelector('.is-add');
+    if (add) {
+      add.setAttribute('role', 'button');
+      add.setAttribute('tabindex', '0');
+      const go = () => { location.href = 'family.html'; };
+      add.addEventListener('click', go);
+      add.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    }
+    document.getElementById('famManage').addEventListener('click', () => { location.href = 'family.html'; });
   }
 
   /**
@@ -134,10 +215,22 @@
     document.getElementById('qClear').addEventListener('click', () => {
       store.write({ profile: {}, text: '' });
       paintQuery();
+      paintFamily();
       showToast('已清空本次查询');
     });
   }
 
+  // 关于：折叠说明，默认收起
+  const aboutToggle = document.getElementById('aboutToggle');
+  const aboutBox = document.getElementById('aboutBox');
+  aboutToggle.addEventListener('click', () => {
+    const open = aboutToggle.getAttribute('aria-expanded') === 'true';
+    aboutBox.hidden = open;
+    aboutToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+    aboutToggle.classList.toggle('is-open', !open);
+  });
+
+  paintFamily();
   paintSaved();
   paintQuery();
 

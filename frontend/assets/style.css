@@ -5768,3 +5768,221 @@ body.has-tabbar .app.has-dock {
   font-weight: 800;
   white-space: nowrap;
 }
+/* ============================================================
+   04 咨询与核实 / 05 我的
+   对齐 v14 原型的这两屏：纸白底、浅绿卡片、绿色勾号、
+   只在图标上上色。数据全部来自真实接口，不预置假成员。
+   ============================================================ */
+
+/* ---- 04 · 引导说明 ---- */
+.csl-intro { margin: 14px 16px 4px; }
+.csl-intro .discovery-kicker {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  background: var(--brand-soft); color: var(--brand);
+  font-size: 12px; font-weight: 800; letter-spacing: .02em;
+}
+.csl-intro h3 {
+  margin: 10px 0 8px; font-size: 22px; line-height: 1.35;
+  color: var(--brand-dark); font-weight: 800;
+}
+.csl-intro p { margin: 0; font-size: 13.5px; line-height: 1.75; color: var(--muted); }
+
+/* ---- 04 · 「您可能想了解」就地展开 ---- */
+.csl-rows {
+  margin: 0 16px 6px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.csl-row {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  min-height: 64px; padding: 14px 14px; text-align: left;
+  background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  font: inherit; color: inherit; cursor: pointer;
+}
+.csl-rows > .csl-row:last-of-type { border-bottom: 0; }
+.csl-row:active { background: var(--brand-wash); }
+.csl-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.csl-ic {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--brand-soft); color: var(--brand);
+  font-size: 15px; font-weight: 800;
+}
+.csl-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.csl-body strong { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.csl-body small { font-size: 12.5px; color: var(--muted); }
+.csl-arrow {
+  flex: 0 0 auto; color: #b7c2bb; font-size: 18px; line-height: 1;
+  transition: transform .18s ease;
+}
+.csl-row.is-open .csl-arrow { transform: rotate(90deg); }
+.csl-answer {
+  padding: 12px 14px 16px; border-bottom: 1px solid var(--line);
+  background: var(--brand-wash);
+  font-size: 13px; line-height: 1.8; color: #4d5b53;
+}
+.csl-answer[hidden] { display: none; }
+
+/* ---- 04 · 出门前准备 ---- */
+.csl-prep { margin: 0 16px 6px; padding: 6px 16px; }
+.prep-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px dashed var(--line);
+}
+.prep-row:last-child { border-bottom: 0; }
+.prep-row .check {
+  flex: 0 0 auto; width: 20px; height: 20px; margin-top: 1px;
+  border-radius: 50%; background: var(--brand-soft); color: var(--brand);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900;
+}
+.prep-row > span:last-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.prep-row strong { font-size: 14px; font-weight: 700; color: var(--ink); }
+.prep-row small { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+
+/* ---- 04 · 按主管部门 ---- */
+.csl-depts { margin: 0 16px 6px; display: flex; flex-direction: column; gap: 10px; }
+.csl-dept { padding: 14px 16px; }
+.dept-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dept-name { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.dept-n {
+  flex: 0 0 auto; font-size: 11.5px; font-weight: 800; color: var(--brand);
+  background: var(--brand-soft); border-radius: 999px; padding: 2px 9px;
+}
+.dept-meta { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.dept-how {
+  margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--line);
+  font-size: 12.5px; line-height: 1.75; color: #5d6a62;
+}
+
+/* ---- 04 · 通用四问 ---- */
+.csl-ask { margin: 0 16px 6px; padding: 14px 16px; }
+.csl-ask .hint { margin: 0 0 8px; }
+.ask-list { margin: 0; padding-left: 20px; }
+.ask-list li { font-size: 13px; line-height: 1.85; color: #4d5b53; }
+.csl-note { margin: 12px 16px 20px; }
+
+/* ---- 05 · 头部身份区 ---- */
+.mine-id {
+  margin: 14px 16px 4px; padding: 16px;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.mine-face {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.mine-id-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mine-id-body strong { font-size: 15px; font-weight: 800; color: var(--ink); }
+.mine-id-body small { font-size: 12.5px; color: var(--muted); }
+
+/* ---- 05 · 我的家庭 ---- */
+.mine-fam { margin: 0 16px 6px; padding: 14px 16px 6px; }
+.section-heading.in-card {
+  margin: 0 0 10px; padding: 0; border-left: 0;
+}
+.section-heading.in-card .muted { float: right; font-weight: 600; cursor: pointer; }
+.fam-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 8px; }
+.fam-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 4px; border-radius: 12px; text-align: center;
+}
+.fam-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand-dark);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800;
+}
+.fam-cell strong { font-size: 13px; font-weight: 700; color: var(--ink); }
+.fam-sub { font-size: 11.5px; color: var(--muted); }
+.fam-cell.is-add { border: 1px dashed var(--brand-line); cursor: pointer; }
+.fam-cell.is-add .fam-avatar { background: transparent; border: 1px dashed var(--brand-line); color: var(--brand); }
+.fam-cell.is-add:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* ---- 05 · 我的服务 ---- */
+.mine-svc { margin: 0 16px 6px; padding: 4px 0; display: grid; grid-template-columns: repeat(2, 1fr); }
+.mine-svc-item {
+  display: flex; align-items: center; gap: 10px; min-height: 60px;
+  padding: 10px 16px; text-decoration: none; color: inherit;
+  border-bottom: 1px solid var(--line);
+}
+.mine-svc-item:nth-child(odd) { border-right: 1px solid var(--line); }
+.mine-svc-item:nth-last-child(-n+2) { border-bottom: 0; }
+.mine-svc-item:active { background: var(--brand-wash); }
+.mine-svc-ic {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--brand-soft); color: var(--brand);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.mine-svc-ic svg { width: 17px; height: 17px; }
+.mine-svc-t { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+
+/* ---- 05 · 空态 / 收藏 / 本次查询 ---- */
+.empty-mini { margin: 0 16px 6px; padding: 18px 16px; text-align: center; }
+.em-t { margin: 0 0 6px; font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.em-d { margin: 0 0 14px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+#savedList, #queryBox { margin: 0 16px 6px; }
+.saved-row {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); margin-bottom: 8px; overflow: hidden;
+}
+.sr-link {
+  flex: 1 1 auto; min-width: 0; align-self: stretch;
+  display: flex; align-items: center; padding: 12px 14px;
+  text-decoration: none; color: inherit;
+}
+.sr-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sr-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.sr-dept { font-size: 12px; color: var(--muted); }
+.sr-del {
+  flex: 0 0 auto; min-height: 48px; padding: 0 14px;
+  background: transparent; border: 0; border-left: 1px solid var(--line);
+  font: inherit; font-size: 12.5px; color: var(--muted); cursor: pointer;
+}
+.sr-del:active { background: var(--brand-wash); }
+
+.q-who {
+  display: inline-block; margin-bottom: 8px;
+  font-size: 11.5px; font-weight: 800; color: var(--brand);
+  background: var(--brand-soft); border-radius: 999px; padding: 3px 10px;
+}
+.q-text { margin: 0 0 14px; font-size: 13.5px; line-height: 1.8; color: #4d5b53; }
+.q-acts { display: flex; gap: 10px; }
+.q-acts .btn { flex: 1 1 0; min-height: 48px; }
+
+/* ---- 05 · 关于 / 底部说明 ---- */
+.mine-row {
+  width: calc(100% - 32px); margin: 0 16px 6px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.mine-row-ic {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--brand-soft); color: var(--brand);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.mine-row-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mine-row-body strong { font-size: 14px; font-weight: 700; color: var(--ink); }
+.mine-row-body small { font-size: 12.5px; color: var(--muted); }
+.mine-row-arrow { flex: 0 0 auto; color: #b7c2bb; font-size: 17px; transition: transform .18s ease; }
+.mine-row.is-open .mine-row-arrow { transform: rotate(90deg); }
+.about-box { margin: 0 16px 6px; padding: 4px 16px; }
+.about-rows .src-row:last-child { border-bottom: 0; }
+.mine-note { margin: 12px 16px 20px; }/* 04 的引导区复用 disc-intro / disc-kicker（项目里已有的样式），
+   这里只补 csl-intro 自己的外边距，不改它们的底色与字号。 */
+.csl-intro { margin: 0 16px 4px; margin-bottom: 8px; }
+.csl-intro h2 { font-size: 21px; }
+
+/* 卡片内的小标题：section-title 自带左侧竖条，进卡片后收掉 */
+.section-title.in-card {
+  margin: 0 0 10px; padding-left: 0; border-left: 0;
+  font-size: 15px;
+}
+.section-title.in-card::before { display: none; }
+.section-title.in-card .muted { float: right; font-weight: 600; cursor: pointer; }
+
+/* notice 在收藏/查询空态和底部说明里要能压住 .card 的默认内边距 */
+.csl-note, .mine-note { margin: 12px 16px 20px; }
