@@ -152,6 +152,9 @@
    */
   async function runMatch(opts) {
     opts = opts || {};
+    // 每次发起匹配先领序号，且必须在任何 await 之前——
+    // 两次点击在同一轮事件里连着触发时，晚到的旧结果要靠它认出自己已过期。
+    const mySeq = beginMatchRequest();
     // 注意：这里**不** await loadSiteContext()。
     // 站点上下文在页面加载时就已开始请求，等两次匹配请求回来时必然已就绪；
     // 若在此 await，会额外推迟渲染，导致详情页返回后的滚动位置恢复错过重试窗口。
@@ -161,6 +164,7 @@
       return;
     }
     const isRefresh = !!opts.keepHeight;
+
 
     // 局部刷新：结果区仍显示上一次内容，用固定窄条说明「已收到输入、正在更新」
     // 首次匹配：走 AI 流程（renderAiFlow），每一步都对应一次真实请求
@@ -189,11 +193,18 @@
       data = await API.match(payload);
       if (!isRefresh) updateAiFlow(4);
     } catch (e) {
+      if (!isLatestMatchRequest(mySeq)) return;
       hideRefreshBar();
       area.style.minHeight = '';
       area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
       return;
     }
+
+    // 慢请求后到会把新结果盖掉：用户连点两个场景 chip 时，
+    // 先发的那次若最后才返回，界面就会停在旧请求的结果上，
+    // 用户以为自己点的那下没生效。这里在写任何状态之前先认领——
+    // 只拦渲染是不够的，store.write 与 mountFlow 同样会写坏状态。
+    if (!isLatestMatchRequest(mySeq)) return;
 
     store.write({ text: text, profile: data.profile });
     mountFlow(2);

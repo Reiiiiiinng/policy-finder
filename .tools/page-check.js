@@ -539,6 +539,29 @@ console.log('== 底部一级导航与新增一级页 ==');
     /id="qClear"/.test(mine) && /store\.write\(\{ profile: \{\}, text: '' \}\)/.test(mine));
   check('取消收藏只删这一条不跳页', /e\.stopPropagation\(\)/.test(mine)
     && /filter\(\(x\) => x\.id !== id\)/.test(mine));
+
+  // ---- 连点两次的竞态（实测复现过，两处都要守住）----
+  // 1) 场景 chip 的集合必须以 store 里最新的为准。连点两个 chip 时，
+  //    第二次点击发生在结果重渲染之前，用渲染时的 base 会把前一次的新增算掉。
+  const chipFn = (app.match(/function bindSceneChips[\s\S]*?\n\}/) || [''])[0];
+  check('场景 chip 读最新 profile 而非渲染时的快照',
+    /store\.read\(\)\.profile/.test(chipFn) && /const latest =/.test(chipFn)
+    && !/\(base\.scenes \|\| \[\]\)\.concat/.test(chipFn));
+  // 2) 匹配结果是异步的，慢请求后到会盖掉新结果。序号必须在任何 await 之前领，
+  //    并在写 store / 渲染之前认领；只拦渲染不够。
+  for (const [name, src] of [['发现页', disc2], ['本人页', selfSrc2]]) {
+    const fn = (src.match(/async function runMatch[\s\S]*?\n  \}/) || [''])[0];
+    // 只看真正的 await 语句，函数题目注释里也出现了「await」字样，不能当锚点。
+    const firstAwait = fn.search(/^\s*(const|let|data|await)\b[^\n]*\bawait\s+API/m);
+    check(name + '的匹配请求有序号认领',
+      /const mySeq = beginMatchRequest\(\)/.test(fn)
+      && /if \(!isLatestMatchRequest\(mySeq\)\) return;/.test(fn)
+      && firstAwait > 0
+      && fn.indexOf('beginMatchRequest()') < firstAwait);
+  }
+  check('序号机制定义在公共脚本里',
+    /let MATCH_REQUEST_SEQ = 0/.test(app) && /function beginMatchRequest/.test(app)
+    && /function isLatestMatchRequest/.test(app));
 }
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

@@ -1999,9 +1999,14 @@ function bindSceneChips(currentData, onChange) {
     btn.addEventListener('click', () => {
       const name = btn.dataset.scene;
       const on = btn.dataset.on === '1';
+      // 场景集合要以 store 里最新的为准，不能用渲染时的 base。
+      // 连点两个 chip 时，第二次点击发生在结果重渲染之前，
+      // base 还是旧的，上面那次的新增会被这一下算掉，看起来像第一次没点上。
+      const latest = store.read().profile || base;
+      const cur = latest.scenes || [];
       const next = on
-        ? (base.scenes || []).filter((s) => s !== name)
-        : (base.scenes || []).concat([name]);
+        ? cur.filter((s) => s !== name)
+        : cur.concat([name]);
       const unique = Array.from(new Set(next));
       if (onChange) onChange(unique);
     });
@@ -2194,4 +2199,23 @@ function readQuerySession() {
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * 匹配请求的序号。每次发起匹配自增一次，回来时比对，
+ * 只有最新的那次请求才有资格写界面与本地状态。
+ *
+ * 为什么需要：用户连点两个场景 chip 时会有两次请求同时在飞，
+ * 网络不保证先发先回。慢的那次后到就会把新结果盖成旧的，
+ * 界面停在用户已经改掉的那份情况上，看起来像「我点了但没反应」。
+ */
+let MATCH_REQUEST_SEQ = 0;
+
+function beginMatchRequest() {
+  MATCH_REQUEST_SEQ += 1;
+  return MATCH_REQUEST_SEQ;
+}
+
+function isLatestMatchRequest(requestId) {
+  return requestId === MATCH_REQUEST_SEQ;
 }
