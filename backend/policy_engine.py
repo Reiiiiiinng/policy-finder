@@ -312,17 +312,32 @@ def detect_conflicts(text):
     found = []
 
     def both(group_a, group_b, note):
-        hit_a = [w for w in group_a if w in text]
-        hit_b = [w for w in group_b if w in text]
+        # 被否定的说法不算「说过」：「不是独居，和家人一起住」里
+        # 独居恰恰被否认了，若照字面计入就会把一句自洽的话报成自相矛盾。
+        # 已经过去的情况同理（「以前独居，现在和子女一起住」）。
+        def live(words):
+            return [w for w in words if w in text
+                    and not _negated(text, w) and not _superseded(text, w)]
+
+        hit_a = live(group_a)
+        hit_b = live(group_b)
         if hit_a and hit_b:
             found.append({"kind": "居住情况", "said": hit_a + hit_b, "note": note})
             return True
         return False
 
     both(
-        ["独居", "一个人生活", "一个人住", "独自居住", "单独居住"],
+        ["独居", "一个人生活", "一个人住", "独自居住", "单独居住", "自己住", "独自生活"],
         ["和子女一起住", "跟子女一起", "和子女同住", "和家人一起住", "跟家人一起",
-         "有人陪", "有人照顾", "老伴在"],
+         "有人陪", "有人照顾", "老伴在",
+         # 下面这些是同义但字面不同的说法：「和家人同住」「跟老伴一起」与
+         # 「和家人一起住」是同一件事，缺一条就会把「独居，又和家人同住」
+         # 这种最典型的矛盾漏掉。
+         #
+         # 注意：这里只收「住在一起」的说法。「有家人照应」「子女常来看」
+         # 说的是有人帮，不是同住——「独居，子女住得远，平时有家人照应」
+         # 完全自洽，收进来会把它冤枉成矛盾。
+         "和家人同住", "跟家人同住", "和子女共同生活", "跟老伴一起"],
         "既说独自居住，又说有人一起住或有人陪，需要确认哪一种是现在的情况。",
     )
 

@@ -226,6 +226,36 @@ def main():
           any(x.get("kind") == "户籍情况" for x in (hk["profile"].get("conflicts") or [])),
           str(hk["profile"].get("conflicts")))
 
+    # 「不是独居，和家人一起住」是一句自洽的话：独居恰恰被否认了。
+    # 若只按字面命中就报矛盾，用户会被要求确认一件他明确否认过的事。
+    negc = call("/api/profile", {"text": "我父亲72岁，不是独居，和家人一起住"})
+    check("被否定的说法不算矛盾依据",
+          not (negc["profile"].get("conflicts") or []),
+          str(negc["profile"].get("conflicts")))
+    pastc = call("/api/profile", {"text": "我父亲72岁，以前独居，现在和子女一起住"})
+    check("已经过去的情况不构成矛盾",
+          not (pastc["profile"].get("conflicts") or []),
+          str(pastc["profile"].get("conflicts")))
+    # 同义但字面不同的说法也要认出来，否则最典型的矛盾反而漏掉
+    for text, label in [
+        ("我父亲72岁，独居，又和家人同住", "和家人同住"),
+        ("我父亲72岁，独自居住，跟老伴一起", "跟老伴一起"),
+        ("我父亲72岁，一个人生活，和子女共同生活", "和子女共同生活"),
+    ]:
+        got = call("/api/profile", {"text": text})["profile"].get("conflicts") or []
+        check("矛盾同义词「%s」也要认出" % label,
+              any(x.get("kind") == "居住情况" for x in got), str(got))
+
+    # 「有家人照应」说的是有人帮，不是住在一起：
+    # 「独居，子女住得远，平时有家人照应」是自洽的，收进同义词会冤枉它。
+    for text, label in [
+        ("我父亲72岁，独居，有家人照应", "有家人照应"),
+        ("我父亲72岁，独居在广州，子女每周来看他", "子女每周来看他"),
+    ]:
+        got = call("/api/profile", {"text": text})["profile"].get("conflicts") or []
+        check("「%s」不等于同住，不算矛盾" % label,
+              not any(x.get("kind") == "居住情况" for x in got), str(got))
+
     print("== 程度副词夹在关键词中间不影响识别 ==")
     # 「压力很大」与词典里的「压力大」意思相同，字面不同。
     # 放过这类说法之前，用户明明说了，系统却当作没提。
@@ -273,12 +303,23 @@ def main():
               str(r["profile"].get("scenes")))
 
     # 否定语境：说了「没摔过」不等于摔过
-    negs = ["没有摔倒", "没摔过", "不是摔过", "从来没有跌倒过"]
+    negs = ["没有摔倒", "没摔过", "不是摔过", "从来没有跌倒过", "没摔过一跤"]
     for text in negs:
         r = call("/api/profile", {"text": text})
         check("否定语境「" + text + "」不算跌倒风险",
               "跌倒风险" not in (r["profile"].get("scenes") or []),
               str(r["profile"].get("scenes")))
+
+    # 历史语境：只说过去、还交代了现状已好转的，不该当作现在的风险
+    r = call("/api/profile", {"text": "以前摔过一跤，现在不摔了"})
+    check("「以前摔过一跤，现在不摔了」不算跌倒风险",
+          "跌倒风险" not in (r["profile"].get("scenes") or []),
+          str(r["profile"].get("scenes")))
+    # 但只说过去、没交代现状的，保守保留（宁可多问一句，不要漏掉风险）
+    r = call("/api/profile", {"text": "以前摔过一跤"})
+    check("只说「以前摔过一跤」仍保留跌倒风险（未交代现状，不擅自删除）",
+          "跌倒风险" in (r["profile"].get("scenes") or []),
+          str(r["profile"].get("scenes")))
 
     # 无关用法：不能因为补了「摔」起头的词就误命中
     unrelated = ["他摔门就走", "别摔东西"]

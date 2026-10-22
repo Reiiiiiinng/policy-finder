@@ -321,14 +321,22 @@ function detectConflicts(text) {
   text = text || "";
   const found = [];
   const both = (groupA, groupB, kind, note) => {
-    const hitA = groupA.filter((w) => text.includes(w));
-    const hitB = groupB.filter((w) => text.includes(w));
+    // 被否定的说法不算「说过」：「不是独居，和家人一起住」里独居恰恰被否认了，
+    // 照字面计入会把一句自洽的话报成自相矛盾。已经过去的情况同理。
+    const live = (words) => words.filter((w) => text.includes(w)
+      && !_negated(text, w) && !_superseded(text, w));
+    const hitA = live(groupA);
+    const hitB = live(groupB);
     if (hitA.length && hitB.length) found.push({ kind, said: hitA.concat(hitB), note });
   };
   both(
-    ["独居", "一个人生活", "一个人住", "独自居住", "单独居住"],
+    ["独居", "一个人生活", "一个人住", "独自居住", "单独居住", "自己住", "独自生活"],
     ["和子女一起住", "跟子女一起", "和子女同住", "和家人一起住", "跟家人一起",
-      "有人陪", "有人照顾", "老伴在"],
+      "有人陪", "有人照顾", "老伴在",
+      // 同义但字面不同的说法，缺一条就漏掉「独居，又和家人同住」这种典型矛盾。
+      // 只收「住在一起」：「有家人照应」「子女常来看」说的是有人帮不是同住，
+      // 「独居，子女住得远，平时有家人照应」完全自洽，收进来会冤枉它。
+      "和家人同住", "跟家人同住", "和子女共同生活", "跟老伴一起"],
     "居住情况",
     "既说独自居住，又说有人一起住或有人陪，需要确认哪一种是现在的情况。",
   );

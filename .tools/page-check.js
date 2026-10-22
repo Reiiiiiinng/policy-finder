@@ -611,6 +611,21 @@ console.log('== 底部一级导航与新增一级页 ==');
   check('公共确认台是矛盾提示的唯一实现',
     (app.match(/class="board-conflict"/g) || []).length === 1);
 
+  // 本人页的矛盾提示要跟着输入走：改描述、再点一次匹配，提示必须能出现、能消失、能再出现。
+  // 它之所以能同步，是因为确认台每次都拿这次的 profile 重渲染，没有缓存上一次的结论——
+  // 一旦有人给它加缓存，或者把提示挂在一次性节点上，就会出现「改好了提示还留着」。
+  check('确认台每次按本次画像重渲染矛盾提示',
+    /const conflictsHtml = .*conflicts/.test(app)
+      || /conflictsHtml.*=.*conflicts/.test(app),
+    '矛盾提示应由本次 profile 重新计算，不能缓存');
+  check('本人页重匹配后重新绑定，不残留上一次的提示',
+    /function bindAll\(data\)/.test(selfSrc) && /renderSituationBoard/.test(app));
+  // 引擎侧要真的会把「被否定」和「已经过去」的说法排除掉，
+  // 否则界面上守住了，数据源仍然是错的。
+  check('矛盾检测排除被否定的说法',
+    app.indexOf('_negated') >= 0 || fs.readFileSync(path.join(ROOT, 'backend/policy_engine.py'), 'utf8')
+      .indexOf('not _negated(text, w)') >= 0);
+
   // 详情页要判断「这次是不是本人模式」，靠的是画像里的 mode。
   // 两个键（profile / selfProfile）可能同时存在：先做过家庭查询、又做过本人查询。
   // 谁在前就取谁的话，家庭页留下的 profile 会把本人模式判成家庭模式，

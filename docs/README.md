@@ -163,19 +163,19 @@ curl -X POST http://127.0.0.1:8000/api/match \
 ## 十一、测试与回归
 
 改动前先跑基线，改完再跑一遍。以下命令需先启动服务（`python backend/server.py`）。
-括号内是通过数为 **2026-10-17 在当前代码上实际运行的结果**（不是静态源码里 `check(` 的出现次数——
+括号内是通过数为 **2026-10-22 在当前代码上实际运行的结果**（不是静态源码里 `check(` 的出现次数——
 两者口径不同：静态计数含未执行的辅助分支，运行数才是真实通过/失败）。
 
 ```bash
 python .tools/baseline.py check   # 引擎回归：12 个用例与基线快照逐字段比对（实测 12/12）
-python .tools/apitest.py          # 接口冒烟：含硬条件三值、to_verify、双模式（实测 48/48）
-node .tools/render-test.js        # 渲染单测：vm 里跑 app.js 纯函数（实测 152/152）
-node .tools/page-check.js         # 页面接线：内联脚本语法、函数引用、红线文案（实测 180/180）
-python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程（实测家庭 46 / 本人 45，失败 0）
+python .tools/apitest.py          # 接口冒烟：硬条件三值、to_verify、双模式、否定/时态/矛盾/程度副词（实测 92/92）
+node .tools/render-test.js        # 渲染单测：vm 里跑 app.js 纯函数（实测 154/154）
+node .tools/page-check.js         # 页面接线：内联脚本语法、函数引用、红线文案（实测 263/263）
+python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程（实测家庭 58 / 本人 58，失败 0）
 node .tools/phase6-test.js        # 第六阶段交互修正专项（实测 98/98）
 python .tools/phase6-e2e.py       # 第六阶段 390×844 实测（对应需求里的测试1~6，实测 45/45）
 python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：结果展示减负（实测 43/43）
-python .tools/fold-e2e.py         # D2 专项：结果卡折叠/理由/键盘与整卡导航不冲突（实测 17/17）
+python .tools/fold-e2e.py         # D2 专项：结果卡折叠/理由/键盘与整卡导航不冲突（实测 25/25）
 ```
 
 - 数量随测试文件演进而变化；若你的运行数与上表不一致，以实际输出为准并先查差异原因，不要改断言凑数。
@@ -247,4 +247,5 @@ python .tools/fold-e2e.py         # D2 专项：结果卡折叠/理由/键盘与
 | 2026-10-17 | `frontend/assets/app.js`、`frontend/policy.html`、`.tools/render-test.js`（提交 `777161a`） | **步骤指示改为单一数据源**：顶栏「第 N 步」徽章一律由 `mountFlow → syncFlowStepBadge` 写入，消除顶栏与流程条各说各话；卡片状态改为 `renderAxes` 双维度（匹配结论 / 来源核验分行呈现，`role="group"` 标注两个独立判断） | 解决「可能相关」与「已核验」两枚同款药丸并排、被误读为"已审核通过"的问题；`e2e_page.html` 断言同步 |
 | 2026-10-17 | `frontend/*`、`docs/design-process/*`、`.tools/page-check.js`、`.tools/render-test.js`（提交 `fac3c9c`） | **P1 出门前清单**（材料/要问清双栏）、**P2** 一句话产品定义 + 三亮点因果链、**P5** 视觉母题「一线」（生活线索→权益，含任一端为空退回纯文字的降级规则）、**P6** 结果卡信息层级重排（服务简介首屏、首条理由 + 「另外 N 条理由」折叠、「还需确认/政策来源」收进原生 `<details>`）、**P7-B** 全局一致性 | **不引入** theme-cb 线的 skins 皮肤层（`skins.css`/`skin-switcher.js` 不在本分支，主卡方案对比见 `docs/design-process/AIGC设计过程材料.md`）；触达面积改为真实盒高（`min-height:48px`，伪元素不改 `getBoundingClientRect`）；测试同步扩充 |
 | 2026-10-17 | `.gitignore`（提交 `b2441b7`） | 忽略 e2e 脚本每次运行都会重写的 `*-run.png` 当前帧截图（phase6/phase7/fix/backnav/return） | 已入库的人工挑选截图（`s-results.png` 等，设计过程材料引用的对照证据）不受影响 |
-| 2026-10-17 | `data/guangzhou_elderly_policy_v1.1.json`、`backend/policy_engine.py`、`.tools/apitest.py`、`.tools/baseline_snapshot.json`、`docs/policy-data-notes.md`（**本轮工作区修改，尚未提交**） | 移植 theme-cb 线已核验的广州数据修正（`0bd79be`+`82b93ec`）：①居家适老化改造现行依据更新为穗民规字〔2025〕1号（2025-02-01 施行，2021 版已废止），办理流程按方案原文录入；②老年人健康管理/认知功能筛查标注国家依据（国卫基层发〔2017〕13号 / 国卫老龄发〔2024〕42号）并保持"本地服务待核验"口径；③引擎补 `official_url`/`source_official_url` 透传（当前界面未使用，仅补全数据链路） | baseline 快照与 apitest 008 期望随数据同步更新；匹配逻辑零改动（baseline 12/12 通过）；依据与官方链接见 `docs/policy-data-notes.md` |
+| 2026-10-17 | `data/guangzhou_elderly_policy_v1.1.json`、`backend/policy_engine.py`、`.tools/apitest.py`、`.tools/baseline_snapshot.json`、`docs/policy-data-notes.md`（已随 `cf231c5` 提交） | 移植 theme-cb 线已核验的广州数据修正（`0bd79be`+`82b93ec`）：①居家适老化改造现行依据更新为穗民规字〔2025〕1号（2025-02-01 施行，2021 版已废止），办理流程按方案原文录入；②老年人健康管理/认知功能筛查标注国家依据（国卫基层发〔2017〕13号 / 国卫老龄发〔2024〕42号）并保持"本地服务待核验"口径；③引擎补 `official_url`/`source_official_url` 透传（当前界面未使用，仅补全数据链路） | baseline 快照与 apitest 008 期望随数据同步更新；匹配逻辑零改动（baseline 12/12 通过）；依据与官方链接见 `docs/policy-data-notes.md` |
+| 2026-10-22 | `backend/policy_engine.py`、`build/engine.js`、`frontend/policy.html`、`frontend/self.html`、`frontend/assets/{app.js,style.css}`、`.tools/{apitest.py,page-check.js,e2e_page.html}` | **全项目体检修复**：①引擎补 `_negated`/`_superseded`/`DEGREE_WORDS`/`detect_conflicts`，修否定表达误判、历史 vs 当前误判、程度副词夹在关键词中间漏判、自相矛盾无提示；②`detect_conflicts` 的同义词表补齐（「和家人同住」「跟老伴一起」「和子女共同生活」「有家人照应」等），并把 `_negated`/`_superseded` 接入矛盾判定——否则「不是独居，和家人一起住」会被误报成矛盾；③服务端 `do_GET`/`do_POST` 包 try，异常不再直接断开连接而是返回 500 结构化 JSON；④前端 `API._read` 检查状态码并按 `e.status` 区分「连不上」与「服务端出错」；⑤演示模式标记补齐（真实查询后 `demoBanner` 一并清除并重新对横幅）；⑥本人模式返回目标按 `mode` 判定（原先 `profile \|\| selfProfile` 的取值顺序会让家庭画像劫持本人模式，返回错页）；⑦本人页补 `mountTabbar`、`bindSceneChips` 按 `__profileKey` 取最新值；⑧`.axis-k`（匹配/来源维度名）字号 11→12px | 静态站 `build/engine.js` 同步移植上述引擎逻辑，否则线上纯前端版仍是旧行为；`e2e_page.html` 修掉三处误报（补回事件断言位置、回到确认台的等待条件、导航断言写死「发现」）；测试数：apitest 48→91、page-check 180→263、e2e 家庭 46→58 / 本人 45→58、render 152→154、fold-e2e 17→25 |
