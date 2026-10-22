@@ -28,6 +28,18 @@ Thumbs.db
 # 设计参考图与对照截图（本地勘察用，不入库）
 /_ui/
 
+# 静态站构建产物：build/pages 是 build/build_pages.py 现生成的，
+# 内容整份复制进发布仓库，主仓库不再留副本。
+# build/engine.js、build/build_pages.py 等源文件仍然入库。
+/build/pages/
+build/.static_pid
+build/expected.json
+build/expected_scenes.json
+build/_*.png
+build/_*.html
+build/_*.txt
+frontend/_*.html
+
 # 临时截图与验证壳，不入库
 _shots/
 frontend/_s_*.html

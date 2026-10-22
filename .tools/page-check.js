@@ -596,6 +596,26 @@ console.log('== 底部一级导航与新增一级页 ==');
     app2.indexOf("if (shown) shown.remove();") >= 0 && app2.indexOf('const shown = app.querySelector') >= 0);
   check('发现页清标记后重新对一次横幅',
     disc2.indexOf('mountDemoBanner()') >= 0);
+
+  // ---- 静态站引擎必须与后端引擎同步 ----
+  // build/engine.js 是 backend/policy_engine.py 的手工移植。
+  // 曾经出现过后端修好、静态站还在跑旧逻辑，用户看到的是错的。
+  const jsEnginePath = path.join(ROOT, 'build/engine.js');
+  if (fs.existsSync(jsEnginePath)) {
+    const js = fs.readFileSync(jsEnginePath, 'utf8');
+    const py = fs.readFileSync(path.join(ROOT, 'backend/policy_engine.py'), 'utf8');
+    check('静态站引擎带否定判断',
+      js.indexOf('function _negated') >= 0 && py.indexOf('def _negated') >= 0);
+    check('静态站引擎带时态判断',
+      js.indexOf('function _superseded') >= 0 && py.indexOf('def _superseded') >= 0);
+    check('静态站引擎带程度副词表',
+      js.indexOf('DEGREE_WORDS') >= 0 && py.indexOf('DEGREE_WORDS') >= 0);
+    check('静态站引擎带矛盾检测',
+      js.indexOf('function detectConflicts') >= 0 && py.indexOf('def detect_conflicts') >= 0);
+    check('静态站引擎画像带矛盾字段', js.indexOf('conflicts: detectConflicts(text)') >= 0);
+    check('静态站引擎场景识别同时过否定与时态两关',
+      js.indexOf('hasWord(text, w) && !_negated(text, w) && !_superseded(text, w)') >= 0);
+  }
 }
 
 
