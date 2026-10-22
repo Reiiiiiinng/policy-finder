@@ -143,7 +143,6 @@
 
   // 演示模式首次进入：文本已自动填入，但不自动跑，保留手动点击展示输入→分析→结果
   if (session.demo) store.write({ demo: false });
-
   /**
    * 匹配并渲染。
    * opts.restore        {key, value, viewportY} 重渲染后把被点击的按钮放回原视口位置
@@ -196,7 +195,13 @@
       if (!isLatestMatchRequest(mySeq)) return;
       hideRefreshBar();
       area.style.minHeight = '';
-      area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      // 分清「连不上」和「服务报错」：前者多是自己本地没起服务，
+      // 后者是服务端这次请求失败。同一种「无法连接」会让用户排查错方向。
+      area.innerHTML = '<div class="notice warn">'
+        + (e && typeof e.status === 'number'
+            ? '这次匹配没有成功：服务端处理出错（' + e.status + '）。请稍后重试。'
+            : '连不上服务，请确认后端已启动（python backend/server.py）。')
+        + '</div>';
       return;
     }
 
@@ -206,7 +211,10 @@
     // 只拦渲染是不够的，store.write 与 mountFlow 同样会写坏状态。
     if (!isLatestMatchRequest(mySeq)) return;
 
-    store.write({ text: text, profile: data.profile });
+    store.write({ text: text, profile: data.profile, demo: false, demoBanner: false });
+    // 演示横幅是按页面加载时挂上去的，清掉标记后要重新对一次，
+    // 否则它会一直留在页面上，把真实结果说成虚拟案例。
+    if (typeof mountDemoBanner === 'function') mountDemoBanner();
     mountFlow(2);
     mountRelationStrip();
 

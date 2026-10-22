@@ -179,6 +179,77 @@ def main():
     check("含 detected 标记", all("detected" in x for x in sc["scenes"]))
     check("含关联数量", all("related_count" in x for x in sc["scenes"]))
 
+    print("== 否定表达不误判为生活场景 ==")
+    # 「不是独居」和「独居」在子串匹配下没有区别，一旦误判，
+    # 推荐给用户的政策方向就是反的。这几条锁住这个行为。
+    neg = call("/api/profile", {"text": "我父亲72岁，在广州，不是独居，和家人一起住"})
+    check("「不是独居」不产生独居标签",
+          "独居" not in (neg["profile"].get("scenes") or []),
+          str(neg["profile"].get("scenes")))
+    pos = call("/api/profile", {"text": "我父亲72岁，一个人在广州生活，最近行动不方便"})
+    check("「一个人生活」仍识别为独居",
+          "独居" in (pos["profile"].get("scenes") or []),
+          str(pos["profile"].get("scenes")))
+    alone = call("/api/profile", {"text": "我父亲72岁，独自居住，行动不便"})
+    check("「独自居住」仍识别为独居",
+          "独居" in (alone["profile"].get("scenes") or []),
+          str(alone["profile"].get("scenes")))
+
+    print("== 已经过去的状况不当成现在 ==")
+    # 「以前独居，现在和子女一起住」若当独居处理，推荐方向会反过来
+    past = call("/api/profile", {"text": "我父亲72岁，以前独居，现在和子女一起住"})
+    check("「以前独居，现在一起住」不算独居",
+          "独居" not in (past["profile"].get("scenes") or []),
+          str(past["profile"].get("scenes")))
+    mobile = call("/api/profile", {"text": "我父亲72岁，之前行动不便，现在能走了"})
+    check("「之前行动不便，现在能走了」不算行动不便",
+          "行动不便" not in (mobile["profile"].get("scenes") or []),
+          str(mobile["profile"].get("scenes")))
+    # 只说过去、没交代现在的，保守保留
+    onlypast = call("/api/profile", {"text": "我父亲72岁，以前独居"})
+    check("只说「以前独居」仍保留独居标签（未交代现状，不擅自删除）",
+          "独居" in (onlypast["profile"].get("scenes") or []),
+          str(onlypast["profile"].get("scenes")))
+
+    print("== 自相矛盾的说法要能被指出来 ==")
+    # 引擎不替用户裁决哪句是真的，但必须把矛盾交出来，由界面去问。
+    conflict = call("/api/profile", {"text": "我父亲72岁，一个人生活，和子女一起住"})
+    cf = conflict["profile"].get("conflicts")
+    check("矛盾字段恒为列表", isinstance(cf, list), str(type(cf)))
+    check("「一个人生活 + 和子女一起住」被识别为矛盾",
+          len(cf) == 1 and cf[0].get("kind") == "居住情况", str(cf))
+    clean = call("/api/profile", {"text": "我父亲72岁，一个人在广州生活，最近行动不方便"})
+    check("没有矛盾时返回空列表", clean["profile"].get("conflicts") == [],
+          str(clean["profile"].get("conflicts")))
+    hk = call("/api/profile", {"text": "我父亲72岁，户口不在广州，是本市户籍"})
+    check("户籍前后矛盾被指出",
+          any(x.get("kind") == "户籍情况" for x in (hk["profile"].get("conflicts") or [])),
+          str(hk["profile"].get("conflicts")))
+
+    print("== 程度副词夹在关键词中间不影响识别 ==")
+    # 「压力很大」与词典里的「压力大」意思相同，字面不同。
+    # 放过这类说法之前，用户明明说了，系统却当作没提。
+    adv = [
+        ("我父亲72岁，经济压力很大", "经济压力"),
+        ("我父亲72岁，行动很不方便", "行动不便"),
+        ("我父亲72岁，腿脚很不方便", "行动不便"),
+        ("我父亲72岁，费用很高", "经济压力"),
+    ]
+    for text, tag in adv:
+        r = call("/api/profile", {"text": text})
+        sc = r["profile"].get("scenes") or []
+        check("「" + text.split("，")[-1].rstrip("。") + "」识别为" + tag,
+              tag in sc, str(sc))
+    # 放开之后不能反向误触发
+    safe = call("/api/profile", {"text": "我父亲72岁，医药费都能报销，没有压力"})
+    check("「没有压力」不识别为经济压力",
+          "经济压力" not in (safe["profile"].get("scenes") or []),
+          str(safe["profile"].get("scenes")))
+    care = call("/api/profile", {"text": "我父亲72岁，身体很好，不需要人照顾我"})
+    check("「不需要人照顾我」不识别为需要照护",
+          "需要照护" not in (care["profile"].get("scenes") or []),
+          str(care["profile"].get("scenes")))
+
     print("\n通过 %d，失败 %d" % (PASS, FAIL))
     sys.exit(1 if FAIL else 0)
 

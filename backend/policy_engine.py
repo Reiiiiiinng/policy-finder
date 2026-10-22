@@ -34,6 +34,23 @@ DB_KEY = os.environ.get("POLICY_DB", "guangzhou")
 DB_PATH = DATABASES.get(DB_KEY, DB_KEY)
 
 # ---------------------------------------------------------------- 生活场景词典
+# 程度副词：夹在关键词中间不影响意思（「压力很大」=「压力大」）。
+# 只在关键词匹配时抹掉，不参与否定判断。
+DEGREE_WORDS = ["特别", "非常", "比较", "越来越", "更", "很", "挺", "太", "还", "都"]
+
+# 否定词：出现在关键词前面紧邻位置时，说明这个关键词并不成立。
+# 顺序要从长到短匹配，否则「并没有」会被「没有」截断后误判位置。
+NEGATION_WORDS = [
+    "并没有", "并不是", "并没有在", "并没有参加",
+    "没有", "不是", "不算", "不属于", "未曾", "从未", "并不", "不再",
+    "不", "没", "无",
+]
+
+# 时间词：判断一句话里的情况是「过去的」还是「现在的」。
+# 用在 _superseded 里——「以前独居，现在和子女一起住」不能当独居。
+PAST_MARKERS = ["以前", "之前", "去年", "前年", "曾经", "原先", "原来", "过去", "早年"]
+NOW_MARKERS = ["现在", "如今", "目前", "现在的", "后来", "如今已", "已经能", "已经好了", "目前已经"]
+
 # 关键词 -> 生活场景标签（与数据库的 scene_tag_library / match.scene_signals 对齐）
 SCENE_KEYWORDS = {
     "独居": ["独居", "一个人住", "一个人生活", "自己住", "独自居住", "单独居住", "一个人"],
@@ -205,12 +222,149 @@ def parse_region(text):
     return None
 
 
+def _negated(text, word):
+    """
+    判断某个关键词在文本里是不是被否定的。
+
+    「不是独居，和家人一起住」和「独居」在子串匹配下没有区别，
+    会把完全相反的情况识别成同一种。这里只看关键词前紧邻的一小段，
+    发现否定词就视为不成立。
+
+    只覆盖紧挨着的否定（「不是独居」「没有参加医保」「不爱出门」），
+    不做整句语法分析——宁可漏判成「未提及」，也不要错判成「确认」。
+    """
+    start = 0
+    while True:
+        idx = text.find(word, start)
+        if idx == -1:
+            return False
+        # 取关键词前最多 6 个字做否定检查
+        prefix = text[max(0, idx - 6):idx]
+        # 「不是独居」这种，否定词可以隔着「是/太/怎么」
+        for neg in NEGATION_WORDS:
+            pos = prefix.rfind(neg)
+            if pos != -1:
+                tail = prefix[pos + len(neg):]
+                # 否定词和关键词之间只允许隔很短的填充词，避免跨句误伤
+                if len(tail) <= 3 and not re.search(r"[，。；、！？,.;!?]", tail):
+                    return True
+        start = idx + 1
+    return False
+
+
+def _superseded(text, word):
+    """
+    判断关键词描述的情况是否「已经过去了」。
+
+    「以前独居，现在和子女一起住」里的独居已经不再成立；
+    「之前行动不便，现在能走了」同理。这类表述如果按当前情况处理，
+    推荐方向会整个反过来——用户照着准备材料，到窗口才发现不符合。
+
+    做法：找到关键词后，看它前面一段里有没有时间词（以前/之前/去年…），
+    再看同一句后面有没有「现在/如今/目前」把情况改写成新的。
+    只有「先说过去、后说现在」才算已过期；只说「以前独居」但没有
+    交代现在如何，仍算未确认的当前信息（保守处理：保留标签）。
+    """
+    start = 0
+    while True:
+        idx = text.find(word, start)
+        if idx == -1:
+            return False
+        # 关键词所在句子的边界
+        seg_start = max(text.rfind(p, 0, idx) for p in "。；;！!？?\n") + 1
+        if seg_start < 0:
+            seg_start = 0
+        prefix = text[seg_start:idx]
+        # 前面必须有过去时间词
+        has_past = any(p in prefix for p in PAST_MARKERS)
+        if has_past:
+            # 同一句里，关键词之后是否出现「现在」类改写
+            seg_end = len(text)
+            for p in "。；;！!？?\n":
+                j = text.find(p, idx)
+                if j != -1 and j < seg_end:
+                    seg_end = j
+            suffix = text[idx:seg_end]
+            if any(p in suffix for p in NOW_MARKERS):
+                return True
+        start = idx + 1
+    return False
+
+
+def detect_conflicts(text):
+    """
+    找出一句话里自相矛盾的说法。
+
+    不做猜测，只挑那些「两种说法不可能同时成立」的明确组合：
+    说要人陪又说独自居住、说户口不在广州又说是本市户籍。
+    发现矛盾时不移除任何标签（不知道哪句才是真的），
+    而是把矛盾原样交给界面去问用户。
+
+    返回 [{"kind": ..., "said": [...], "note": ...}, ...]，没有矛盾时返回 []。
+    """
+    text = text or ""
+    found = []
+
+    def both(group_a, group_b, note):
+        hit_a = [w for w in group_a if w in text]
+        hit_b = [w for w in group_b if w in text]
+        if hit_a and hit_b:
+            found.append({"kind": "居住情况", "said": hit_a + hit_b, "note": note})
+            return True
+        return False
+
+    both(
+        ["独居", "一个人生活", "一个人住", "独自居住", "单独居住"],
+        ["和子女一起住", "跟子女一起", "和子女同住", "和家人一起住", "跟家人一起",
+         "有人陪", "有人照顾", "老伴在"],
+        "既说独自居住，又说有人一起住或有人陪，需要确认哪一种是现在的情况。",
+    )
+
+    # 「户口不在广州」与「本市户籍」互斥
+    has_local = bool(re.search(r"(是|属于)?本市户籍|广州户口|户口在广州|广州户籍", text))
+    if has_local and re.search(r"户口不在广州|不是本市户籍|户籍不在广州|外地户口", text):
+        found.append({
+            "kind": "户籍情况",
+            "said": ["本市户籍", "户口不在广州"],
+            "note": "户籍说法前后不一致，需要确认户口到底在广州还是外地。",
+        })
+
+    return found
+
+
+def _has_word(text, word):
+    """
+    关键词匹配：允许程度副词插在关键词中间。
+
+    词典里的「压力大」遇上用户写的「压力很大」、「行动不便」遇上「行动很不方便」，
+    字面不相等但意思完全一致。逐字（去掉程度副词后）比较就能同等对待，
+    否则用户明明说了，系统却当作没提——这是最伤信任的一类漏判。
+    """
+    if word in text:
+        return True
+    # 去掉程度副词后逐字匹配：先用占位符把副词抹掉，再在结果里找关键词
+    stripped = text
+    for adv in DEGREE_WORDS:
+        if adv in stripped:
+            stripped = stripped.replace(adv, "\u0000")
+    # 关键词也做同样的处理，保证两边比较口径一致
+    target = word
+    for adv in DEGREE_WORDS:
+        if adv in target:
+            target = target.replace(adv, "\u0000")
+    if target == word:
+        # 关键词本身不含副词：在去掉副词的文本里按「关键词各字之间可隔着副词」匹配
+        pattern = "\u0000*".join(re.escape(ch) for ch in word)
+        return re.search(pattern, stripped) is not None
+    return target in stripped
+
+
 def detect_scenes(text):
-    """从文本中识别生活场景标签。"""
+    """从文本中识别生活场景标签。被否定或已过期的情况不算命中。"""
     hits = []
     for scene, words in SCENE_KEYWORDS.items():
         for w in words:
-            if w in text:
+            if _has_word(text, w) and not _negated(text, w) and not _superseded(text, w):
                 hits.append(scene)
                 break
     return sorted(set(hits))
@@ -290,6 +444,9 @@ def build_profile(text="", relation=None, operator=None, age=None, region=None, 
         "self_paid_amount": parse_self_paid(text),
         # family_economic 取值见各政策 conditions.qualify[].options
         "family_economic": None,
+        # 自相矛盾的说法：不替用户裁决，交给界面去问。
+        # 恒为列表（无矛盾时为 []），调用方不必判空。
+        "conflicts": detect_conflicts(text),
     }
     return profile
 

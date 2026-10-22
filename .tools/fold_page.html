@@ -173,7 +173,10 @@ async function run(){
     var navLink = await waitForEvent(15000);
     check('点击详情链接正常导航', navLink);
     await waitFor(function(){ return q('.trust-card'); }, 15000, '详情内容');
-    var detailName = ((q('.card h2') || {textContent:''}).textContent || '').trim();
+    // 详情页标题自 UI 改版后是 h1.dhead-title（旧断言还指着 .card h2，
+    // 那个元素早已不存在，读到的永远是空串）。改成读真实标题元素。
+    var titleEl = q('.dhead-title') || q('.card h1') || q('.card h2');
+    var detailName = ((titleEl || {textContent:''}).textContent || '').trim();
     check('详情页就是链接指向的那条', !!detailName && detailName === cardName,
       '详情=' + detailName + ' 期望=' + cardName);
 

@@ -185,7 +185,16 @@
     try {
       detail = await API.policy(id);
     } catch (e) {
-      content.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动。</div>';
+      // 404 走 API._read 抛出，会带 status；此时是「这条不存在」而非「连不上」
+      if (e && e.status === 404) {
+        content.innerHTML = '<div class="notice warn">未找到该政策。</div>';
+        return;
+      }
+      content.innerHTML = '<div class="notice warn">'
+        + (e && typeof e.status === 'number'
+            ? '这条政策暂时读不出来：服务端处理出错（' + e.status + '）。请稍后重试。'
+            : '连不上服务，请确认后端已启动（python backend/server.py）。')
+        + '</div>';
       return;
     }
     if (detail.error) {

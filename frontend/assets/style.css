@@ -1973,7 +1973,8 @@ input:focus {
 
 .idea-eyebrow {
   flex: none;
-  font-size: 11.5px;
+  /* 11.5px 低于适老化下限，抬到 12px */
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.6px;
   color: #fff;
@@ -2016,7 +2017,8 @@ input:focus {
 
 .idea-tag {
   display: inline-block;
-  font-size: 11.5px;
+  /* 11.5px 低于适老化下限，抬到 12px */
+  font-size: 12px;
   font-weight: 800;
   padding: 2px 9px;
   border-radius: var(--radius-pill);
@@ -4103,15 +4105,18 @@ input:focus {
 
 /* 首屏内的下跳提示：把入口位置明确指出来 */
 .hero-jump {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  /* 首屏这枚跳转按钮是给长辈点的主要入口，盒高不能低于 48px 触达标准 */
+  min-height: 48px;
   margin-top: 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--brand-dark);
   background: var(--brand-soft);
   border: 1px solid var(--brand-line);
   border-radius: var(--radius-pill);
-  padding: 6px 14px;
+  padding: 0 18px;
   text-decoration: none;
 }
 
@@ -4158,9 +4163,10 @@ input:focus {
 
 .idea-node .idea-tag {
   display: inline-block;
-  font-size: 10.5px;
+  /* 10.5px 太小，长辈读不清；抬到 12px */
+  font-size: 12px;
   font-weight: 700;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
@@ -5986,3 +5992,50 @@ body.has-tabbar .app.has-dock {
 
 /* notice 在收藏/查询空态和底部说明里要能压住 .card 的默认内边距 */
 .csl-note, .mine-note { margin: 12px 16px 20px; }
+/* ---- 描述自相矛盾时的提示（board-conflict） ---- */
+.board-conflict {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--warn-line);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+}
+.board-conflict .bc-t {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--warn);
+}
+.board-conflict .bc-list { margin: 0; padding: 0; list-style: none; }
+.board-conflict .bc-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.board-conflict .bc-kind {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(184, 121, 45, .16);
+  color: var(--warn);
+  font-weight: 700;
+  font-size: 12px;
+}
+.board-conflict .bc-said {
+  flex: 1 1 100%;
+  color: var(--ink);
+  font-weight: 600;
+}
+.board-conflict .bc-note { flex: 1 1 100%; color: var(--ink-2); }
+.board-conflict .bc-tip {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--warn-line);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}

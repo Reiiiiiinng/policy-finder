@@ -157,7 +157,11 @@
       if (!isLatestMatchRequest(mySeq)) return;
       area.style.minHeight = '';
       hideRefreshBar();
-      area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+      area.innerHTML = '<div class="notice warn">'
+        + (e && typeof e.status === 'number'
+            ? '这次匹配没有成功：服务端处理出错（' + e.status + '）。请稍后重试。'
+            : '连不上服务，请确认后端已启动（python backend/server.py）。')
+        + '</div>';
       return;
     }
 
@@ -165,7 +169,8 @@
     // 在写任何状态之前先认领，晚到的请求直接放弃。
     if (!isLatestMatchRequest(mySeq)) return;
 
-    store.write({ selfText: text, selfProfile: data.profile });
+    store.write({ selfText: text, selfProfile: data.profile, demo: false, demoBanner: false });
+    if (typeof mountDemoBanner === 'function') mountDemoBanner();
     mountFlow(2);
     mountRelationStrip();
 

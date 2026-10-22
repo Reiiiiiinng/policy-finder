@@ -563,5 +563,41 @@ console.log('== 底部一级导航与新增一级页 ==');
     /let MATCH_REQUEST_SEQ = 0/.test(app) && /function beginMatchRequest/.test(app)
     && /function isLatestMatchRequest/.test(app));
 }
+
+/* ---- 描述自相矛盾时要把矛盾摆到界面上 ---- */
+{
+  // 末段作用域里拿不到前面的局部变量，就近重读一次
+  const app = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8');
+  check('公共脚本读取矛盾字段',
+    app.indexOf('profile.conflicts') >= 0 && app.indexOf('board-conflict') >= 0);
+  check('矛盾提示说明不替用户裁决',
+    app.indexOf('这一次我们不会替您挑一句') >= 0, '缺少「不替您挑一句」的说明');
+  check('矛盾提示排在基础事实之前',
+    app.indexOf('${conflictsHtml}') > 0
+      && app.indexOf('${conflictsHtml}') < app.indexOf('${factsHtml}'),
+    'conflictsHtml=' + app.indexOf('${conflictsHtml}') + ' factsHtml=' + app.indexOf('${factsHtml}'));
+  check('矛盾条目转义后再插入',
+    app.indexOf('.map(escapeHtml)') >= 0 && app.indexOf('escapeHtml(c.note') >= 0);
+  check('矛盾样式已定义', css.indexOf('.board-conflict') >= 0);
+}
+
+
+/* ---- 做过真实查询就必须撤掉演示标记（否则真实结果被说成虚拟案例） ---- */
+{
+  const app2 = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const disc2 = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const self2 = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  check('发现页写匹配结果时同时清演示标记',
+    disc2.indexOf('demoBanner: false') >= 0 && /store\.write\(\{\s*text: text/.test(disc2));
+  check('本人页写匹配结果时同时清演示标记',
+    self2.indexOf('demoBanner: false') >= 0 && self2.indexOf('mountDemoBanner()') >= 0);
+  check('横幅挂载函数会按标记撤掉已挂的横幅',
+    app2.indexOf("if (shown) shown.remove();") >= 0 && app2.indexOf('const shown = app.querySelector') >= 0);
+  check('发现页清标记后重新对一次横幅',
+    disc2.indexOf('mountDemoBanner()') >= 0);
+}
+
+
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

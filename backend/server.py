@@ -59,6 +59,22 @@ def _json(handler, data, code=200):
     handler._body = body
 
 
+def _internal_error(handler, exc):
+    """
+    统一兜底：把未捕获异常变成 500 JSON，而不是让连接直接断开。
+    前端据此能明确告诉用户「这次没成功」，而不是把它当成一次成功的空结果。
+    异常详情只写到 stderr，不回给浏览器，避免泄露内部结构。
+    """
+    import traceback
+    sys.stderr.write("[政策找人] 请求处理异常：%r\n" % (exc,))
+    traceback.print_exc()
+    try:
+        _json(handler, {"error": "internal_error", "detail": "服务处理这条请求时出错，请稍后重试"}, 500)
+    except Exception:
+        # 连兜底都失败了（比如连接已经断了），不再抛第二次
+        pass
+
+
 def _brief(policy):
     return {
         "policy_id": policy["policy_id"],
@@ -122,6 +138,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---------------------------------------------------------------- GET
     def do_GET(self):
+        # 任何未捕获异常都会让连接直接断开，浏览器只看到「网络错误」，
+        # 分不清是服务没起还是这个请求本身有问题。统一兜成 500 JSON。
+        try:
+            return self._do_get()
+        except Exception as exc:      # noqa: BLE001 —— 兜底，不吞掉细节
+            _internal_error(self, exc)
+
+    def _do_get(self):
         path = urlparse(self.path).path
 
         if path == "/api/health":
@@ -196,6 +220,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---------------------------------------------------------------- POST
     def do_POST(self):
+        try:
+            return self._do_post()
+        except Exception as exc:      # noqa: BLE001
+            _internal_error(self, exc)
+
+    def _do_post(self):
         path = urlparse(self.path).path
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b"{}"
