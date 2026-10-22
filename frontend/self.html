@@ -60,6 +60,10 @@
 <script>
   renderTopbar('本人权益发现', 'index.html', '本人模式');
   mountDemoBanner();
+  // 本人模式也是带底部一级导航的二级页，和发现页一样：
+  // 漏掉这一步用户进到本人模式后就点不回发现页或我的页了。
+  // 底部导航没有「本人」这一栏，本人发现同属发现权益，所以高亮「发现」。
+  mountTabbar('discover');
   mountFlow(1);
   mountRelationStrip();
 
@@ -274,7 +278,9 @@
   }
 
   function bindScenes(current) {
-    bindSceneChips(current, function (scenes) {
+    // 本人页的资料存在 selfProfile，明确告诉公共逻辑从哪儿取最新值，
+    // 否则连点两个生活事件时前一次会被吃掉（家庭页是 profile，默认即对）。
+    bindSceneChips(Object.assign({}, current, { __profileKey: 'selfProfile' }), function (scenes) {
       const btn = document.querySelector('[data-scene="' + CSS.escape(
         (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
       const viewportY = btn ? btn.getBoundingClientRect().top : 0;

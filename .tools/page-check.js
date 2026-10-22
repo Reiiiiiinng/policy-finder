@@ -428,6 +428,11 @@ console.log('== 底部一级导航与新增一级页 ==');
   check('四个一级页都挂了底部导航',
     /mountTabbar\('home'\)/.test(idx2) && /mountTabbar\('discover'\)/.test(disc2)
     && /mountTabbar\('consult'\)/.test(cons) && /mountTabbar\('mine'\)/.test(mine));
+  // 本人页是带导航的二级页：漏掉这一步，用户进到本人模式后就点不回发现页或我的页。
+  // 底部导航没有「本人」这一栏，本人发现同属发现权益，因此高亮「发现」。
+  const selfSrc3 = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  check('本人页也挂了底部导航（高亮发现）',
+    /mountTabbar\('discover'\)/.test(selfSrc3));
   check('导航项与页面一一对应',
     /key: 'home',[\s\S]{0,80}href: 'index\.html'/.test(app)
     && /key: 'discover',[\s\S]{0,80}href: 'discover\.html'/.test(app)
@@ -544,9 +549,17 @@ console.log('== 底部一级导航与新增一级页 ==');
   // 1) 场景 chip 的集合必须以 store 里最新的为准。连点两个 chip 时，
   //    第二次点击发生在结果重渲染之前，用渲染时的 base 会把前一次的新增算掉。
   const chipFn = (app.match(/function bindSceneChips[\s\S]*?\n\}/) || [''])[0];
+  // 断言守的是「每次点击都重新读 store」，不是「必须读 profile 这个键」：
+  // 本人页把资料存 selfProfile，写死 profile 会让它退回渲染快照，
+  // 连点时前一次的选择照样被吃掉。所以这里要求有 profileKey 的分支读取。
   check('场景 chip 读最新 profile 而非渲染时的快照',
-    /store\.read\(\)\.profile/.test(chipFn) && /const latest =/.test(chipFn)
+    /store\.read\(\)\[profileKey\]/.test(chipFn) && /const latest =/.test(chipFn)
     && !/\(base\.scenes \|\| \[\]\)\.concat/.test(chipFn));
+  check('场景 chip 按当前页的存储键取最新值',
+    /const profileKey = .*__profileKey.*\|\| 'profile'/.test(chipFn));
+  // 本人页必须把自己那一个键传给公共逻辑，否则上面那条分支永远走不到 selfProfile。
+  check('本人页告知公共逻辑从 selfProfile 取最新值',
+    /__profileKey: 'selfProfile'/.test(selfSrc2));
   // 2) 匹配结果是异步的，慢请求后到会盖掉新结果。序号必须在任何 await 之前领，
   //    并在写 store / 渲染之前认领；只拦渲染不够。
   for (const [name, src] of [['发现页', disc2], ['本人页', selfSrc2]]) {
@@ -580,6 +593,31 @@ console.log('== 底部一级导航与新增一级页 ==');
   check('矛盾条目转义后再插入',
     app.indexOf('.map(escapeHtml)') >= 0 && app.indexOf('escapeHtml(c.note') >= 0);
   check('矛盾样式已定义', css.indexOf('.board-conflict') >= 0);
+
+  // 两个查询入口必须走同一套矛盾检测：都调 renderSituationBoard、都把整个 profile 交给它。
+  // 一旦有人给某一页另写一份提示组件，规则就会分叉。
+  const discSrc = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const selfSrc = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  check('发现页把画像交给公共确认台',
+    /renderSituationBoard\(data\.profile,\s*data\.scene_library/.test(discSrc));
+  check('本人页把画像交给公共确认台',
+    /renderSituationBoard\(data\.profile,\s*data\.scene_library/.test(selfSrc));
+  check('本人页没有另写一份矛盾提示',
+    selfSrc.indexOf('board-conflict') < 0 && selfSrc.indexOf('conflicts') < 0,
+    '本人页不应自带矛盾提示实现，否则两页规则会分叉');
+  check('公共确认台是矛盾提示的唯一实现',
+    (app.match(/class="board-conflict"/g) || []).length === 1);
+
+  // 详情页要判断「这次是不是本人模式」，靠的是画像里的 mode。
+  // 两个键（profile / selfProfile）可能同时存在：先做过家庭查询、又做过本人查询。
+  // 谁在前就取谁的话，家庭页留下的 profile 会把本人模式判成家庭模式，
+  // 详情页的「返回」就会指向 discover.html 而不是 self.html。
+  const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  check('详情页按 mode 判断本人模式，不按存储顺序',
+    /const savedProfile = \(selfP && selfP\.mode === 'self'\)/.test(polSrc),
+    '不能直接写成 session.profile || session.selfProfile');
+  check('详情页返回目标跟随模式',
+    /const backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(polSrc));
 }
 
 

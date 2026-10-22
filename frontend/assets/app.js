@@ -2047,6 +2047,8 @@ function bindResultGroups() {
  */
 function bindSceneChips(currentData, onChange) {
   const base = (currentData && currentData.profile) || {};
+  // 调用方可以指定「本页把资料存在 store 的哪个键」，默认是家庭页的 profile。
+  const profileKey = (currentData && currentData.__profileKey) || 'profile';
   document.querySelectorAll('[data-scene]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.scene;
@@ -2054,7 +2056,11 @@ function bindSceneChips(currentData, onChange) {
       // 场景集合要以 store 里最新的为准，不能用渲染时的 base。
       // 连点两个 chip 时，第二次点击发生在结果重渲染之前，
       // base 还是旧的，上面那次的新增会被这一下算掉，看起来像第一次没点上。
-      const latest = store.read().profile || base;
+      // 本人页把资料存在 selfProfile、家庭页存在 profile，所以只认当前页那一个键；
+      // 固定读 profile 会让本人页每次都退回渲染时的 base，连点照样丢选择。
+      const latest = (store.read()[profileKey] && store.read()[profileKey].scenes)
+        ? store.read()[profileKey]
+        : base;
       const cur = latest.scenes || [];
       const next = on
         ? cur.filter((s) => s !== name)

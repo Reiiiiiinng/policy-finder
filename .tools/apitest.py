@@ -250,6 +250,50 @@ def main():
           "需要照护" not in (care["profile"].get("scenes") or []),
           str(care["profile"].get("scenes")))
 
+    # ---- 跌倒风险：补词后「摔过」类口语要能识别，否定与无关用法不能被带进来
+    falls = [
+        ("摔过", True),
+        ("摔过一跤", True),
+        ("上个月摔过一跤", True),
+        ("摔过一次", True),
+        ("摔骨折了", True),
+        ("跌过一次", True),
+    ]
+    for text, want in falls:
+        r = call("/api/profile", {"text": text})
+        sc = r["profile"].get("scenes") or []
+        check("「" + text + "」识别为跌倒风险", ("跌倒风险" in sc) == want, str(sc))
+
+    # 原有表达不能被改坏
+    keep = ["摔倒", "跌倒", "摔了", "摔跤", "滑倒"]
+    for text in keep:
+        r = call("/api/profile", {"text": text})
+        check("原有表达「" + text + "」仍识别为跌倒风险",
+              "跌倒风险" in (r["profile"].get("scenes") or []),
+              str(r["profile"].get("scenes")))
+
+    # 否定语境：说了「没摔过」不等于摔过
+    negs = ["没有摔倒", "没摔过", "不是摔过", "从来没有跌倒过"]
+    for text in negs:
+        r = call("/api/profile", {"text": text})
+        check("否定语境「" + text + "」不算跌倒风险",
+              "跌倒风险" not in (r["profile"].get("scenes") or []),
+              str(r["profile"].get("scenes")))
+
+    # 无关用法：不能因为补了「摔」起头的词就误命中
+    unrelated = ["他摔门就走", "别摔东西"]
+    for text in unrelated:
+        r = call("/api/profile", {"text": text})
+        check("无关用法「" + text + "」不算跌倒风险",
+              "跌倒风险" not in (r["profile"].get("scenes") or []),
+              str(r["profile"].get("scenes")))
+
+    # 补词不能造成重复场景或额外场景
+    dup = call("/api/profile", {"text": "上个月摔过一跤"})
+    scenes = dup["profile"].get("scenes") or []
+    check("「摔过一跤」只产出跌倒风险一个场景",
+          scenes == ["跌倒风险"], str(scenes))
+
     print("\n通过 %d，失败 %d" % (PASS, FAIL))
     sys.exit(1 if FAIL else 0)
 

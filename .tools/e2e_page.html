@@ -139,6 +139,9 @@ async function run() {
   var backChip = Array.prototype.find.call(qa('[data-scene]'), function (e) {
     return e.dataset.scene === offName;
   });
+  // 找不到补回按钮和「补回后数量不对」是两回事，先分开报，
+  // 否则失败信息只会写 now=N，看不出根因是按钮没找到。
+  check('能找回刚移除的生活事件', !!backChip, 'scene=' + offName);
   if (backChip) {
     backChip.click();
     await waitFor(function () {
@@ -146,7 +149,7 @@ async function run() {
     }, 8000, '事件补回');
   }
   check('可补回生活事件', qa('.scene-chip.is-on').length === before,
-    'now=' + qa('.scene-chip.is-on').length);
+    'before=' + before + ' now=' + qa('.scene-chip.is-on').length);
 
   // ---------- 3. 硬条件三值确认 ----------
   var hukouYes = q('[data-confirm="hukou"][data-value="true"]');
@@ -237,24 +240,38 @@ async function run() {
   if (clr) { clr.click(); await sleep(200); }
 
   // ---------- 8. 回到确认台（闭环） ----------
+  // 详情页「返回调整生活变化」会回到父列表页并带上 focus=scene：
+  // 家庭模式回 discover.html，本人模式回 self.html。两页都会自动重跑一次匹配，
+  // 而重跑期间确认台要等结果回来才渲染，所以这里等的是「确认台出现」，
+  // 不能只等 .scene-chips —— 它属于重跑完成之后才有的那一批节点。
   var backBtn = q('[id="fsFixScene"]');
   check('提供「回去调整生活变化」入口', !!backBtn);
+  var backParent = MODE === 'self' ? 'self.html' : 'discover.html';
   if (backBtn) {
     backBtn.click();
     await new Promise(function (r) { f.addEventListener('load', r, { once: true }); });
-    await waitFor(function () { return q('.scene-chips'); }, 9000, '回到确认台');
+    check('回到的是' + backParent, (W().location.pathname.split('/').pop() || '') === backParent,
+      W().location.pathname);
+    await waitFor(function () { return q('.board') || q('.scene-chips'); }, 12000, '回到确认台');
     check('可回到情况确认台', !!q('.board'));
   }
 
   // ---------- 9. 底部一级导航 ----------
-  // 现在在发现页（已跑过匹配），导航应该挂上且高亮「发现」
+  // 上一步回到了本模式的父页：家庭模式是 discover.html，本人模式是 self.html。
+  // 两页都挂底部导航。底部导航没有「本人」这一栏，本人发现同属发现权益，
+  // 所以两页的高亮都是「发现」，但页面本身必须是各自的父页——
+  // 本人模式若回到 discover.html，说明详情页把返回目标算错了，这里会一起抓出来。
+  var expectTab = 'discover';
+  var expectPage = MODE === 'self' ? 'self.html' : 'discover.html';
+  check('回到了' + expectPage, (W().location.pathname.split('/').pop() || '') === expectPage,
+    W().location.pathname);
   var nav = q('#tabbar');
-  check('发现页有底部导航', !!nav);
+  check(expectPage + ' 有底部导航', !!nav);
   if (nav) {
     var items = nav.querySelectorAll('.tb-item');
     check('导航四项齐全', items.length === 4, items.length + ' 项');
     var on = nav.querySelector('.tb-item.is-on');
-    check('当前页高亮为发现', !!on && on.getAttribute('data-tab') === 'discover',
+    check('当前页高亮为「' + expectTab + '」', !!on && on.getAttribute('data-tab') === expectTab,
       on ? on.getAttribute('data-tab') : '无');
     check('高亮项有 aria-current',
       !!on && on.getAttribute('aria-current') === 'page');
@@ -299,6 +316,14 @@ f.addEventListener('load', function () {
       out('=== ' + MODE + ' 模式：异常终止 ===', 'bad');
     });
   }, 300);
+});
+
+// 兜底：run() 以外的地方抛出的 Promise 拒绝如果不在这里记下来，
+// 日志会停在半路、done 永远不置位，看输出像「跑到一半没报错」。
+window.addEventListener('unhandledrejection', function (ev) {
+  var r = ev && ev.reason;
+  var msg = r && (r.stack || r.message) || String(r);
+  out('UNHANDLED ' + String(msg).split('\n').slice(0, 3).join(' | '), 'bad');
 });
 </script>
 </body>
