@@ -6,38 +6,49 @@
    ================================================================ */
 
 :root {
-  /* ---- 品牌：温暖绿（降低饱和、微微偏暖，区别于「系统绿」） ---- */
-  --brand: #12805f;
-  --brand-mid: #179370;
-  --brand-dark: #0f5c47;
-  --brand-deep: #0c4436;
-  --brand-soft: #e9f4ef;
-  --brand-wash: #f3f9f6;
-  --brand-line: #cbe4d9;
+  /* ---- 品牌：草叶绿（取自原型图主色 #2b8a4b / 底部导航 #297944） ----
+     比原来的青绿更正、更有生气，但仍不是那种扎眼的荧光绿。 */
+  --brand: #2b8a4b;
+  --brand-mid: #38a35c;
+  --brand-dark: #1f6b39;
+  --brand-deep: #17502b;
+  --brand-soft: #e4f2e6;
+  --brand-wash: #f2f9f2;
+  --brand-line: #c8e3cd;
 
-  /* ---- 仓储暖色：米白背景 ---- */
-  --cream: #faf7f1;
-  --cream-2: #f4eee2;
+  /* ---- 底色：米白。原型是暖白（#fafaf6）而不是纯白，卡片浮在纸面上 ---- */
+  --cream: #fafaf6;
+  --cream-2: #f2f3ea;
   --card: #ffffff;
-  --line: #e8e2d7;
-  --line-soft: #f1ece2;
+  --line: #e7e9de;
+  --line-soft: #f0f1e8;
 
   /* ---- 文字：三级灰绿，保证对比度 ---- */
-  --ink: #1c2521;
-  --ink-2: #3f4e47;
-  --muted: #77857e;
-  --muted-2: #97a49d;
+  --ink: #1b2422;
+  --ink-2: #3d4a47;
+  --muted: #74807a;
+  --muted-2: #96a19a;
 
-  /* ---- 暖色提示：需要确认的事项 ---- */
-  --warn: #a9641a;
-  --warn-soft: #fdf2e2;
-  --warn-line: #f0dcb6;
+  /* ---- 暖色提示：需要确认的事项 / 待核验标签（原型里的橙色药丸） ---- */
+  --warn: #c47a1f;
+  --warn-soft: #fdf0df;
+  --warn-line: #f4dcbc;
 
-  /* ---- 信任蓝：官方来源 / 可信信息区 ---- */
-  --trust: #f1f6fd;
-  --trust-ink: #1a4fd0;
-  --trust-line: #d7e4fb;
-  --info: #1a4fd0;
+  /* ---- 信任蓝：官方来源 / 可信信息区（原型详情页底部主按钮 #0f6ae6） ---- */
+  --trust: #eef4fe;
+  --trust-ink: #1a5fd0;
+  --trust-line: #cfe0fc;
+  --info: #0f6ae6;
+
+  /* ---- 四色服务入口：蓝 / 琥珀 / 青 / 紫，只做小面积点缀 ---- */
+  --acc-blue: #2f7de1;
+  --acc-blue-soft: #eef5fe;
+  --acc-amber: #e08a2c;
+  --acc-amber-soft: #fdf3e4;
+  --acc-teal: #1a9aa8;
+  --acc-teal-soft: #e8f6f7;
+  --acc-violet: #7a6cd6;
+  --acc-violet-soft: #f1effc;
 
   /* ---- 待核验：中性格调，不用警示红 ---- */
   --pending: #5d7280;
@@ -51,10 +62,11 @@
   --radius-xl: 26px;
   --radius-pill: 999px;
 
-  --shadow: 0 4px 16px rgba(28, 37, 33, 0.06);
-  --shadow-sm: 0 1px 4px rgba(28, 37, 33, 0.05);
-  --shadow-lg: 0 12px 32px rgba(28, 37, 33, 0.10);
-  --ring: 0 0 0 3px rgba(18, 128, 95, 0.14);
+  --shadow: 0 4px 16px rgba(27, 36, 34, 0.06);
+  --shadow-sm: 0 1px 4px rgba(27, 36, 34, 0.05);
+  --shadow-lg: 0 12px 32px rgba(27, 36, 34, 0.10);
+  --shadow-brand: 0 6px 18px rgba(43, 138, 75, 0.22);
+  --ring: 0 0 0 3px rgba(43, 138, 75, 0.16);
 
   /* ---- 节奏（适老化：留白比常规更大） ---- */
   --sp: 16px;
@@ -105,12 +117,13 @@ body {
 .topbar {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 55%, #f2f8f5 100%);
+  /* 原型图顶栏是从浅绿向暖白过渡的柔和渐变，不是一块死色 */
+  background: linear-gradient(165deg, #e6f4e4 0%, #eef7ea 42%, #fafaf6 100%);
   border-bottom: 1px solid var(--brand-line);
   padding: calc(16px + env(safe-area-inset-top)) 20px 18px;
 }
 
-/* 右上角极淡的品牌光晕：克制，不做霓虹效果 */
+/* 右上角淡绿光晕 + 左下角一点暖黄，两团很淡的色让顶部不生硬 */
 .topbar::after {
   content: "";
   position: absolute;
@@ -119,7 +132,19 @@ body {
   width: 190px;
   height: 190px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, rgba(18, 128, 95, 0.10), rgba(18, 128, 95, 0) 70%);
+  background: radial-gradient(circle at 35% 35%, rgba(43, 138, 75, 0.20), rgba(43, 138, 75, 0) 70%);
+  pointer-events: none;
+}
+
+.topbar::before {
+  content: "";
+  position: absolute;
+  left: -30px;
+  bottom: -58px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(224, 176, 92, 0.16), rgba(224, 176, 92, 0) 70%);
   pointer-events: none;
 }
 
@@ -308,7 +333,8 @@ body {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--brand-dark);
-  background: var(--brand-soft);
+  background: linear-gradient(135deg, #e2f2e4 0%, #eef8ec 100%);
+  border: 1px solid #d2e8d6;
   border-radius: var(--radius-pill);
   padding: 4px 12px;
 }
@@ -789,8 +815,9 @@ input:focus {
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
-  background: var(--brand);
+  background: linear-gradient(180deg, var(--brand-mid) 0%, var(--brand) 62%, var(--brand-dark) 100%);
   color: #fff;
+  box-shadow: var(--shadow-brand);
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -5174,9 +5201,10 @@ input:focus {
   border: 1px solid var(--line);
   text-decoration: none;
   color: inherit;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
-.svc:active { background: var(--brand-wash); }
+.svc:active { transform: scale(0.985); }
 
 .svc-ic {
   flex: none;
@@ -5189,6 +5217,17 @@ input:focus {
   background: var(--brand-wash);
   color: var(--brand-dark);
 }
+
+/* 四个入口各一个色：蓝 / 琥珀 / 青 / 紫，只染图标块和极浅的卡片底，
+   不大面积铺色，避免把政务界面弄成调色盘 */
+.svc[data-svc="match"] { background: var(--acc-blue-soft); border-color: #dbe9fc; }
+.svc[data-svc="match"] .svc-ic { background: #ffffff; color: var(--acc-blue); }
+.svc[data-svc="detail"] { background: var(--acc-amber-soft); border-color: #f7e3c6; }
+.svc[data-svc="detail"] .svc-ic { background: #ffffff; color: var(--acc-amber); }
+.svc[data-svc="guide"] { background: var(--acc-teal-soft); border-color: #d2eced; }
+.svc[data-svc="guide"] .svc-ic { background: #ffffff; color: var(--acc-teal); }
+.svc[data-svc="saved"] { background: var(--acc-violet-soft); border-color: #e2ddf8; }
+.svc[data-svc="saved"] .svc-ic { background: #ffffff; color: var(--acc-violet); }
 
 .svc-ic svg { width: 19px; height: 19px; }
 
