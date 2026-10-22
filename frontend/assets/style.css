@@ -937,10 +937,11 @@ input:focus {
 
 .axis-k {
   flex: none;
-  width: 24px;
-  font-size: 11px;
+  /* 「匹配／来源」是区分两个判断维度的关键词，11px 长辈读不清，抬到 12px 并加宽容纳 */
+  width: 26px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   color: var(--muted);
 }
 
