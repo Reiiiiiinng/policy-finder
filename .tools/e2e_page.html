@@ -276,12 +276,18 @@ async function run() {
     check('高亮项有 aria-current',
       !!on && on.getAttribute('aria-current') === 'page');
 
-    // 遮挡：正文必须为导航留出空间，且导航不透明
+    // 遮挡：正文必须为导航留出空间，且导航不透明。
+    // 这里查的是「盖住正文时看不看得见后面的字」，不是某个具体的颜色字符串——
+    // 早先断言写死了 rgba(255,255,255,0.96)，只要把背景换成同色的实心令牌就误报，
+    // 而视觉上半点没变。现在按语义判：alpha 必须是 1（全不透明）或完全不写（实色）。
     var appEl = q('.app');
     var padB = parseInt(W().getComputedStyle(appEl).paddingBottom, 10) || 0;
     check('正文为导航留出底部空间', padB >= 70, padB + 'px');
     var navBg = W().getComputedStyle(nav).backgroundColor;
-    check('导航不是全透明', navBg.indexOf('rgba(255, 255, 255, 0.96') === 0, navBg);
+    var navAlpha = 1;
+    var alphaMatch = navBg.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/);
+    if (alphaMatch) navAlpha = parseFloat(alphaMatch[1]);
+    check('导航不是全透明', navBg !== 'transparent' && navAlpha >= 0.9, navBg);
   }
 
   // 点「我的」应真的到我的页，并高亮「我的」

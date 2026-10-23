@@ -675,5 +675,56 @@ console.log('== 底部一级导航与新增一级页 ==');
 }
 
 
+
+// ================================================================
+//  第二阶段收尾：桌面结果页分栏 + 风险语义配色
+// ================================================================
+const stSrc2 = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8');
+const appSrc2 = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+
+check('结果区拆成侧栏与主区两块',
+  /<div class="section result-layout">/.test(appSrc2) &&
+  /class="rl-side"/.test(appSrc2) &&
+  /class="rl-main"/.test(appSrc2));
+
+check('分段筛选放进了侧栏',
+  /<div class="rl-seg">\$\{renderSegments\(list\)\}<\/div>/.test(appSrc2));
+
+check('卡片列表放进主区而非侧栏',
+  /class="rl-main">[\s\S]{0,200}?class="tier-groups"/.test(appSrc2));
+
+check('窄屏两区仍按文档顺序直排（手机不分成两栏）',
+  /\.result-layout \{ display: block; \}/.test(stSrc2));
+
+check('宽屏才启用两栏 grid',
+  /\.result-layout \{[\s\S]{0,200}?display: grid;[\s\S]{0,200}?grid-template-columns:/.test(stSrc2));
+
+check('侧栏用了 sticky 跟随滚动',
+  /\.rl-side \{[\s\S]{0,120}?position: sticky;/.test(stSrc2));
+
+check('侧栏里的分段改为竖排',
+  /\.rl-seg \.seg-nav \{[\s\S]{0,160}?flex-direction: column;/.test(stSrc2));
+
+check('风险红使用指定色值 #a33f37',
+  /--risk:\s*#a33f37;/.test(stSrc2));
+
+check('风险浅底使用指定色值 #fbece9',
+  /--risk-soft:\s*#fbece9;/.test(stSrc2));
+
+check('矛盾提示块改用风险红而非暖橙',
+  /\.board-conflict \{[\s\S]{0,260}?border-left: 3px solid var\(--risk\);[\s\S]{0,160}?background: var\(--risk-soft\);/.test(stSrc2));
+
+check('矛盾提示的标题用风险红文字',
+  /\.board-conflict \.bc-t \{[\s\S]{0,160}?color: var\(--risk\);/.test(stSrc2));
+
+check('矛盾标签用风险红而非暖橙',
+  /\.board-conflict \.bc-kind \{[\s\S]{0,220}?color: var\(--risk\);/.test(stSrc2));
+
+check('矛盾提示块里不再残留 --warn',
+  !/\.board-conflict[^{]*\{[^}]*--warn/.test(stSrc2));
+
+check('普通提醒仍是暖橙 --warn',
+  /\.notice\.warn \{[\s\S]{0,160}?var\(--warn\)/.test(stSrc2));
+
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

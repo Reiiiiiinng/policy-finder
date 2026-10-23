@@ -1956,18 +1956,26 @@ function renderResultCards(data, opts) {
   //   信息待补充 → #seg-needinfo（缺条件组）
   // 某一段当前为 0 条时该组不渲染，锚点也就不存在——这时把胶囊降级成
   // 不可点的计数，避免出现「看着能点、点了没反应」的假控件。
+  // 宽屏两栏（1024px 起）：用 grid 的具名区域把「说明 + 分段 + 提示」收进左侧栏，
+  // 「卡片列表」留在右侧主区。手机与平板不入列——它们的 CSS 不用 grid，仍是一列直排。
+  // 分段筛选本身是锚点导航（点它滚到对应分组），放进侧栏后仍指向同一批锚点，
+  // 不新增过滤能力，也没有虚构功能。
   return `
-    <div class="section">
-      ${discIntro}
-      <h2 class="section-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
-      ${renderSegments(list)}
-      ${renderAiFlowDone()}
-      <p class="result-summary">${escapeHtml(summary)}</p>
-      <p class="hint seg-sum" style="margin:-4px 0 10px">以下均为「可能相关」的初步匹配结果，不代表已符合资格。</p>
-      <div class="notice">${escapeHtml(data.notice || '')}</div>
-      <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
-      ${renderSceneSummary(list)}
-      <p class="results-note">匹配结果仅用于辅助发现线索。具体资格、材料和办理方式，请以主管部门现行规定为准。</p>
+    <div class="section result-layout">
+      <div class="rl-side">
+        ${discIntro}
+        <h2 class="section-title rl-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
+        <div class="rl-seg">${renderSegments(list)}</div>
+        <p class="result-summary">${escapeHtml(summary)}</p>
+        <p class="hint seg-sum" style="margin:-4px 0 10px">以下均为「可能相关」的初步匹配结果，不代表已符合资格。</p>
+        <div class="notice">${escapeHtml(data.notice || '')}</div>
+        ${renderAiFlowDone()}
+      </div>
+      <div class="rl-main">
+        <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
+        ${renderSceneSummary(list)}
+        <p class="results-note">匹配结果仅用于辅助发现线索。具体资格、材料和办理方式，请以主管部门现行规定为准。</p>
+      </div>
     </div>`;
 }
 
