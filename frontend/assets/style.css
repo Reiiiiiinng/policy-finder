@@ -6,89 +6,93 @@
    ================================================================ */
 
 :root {
-  /* ---- 品牌：取自 v14 discover 原型（policy-finder-framework-v14） ----
-     原型只有一档实心绿 --green-700:#2f8058，其余深浅都是它的明暗变体。 */
-  --brand: #2f8058;
-  --brand-mid: #67a984;
-  --brand-dark: #214b3b;
-  --brand-deep: #1b3f31;
-  --brand-soft: #e8f3eb;
-  --brand-wash: #f5f9f4;
-  --brand-line: #cfe1d2;
+  /* ---- 品牌：深松绿主色板 ----
+     --brand 是唯一的主色，其余深浅、浅底、描边都由它推导，
+     不再保留原型阶段那支偏亮的 #2f8058。 */
+  --brand: #1D4A3E;
+  --brand-mid: #34735D;
+  --brand-dark: #163A32;
+  --brand-deep: #102A24;
+  --brand-soft: #E4F0E9;
+  --brand-wash: #F2F7F3;
+  --brand-line: #CBE0D4;
 
-  /* ---- 底色：纸白 #fbfaf6，卡片纯白浮在上面 ---- */
-  --cream: #fbfaf6;
-  --cream-2: #f7f8f5;
-  --card: #ffffff;
-  --line: #edf0eb;
-  --line-soft: #f1f3ef;
+  /* ---- 底色：纸白 #FCFAF5，卡片纯白浮在上面 ---- */
+  --cream: #FCFAF5;
+  --cream-2: #F6F1E7;
+  --card: #FFFFFF;
+  --line: #E2E7E1;
+  --line-soft: #EDF1EC;
 
-  /* ---- 文字：原型 --ink:#26332d / --muted:#7b877f ---- */
-  --ink: #26332d;
-  --ink-2: #374c3d;
-  --muted: #7b877f;
-  --muted-2: #9aa39c;
+  /* ---- 文字：#202B27 正文 / #46534D 次级 / #748078 弱化 ---- */
+  --ink: #202B27;
+  --ink-2: #46534D;
+  --muted: #748078;
+  --muted-2: #97A29A;
 
-  /* ---- 暖色提示：橙 #e9a04c（原型动态铃铛）/ #cb8741（收藏图标） ---- */
-  --warn: #b8792d;
-  --warn-soft: #fff2df;
-  --warn-line: #f6dcbc;
+  /* ---- 暖橙提示：普通提醒只用这一族；--warn-dark 是它的按压/强调档 ---- */
+  --warn: #C66B36;
+  --warn-dark: #A95125;
+  --warn-soft: #FCEBDD;
+  --warn-line: #F4D9C5;
 
-  /* ---- 信任蓝：原型 --blue-500:#1677e8 ---- */
-  --trust: #e8f1fb;
-  --trust-ink: #1677e8;
-  --trust-line: #d3e4f8;
-  --info: #1677e8;
+  /* ---- 信任蓝：与新色板同明度的低饱和蓝，不再用高饱和 #1677e8 ---- */
+  --trust: #EAF2F8;
+  --trust-ink: #315F83;
+  --trust-line: #D4E3EF;
+  --info: #315F83;
 
   /* ---- 服务入口四格：绿 / 蓝 / 绿 / 琥珀（原型 service-tile 的 nth-child 配色） ----
      --acc-teal / --acc-violet 目前没有任何组件引用：现有四个服务入口用的是
      「绿·蓝·绿·琥珀」，第 1 与第 3 格同为绿色。这两档留给后续把同色拆开，
      本阶段只做令牌与骨架，不动组件结构。 */
   --acc-green: #318357;
-  --acc-green-soft: #e5f2e8;
-  --acc-blue: #367cb8;
-  --acc-blue-soft: #e8f1fb;
-  --acc-amber: #cb8741;
-  --acc-amber-soft: #fff0e2;
-  --acc-teal: #67a984;
-  --acc-teal-soft: #e8f3eb;
-  --acc-violet: #7866b5;
-  --acc-violet-soft: #f0edfb;
+  --acc-green-soft: #E5F2E8;
+  --acc-blue: #367CB8;
+  --acc-blue-soft: #EAF2F8;
+  --acc-amber: #CB8741;
+  --acc-amber-soft: #FFF0E2;
+  --acc-teal: #4F8F77;
+  --acc-teal-soft: #E4F0E9;
+  --acc-violet: #7866B5;
+  --acc-violet-soft: #F0EDFB;
   /* ---- 待核验：中性格调，不用警示红 ---- */
-  --pending: #5d7280;
-  --pending-soft: #eef2f6;
-  --pending-line: #dbe3ea;
+  --pending: #5D6C74;
+  --pending-soft: #EFF2F4;
+  --pending-line: #DDE4E8;
 
   /* ---- 品牌绿的 RGB 分量：投影 / 光晕 / 焦点环要带透明度，
-     单独存分量，避免在到处写死 rgba。数值与 --brand 同源。 ---- */
-  --brand-rgb: 47 128 88;
-  --brand-mid-rgb: 103 169 132;
-  --brand-ring-rgb: 18 128 95;
+     单独存分量，避免在到处写死 rgba。数值与 --brand 同源：
+     --brand #1D4A3E = 29 74 62；--brand-mid #34735D = 52 115 93。 ---- */
+  --brand-rgb: 29 74 62;
+  --brand-mid-rgb: 52 115 93;
+  --brand-ring-rgb: 52 115 93;
 
   /* ---- 深色遮罩 / 暖色极浅底 / 星标 ---- */
-  --scrim: rgba(28, 37, 33, 0.93);
-  --scrim-soft: rgba(28, 37, 33, 0.45);
+  --scrim: rgba(20, 31, 27, 0.93);
+  --scrim-soft: rgba(20, 31, 27, 0.45);
   --on-dark-soft: rgba(255, 255, 255, 0.2);
-  --warn-wash: #fffdf8;
-  --star: #f6c453;
+  --warn-wash: #FFFDF8;
+  --star: #F6C453;
 
   /* ---- 风险红：只给「需要您核对」的矛盾与风险状态 ----
      这一档刻意收紧：普通提示、次要说明、未核验一律不用红，
      一旦红色出现，就意味着「这里有一处说法对不上，需要您亲自确认」。
      颜色取自 --acc-amber 同族深一档，与暖橙提示拉开明度，避免看混。 */
   /* 风险红：只用于「需要您核对的矛盾或风险」，普通提醒仍走 --warn 暖橙。
-     文字 #A33F37 / 背景 #FBECE9 是产品指定的确切值，其余两档按同色系推导。 */
+     文字 #a33f37 / 背景 #fbece9 是产品指定的确切值（十六进制大小写不敏感，
+     这里沿用仓库原有的小写写法），其余两档按同色系推导。 */
   --risk: #a33f37;
   --risk-soft: #fbece9;
-  --risk-line: #efdad5;
+  --risk-line: #EFD9D3;
 
-  /* ---- 页面外底色：宽屏时卡片两侧的「桌面」颜色 ---- */
-  --page-bg: #efe9dd;
+  /* ---- 页面外底色：宽屏时卡片两侧的「桌面」颜色（暖砂，比 --cream-2 再深一档） ---- */
+  --page-bg: #EDE6D7;
   /* ---- 骨架屏扫光 ---- */
-  --skeleton: #eef2ef;
-  --skeleton-shine: #f8faf9;
+  --skeleton: #EDF2EE;
+  --skeleton-shine: #F9FBF9;
   /* ---- 头像/占位图的灰面 ---- */
-  --avatar-bg: #eef3f0;
+  --avatar-bg: #EDF2EF;
 
   /* ---- 形态 ---- */
   --radius: 16px;
@@ -99,13 +103,13 @@
   /* 卡片圆角：比 --radius 大一档，卡片比控件更圆，层级一眼分开 */
   --radius-card: 18px;
 
-  --shadow: 0 4px 16px rgba(38, 69, 49, 0.06);
-  --shadow-sm: 0 1px 4px rgba(30, 60, 42, 0.05);
+  --shadow: 0 4px 16px rgba(22, 58, 50, 0.06);
+  --shadow-sm: 0 1px 4px rgba(22, 58, 50, 0.05);
   /* 深色投影：宽屏页面外底与固定导航共用一档 */
-  --shadow-ink: 0 6px 24px rgba(28, 37, 33, 0.08);
-  --shadow-lg: 0 12px 34px rgba(37, 72, 53, 0.10);
-  --shadow-brand: 0 6px 18px rgba(44, 132, 82, 0.14);
-  --ring: 0 0 0 3px rgba(47, 128, 88, 0.16);
+  --shadow-ink: 0 6px 24px rgba(18, 31, 26, 0.08);
+  --shadow-lg: 0 12px 34px rgba(22, 58, 50, 0.10);
+  --shadow-brand: 0 6px 18px rgba(29, 74, 62, 0.16);
+  --ring: 0 0 0 3px rgba(29, 74, 62, 0.18);
 
   /* ---- 节奏（适老化：留白比常规更大） ---- */
   --sp: 16px;
@@ -5394,7 +5398,9 @@ input:focus {
 }
 
 .result-card.has-tier { border-top-left-radius: 0; }
-/* ---- 底部一级导航：固定、安全区、正文不被遮挡 ----
+/* ---- 一级导航：手机端固定底部四栏，宽屏改成页头下方的横向导航 ----
+   导航节点由 app.js 插在 .app 里、页头之后（手机端 fixed 到底部，看不出位置；
+   宽屏改成静态条后，这个插入点正好让它落在「品牌条／页面标题」与正文之间）。
    遮挡问题由布局解决：body.has-tabbar 给 .app 补出与导航等高的底部空间，
    而不是指望每个页面自己记得加 padding。 */
 .tabbar {
@@ -6349,36 +6355,29 @@ body.has-tabbar .app.has-dock {
   /* 统计条、信任条在宽屏下允许横排展开 */
   .trust-strip { flex-wrap: nowrap; }
 
-  /* ---- 底部导航改为宽屏顶栏导航 ----
-     导航元素由 app.js 挂在 <body> 末尾（手机端靠 fixed 定位看起来在底部），
-     宽屏下若继续 fixed 就会盖住品牌条。这里改成「跟随页面」的静态条，
-     并用 order 把它排到品牌条与首屏之间：视觉上是一条顶部导航带，
-     滚动时随页面一起走，不会遮挡任何标题。 */
-  body.has-tabbar {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .app { order: 1; }
+  /* ---- 底部导航改为宽屏顶部导航 ----
+     导航由 app.js 插在 .app 里、页头（品牌条／页面标题）之后，DOM 顺序本身就是
+     「页头 → 导航 → 正文」。这里只把它从 fixed 改回随页面走的静态条：
+     不再用 body 的 flex + order 把 body 末尾的导航拽到最前面——那种做法会让
+     导航压到品牌条上方，滚动时也会挡住标题。 */
   .tabbar {
-    order: 0;
     position: static;
     bottom: auto;
     left: auto;
     right: auto;
-    width: 100%;
     border-top: none;
     border-bottom: 1px solid var(--line);
-    box-shadow: 0 2px 14px var(--shadow-ink);
+    box-shadow: none;
     padding-bottom: 0;
     background: var(--card);
   }
 
+  /* 导航在版心内，左右内边距与 .section 的 40px 对齐，链接靠右 */
   .tb-inner {
-    max-width: var(--shell-max);
+    max-width: none;
     margin: 0 auto;
     gap: 8px;
-    padding: 8px 40px;
+    padding: 10px 40px;
     justify-content: flex-end;
   }
 
@@ -6417,6 +6416,9 @@ body.has-tabbar .app.has-dock {
 
   .hero { padding: 52px 56px 44px; column-gap: 64px; }
   .hero-title { font-size: 52px; }
+
+  /* 导航左右内边距跟正文同一档，链接与正文左边界对齐 */
+  .tb-inner { padding-left: 56px; padding-right: 56px; }
 
   .section { padding-top: 40px; padding-left: 56px; padding-right: 56px; }
   .svc-sec { padding-left: 56px; padding-right: 56px; }

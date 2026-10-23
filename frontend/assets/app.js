@@ -2222,9 +2222,33 @@ const TAB_ITEMS = [
 ];
 
 /**
+ * 导航该插在哪儿：版心 .app 里「页头之后、正文之前」。
+ *
+ * 页头有两种写法，两种都要认：
+ *   - 首页：.topbar 只是品牌条，真正的页面标题是紧跟其后的 header.hero，
+ *     导航要落在标题之后，否则会插在品牌条和大标题中间；
+ *   - 其余一级页：标题由 renderTopbar() 写进 .topbar（h1 就在里面），
+ *     导航落在 .topbar 之后即可。
+ * 找不到 .app 时返回 null，由调用方退回挂到 body。
+ */
+function tabbarHost() {
+  const app = document.querySelector('.app');
+  if (!app) return null;
+  const hero = app.querySelector(':scope > header.hero');
+  if (hero) return { app, anchor: hero };
+  const topbar = app.querySelector(':scope > .topbar');
+  if (topbar) return { app, anchor: topbar };
+  return null;
+}
+
+/**
  * 渲染并挂载底部一级导航。current 是当前页的 key（home/discover/consult/mine）。
  *
  * 只在缺少 <nav> 时创建；重复调用（例如结果重绘）会原地更新高亮，不会叠出第二条。
+ * 位置由真实 DOM 决定：插进 .app 的页头之后，宽屏下顺序天然是
+ * 「品牌条／页面标题 → 导航 → 正文」。旧做法是把 nav 追加到 body 末尾、
+ * 再用 body 的 flex + order 把它拉到最上面，结果导航跑到了品牌条之前，
+ * 也脱离了版心那一列；这里改的是插入点，不再用 order 掩盖。
  * 同时给 <body> 打上 has-tabbar，由 CSS 负责给正文留出底部空间——
  * 内容被导航遮住这件事必须由布局解决，不能靠某个页面自己记得加 padding。
  */
@@ -2235,6 +2259,13 @@ function mountTabbar(current) {
     nav = document.createElement('nav');
     nav.id = 'tabbar';
     nav.className = 'tabbar';
+  }
+  // 已经在 .app 里就不再挪动：首屏之后 banner / 流程条也会插在 .topbar 后面，
+  // 反复重绘时不应该把导航再提回它们上面。
+  const host = tabbarHost();
+  if (host && nav.parentNode !== host.app) {
+    host.anchor.after(nav);
+  } else if (!host && nav.parentNode !== document.body) {
     document.body.appendChild(nav);
   }
   document.body.classList.add('has-tabbar');
