@@ -384,12 +384,18 @@ async function main() {
     console.log('未找到本机浏览器（msedge.exe / chrome.exe），无法实测。');
     return 1;
   }
-  try {
-    const health = await fetch(BASE + '/api/health');
-    if (!health.ok) throw new Error('health ' + health.status);
-  } catch {
-    console.log('后端未启动，请先运行： python backend/server.py');
-    return 1;
+  // 线上静态站（PF_BASE 指向 GitHub Pages）没有后端：匹配走 data/policies.js 的本地实现，
+  // 此时不检查 /api/health，也不统计网络请求（由 HAS_API 决定断言强度）。
+  if (HAS_API) {
+    try {
+      const health = await fetch(BASE + '/api/health');
+      if (!health.ok) throw new Error('health ' + health.status);
+    } catch {
+      console.log('后端未启动，请先运行： python backend/server.py');
+      return 1;
+    }
+  } else {
+    console.log('静态站模式：' + BASE + '（匹配走本地实现，跳过 /api 请求计数）');
   }
 
   profileDir = await mkdtemp(join(tmpdir(), 'svc-e2e-'));
