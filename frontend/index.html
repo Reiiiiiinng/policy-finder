@@ -357,14 +357,55 @@
     sec.hidden = false;
   })();
 
+  /**
+   * 「政策匹配」在没有可用会话时的落点：把用户送到对象选择区，并说清下一步。
+   * 只做提示与滚动，不预置任何对象、不写会话，避免替用户做选择。
+   */
+  function promptEntryChoice() {
+    const box = document.getElementById('entry');
+    if (!box) {
+      showToast('请先选择这次为谁查询：我的父母 / 我的长辈 / 我自己');
+      return;
+    }
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    box.classList.add('is-prompted');
+    if (!document.getElementById('entryPrompt')) {
+      const tip = document.createElement('p');
+      tip.id = 'entryPrompt';
+      tip.className = 'hint entry-prompt';
+      // role=status 让读屏用户也听到「下一步是选对象」，而不是只看到页面动了一下
+      tip.setAttribute('role', 'status');
+      tip.textContent = '请先选择这次为谁查询：点下面「我的父母」「我的长辈」「我自己」中的一项，再继续。';
+      const head = box.querySelector('.section-title');
+      if (head) head.insertAdjacentElement('afterend', tip);
+      else box.insertBefore(tip, box.firstChild);
+    }
+    // 键盘用户点完这一格，焦点直接落到第一个对象上，省一次 Tab
+    const first = box.querySelector('.choice.entry');
+    if (first) setTimeout(() => first.focus({ preventScroll: true }), 260);
+    showToast('请先选择这次为谁查询');
+  }
+
   // 服务入口：每一格都必须真的把用户送到那个功能上。
   // 之前四格里有三格（政策解读 / 办理指引 / 我的收藏）点了只是滚回上面的入口区，
   // 等于点了没反应——其中「我的收藏」明明有现成列表，却被挡住。
   document.querySelectorAll('.svc').forEach((a) => {
     a.addEventListener('click', (e) => {
       const svc = a.dataset.svc || 'match';
-      // 「政策匹配」在首页自身有落点，原生锚点即可
-      if (svc === 'match') return;
+      // 「政策匹配」不是「滚回上面的入口区」：
+      // - 会话里已有查询内容：按会话里的模式（本人 / 家庭协助）直接进对应流程，
+      //   不要在这里再发一次匹配请求，落地页自己会恢复结果；
+      // - 没有可用会话：滚到对象选择区并明确提示「先选帮谁查」，
+      //   否则一次平滑滚动看起来和按钮坏掉没区别。
+      if (svc === 'match') {
+        e.preventDefault();
+        const s = store.read();
+        const isSelf = s && s.target === 'self';
+        const text = String((isSelf ? s && s.selfText : s && s.text) || '').trim();
+        if (!text) { promptEntryChoice(); return; }
+        location.href = isSelf ? 'self.html' : 'discover.html';
+        return;
+      }
       // 「我的收藏」的落点是那个区块——但它没有收藏时是整块隐藏的，
       // 此时点它等于点了没反应（实测 savedHidden=true，锚点滚不到任何东西）。
       // 没东西可看就去「我的」页，那里有说明和引导。
@@ -445,6 +486,11 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.choice.entry').forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
+      // 用户已经选了对象，「请先选择」的提示到此完成使命
+      const prompt = document.getElementById('entryPrompt');
+      if (prompt) prompt.remove();
+      const entryBox = document.getElementById('entry');
+      if (entryBox) entryBox.classList.remove('is-prompted');
       const target = btn.dataset.target;
       store.write({ target: target, demo: false, demoBanner: false });
       const next = (target === 'self') ? 'self.html' : 'family.html';

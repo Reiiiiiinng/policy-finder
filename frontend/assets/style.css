@@ -780,6 +780,20 @@ body {
   background: var(--brand-wash);
 }
 
+/* 服务入口「政策匹配」在还没有查询对象时把用户送来这里：
+   提示行 + 把三张对象卡描边加重，让「下一步要点哪个」一眼可见。
+   提示用暖橙（普通提醒），不用风险红——这里没有出错，只是还没选。 */
+.entry-prompt {
+  margin: 0 0 12px;
+  color: var(--warn-dark);
+  font-weight: 600;
+}
+
+#entry.is-prompted .choice.entry {
+  border-color: var(--brand-mid);
+  box-shadow: var(--ring);
+}
+
 .entry-icon {
   flex: none;
   width: 46px;
@@ -6235,6 +6249,9 @@ body.has-tabbar .app.has-dock {
     align-items: stretch;
   }
   #entry > .section-title { grid-column: 1 / -1; margin-bottom: 0; }
+  /* 未选对象时的提示行：桌面 #entry 是 grid，提示必须整行通栏，
+     否则会挤进第一列、把三张对象卡挤成两行两列（1440 实测过的破版）。 */
+  #entry > .entry-prompt { grid-column: 1 / -1; margin-bottom: 0; }
   #entry > .entry.is-demo,
   #entry > .demo-entry,
   #entry > .entry-card { grid-column: 1 / -1; }
