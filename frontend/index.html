@@ -400,8 +400,11 @@
       if (svc === 'match') {
         e.preventDefault();
         const s = store.read();
-        const isSelf = s && s.target === 'self';
-        const text = String((isSelf ? s && s.selfText : s && s.text) || '').trim();
+        // 恢复「当前生效的查询」用与详情页/我的页同一套判定（activeQueryMode）：
+        // 只看 s.target 的话，先选过「我自己」、后来做了家庭查询的会话
+        // 会被带回本人页（或反之），和页面里实际显示的结果对不上。
+        const isSelf = activeQueryMode() === 'self';
+        const text = String((isSelf ? s.selfText : s.text) || '').trim();
         if (!text) { promptEntryChoice(); return; }
         location.href = isSelf ? 'self.html' : 'discover.html';
         return;

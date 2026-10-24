@@ -106,11 +106,19 @@ function activeQueryMode() {
   return 'family';
 }
 
-/** 当前生效的画像。模式对应的键缺失时回退另一个键，保证有值可用。 */
+/**
+ * 当前生效的画像。只取当前模式自己的键，绝不回退到另一模式——
+ * lastQuery 已明确标记当前模式时，把另一模式的旧画像当当前画像用，
+ * 就是本人页出现家人年龄/地区、家庭页出现「您」称谓那类串扰的根源。
+ * 当前模式的画像缺失（键不存在，或清空后留下的空对象）时返回 null，
+ * 由调用方走各自的安全空状态（详情页显示通用提示、关系条隐藏等），
+ * 绝不静默换数据。
+ */
 function activeProfile() {
   const s = store.read();
   const p = activeQueryMode() === 'self' ? s.selfProfile : s.profile;
-  return p || s.profile || s.selfProfile || null;
+  if (!p || (typeof p === 'object' && Object.keys(p).length === 0)) return null;
+  return p;
 }
 
 function escapeHtml(str) {
@@ -861,11 +869,12 @@ function renderConfirmCard(profile) {
  */
 function renderRelationStrip() {
   const s = store.read();
-  // 必须按当前模式取画像：固定先读 profile 的话，先做过家庭查询、
-  // 再进本人模式时，残留的家庭画像会让关系条出现在本人页上。
-  const p = activeProfile();
-  if (p && p.mode === 'self') return '';
+  // 本人模式一律不显示家庭协助轴——判定只看当前模式，不看画像是否存在：
+  // 即使本人画像缺失（此时 activeProfile() 返回 null），
+  // 也不能让家庭模式的操作者/受益人出现在本人页面上。
+  if (activeQueryMode() === 'self') return '';
   if (!s.operator && !s.beneficiary) return '';
+  const p = activeProfile();
 
   const op = s.operator || '未选择';
   const ben = s.beneficiary || '未选择';

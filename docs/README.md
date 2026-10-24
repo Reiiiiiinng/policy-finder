@@ -169,14 +169,16 @@ curl -X POST http://127.0.0.1:8000/api/match \
 ```bash
 python .tools/baseline.py check   # 引擎回归：12 个用例与基线快照逐字段比对（实测 12/12）
 python .tools/apitest.py          # 接口冒烟：硬条件三值、to_verify、双模式、否定/时态/矛盾/程度副词（实测 92/92）
-node .tools/render-test.js        # 渲染单测：vm 里跑 app.js 纯函数（实测 166/166）
-node .tools/page-check.js         # 页面接线：内联脚本语法、函数引用、红线文案（实测 288/288）
+node .tools/render-test.js        # 渲染单测：vm 里跑 app.js 纯函数（实测 184/184）
+node .tools/page-check.js         # 页面接线：内联脚本语法、函数引用、红线文案（实测 302/302）
 python .tools/e2e.py              # 端到端：驱动本机 Edge 跑完整流程（实测家庭 58 / 本人 58，失败 0）
 node .tools/phase6-test.js        # 第六阶段交互修正专项（实测 98/98）
 python .tools/phase6-e2e.py       # 第六阶段 390×844 实测（对应需求里的测试1~6，实测 45/45）
 python .tools/phase7-e2e.py       # 第七阶段 390×844 实测：结果展示减负（实测 43/43）
 python .tools/fold-e2e.py         # D2 专项：结果卡折叠/理由/键盘与整卡导航不冲突（实测 25/25）
-node .tools/svc-e2e.mjs           # 首页服务入口回归：桌面+手机各跑一遍（实测 65/65；
+node .tools/svc-e2e.mjs           # 首页服务入口回归 + 双模式隔离/确定性竞态实测：
+                                  #   桌面+手机各跑一遍（本地后端实测 135/135；
+                                  #   静态站 127/127，竞态用例仅本地模式执行）；
                                   #   PF_BASE=静态站地址 时对纯静态站跑同一批用例）
 node build/compare.js             # 引擎移植对照：JS 引擎 vs Python 引擎逐字段比对
                                   #   （先跑 python build/gen_expected.py 生成对照样本）
@@ -254,3 +256,4 @@ node build/compare.js             # 引擎移植对照：JS 引擎 vs Python 引
 | 2026-10-17 | `data/guangzhou_elderly_policy_v1.1.json`、`backend/policy_engine.py`、`.tools/apitest.py`、`.tools/baseline_snapshot.json`、`docs/policy-data-notes.md`（已随 `cf231c5` 提交） | 移植 theme-cb 线已核验的广州数据修正（`0bd79be`+`82b93ec`）：①居家适老化改造现行依据更新为穗民规字〔2025〕1号（2025-02-01 施行，2021 版已废止），办理流程按方案原文录入；②老年人健康管理/认知功能筛查标注国家依据（国卫基层发〔2017〕13号 / 国卫老龄发〔2024〕42号）并保持"本地服务待核验"口径；③引擎补 `official_url`/`source_official_url` 透传（当前界面未使用，仅补全数据链路） | baseline 快照与 apitest 008 期望随数据同步更新；匹配逻辑零改动（baseline 12/12 通过）；依据与官方链接见 `docs/policy-data-notes.md` |
 | 2026-10-22 | `backend/policy_engine.py`、`build/engine.js`、`frontend/policy.html`、`frontend/self.html`、`frontend/assets/{app.js,style.css}`、`.tools/{apitest.py,page-check.js,e2e_page.html}` | **全项目体检修复**：①引擎补 `_negated`/`_superseded`/`DEGREE_WORDS`/`detect_conflicts`，修否定表达误判、历史 vs 当前误判、程度副词夹在关键词中间漏判、自相矛盾无提示；②`detect_conflicts` 的同义词表补齐（「和家人同住」「跟老伴一起」「和子女共同生活」等），并把 `_negated`/`_superseded` 接入矛盾判定——否则「不是独居，和家人一起住」会被误报成矛盾；**「有家人照应」刻意不收**，它说的是有人帮不是同住，「独居，子女住得远，平时有家人照应」是自洽的；跌倒风险词典补「摔过」「摔过一次」「跌过一次」「跌过跤」「摔骨折」「摔伤」「跌伤」（不放单字「摔」，否则「摔门」会误命中）；③服务端 `do_GET`/`do_POST` 包 try，异常不再直接断开连接而是返回 500 结构化 JSON；④前端 `API._read` 检查状态码并按 `e.status` 区分「连不上」与「服务端出错」；⑤演示模式标记补齐（真实查询后 `demoBanner` 一并清除并重新对横幅）；⑥本人模式返回目标按 `mode` 判定（原先 `profile \|\| selfProfile` 的取值顺序会让家庭画像劫持本人模式，返回错页）；⑦本人页补 `mountTabbar`、`bindSceneChips` 按 `__profileKey` 取最新值；⑧`.axis-k`（匹配/来源维度名）字号 11→12px | 静态站 `build/engine.js` 同步移植上述引擎逻辑，否则线上纯前端版仍是旧行为；`e2e_page.html` 修掉三处误报（补回事件断言位置、回到确认台的等待条件、导航断言写死「发现」）；测试数：apitest 48→91、page-check 180→263、e2e 家庭 46→58 / 本人 45→58、render 152→154、fold-e2e 17→25 |
 | 2026-10-24 | `frontend/assets/app.js`、`frontend/{discover,self,policy,mine}.html`、`.tools/{render-test.js,page-check.js,svc-e2e.mjs}`、`build/compare.js`、`docs/README.md` | **双模式会话状态统一按「当前生效查询」判定**：①匹配成功写入 `lastQuery`（family/self），新增 `activeQueryMode()`/`activeProfile()`；②详情页顶部返回与 `load()` 取画像都改走该判定——此前顶部返回仍是 `profile \|\| selfProfile`（家庭查询后本人模式详情页顶部返回错指 discover.html，实测复现），而上一轮 load() 改成的「selfProfile 无条件优先」会让残留的本人画像反向劫持家庭模式详情页（称谓出现「您」、返回指 self.html）；③关系条改按当前模式取画像——本人页不再出现「女儿 代为查询 → 父亲」的家庭关系条（实测复现）；④「我的」页收录本人查询——`readQuerySession` 此前只认 `text`，本人查询后显示「还没有查询过」、家庭成员区只剩「添加家人」（实测复现），并按当前模式决定「回到发现结果」指向 self/discover 与清空哪组键；⑤测试基建：`compare.js` 在 `expected_scenes.json` 缺失时跳过生活事件库对照并提示（此前直接 ENOENT 崩溃、看不到任何对照结论）；`svc-e2e.mjs` 收尾先等 Edge 进程退出再删临时目录且清理失败不再崩进程（此前 Windows 上必现 EBUSY，断言全过也以非零码退出） | 纯会话读取与展示层判定，匹配逻辑、数据结构、接口契约零改动（baseline 12/12、apitest 92/92 不变）；测试数：render 154→166、page-check 277→288、svc-e2e 62→65 且退出码恢复 0；静态站同步重建后 svc-e2e 静态模式 65/65 |
+| 2026-10-24（二） | `frontend/assets/app.js`、`frontend/{discover,self,policy,mine,index}.html`、`.tools/{render-test.js,page-check.js,svc-e2e.mjs}`、`docs/README.md` | **双模式画像严格隔离 + 确定性竞态回归**：①`activeProfile()` 去掉「当前模式画像缺失就回退另一模式」的兜底，空对象（清空占位）也视为缺失返回 null——此前本人画像缺失时会拿家庭旧画像重跑匹配并把家人年龄/地区渲染成本人页的匹配上下文；②详情页取画像统一改走 `activeProfile()`，匹配文本回退按模式隔离（`selfMode ? session.selfText : session.text`）；③关系条本人模式判定只看 `activeQueryMode()`，不看画像在不在；④「我的」页家庭格/本人格/查询卡按当前模式门控，当前模式无内容显示空状态并按模式路由「去发现」；⑤「管理」按钮绑定移出 `paintFamily`（每重绘一次就累加一个监听器，实测代码路径确认）；⑥首页「政策匹配」恢复方向改用统一 `activeQueryMode()`；⑦**新缺陷修复**：`bindConfirm`/`bindScenes` 会话写入以渲染时 `current.profile` 快照为合并基线，上一次重匹配在飞时连续作答两项会丢前一次作答（与已修的 bindSceneChips 连点丢选择同族），改为取 store 最新画像合并；⑧svc-e2e 注入确定性竞态闸门（`Page.addScriptToEvaluateOnNewDocument` 扣住 /api/match 响应，测试决定返回顺序）：旧请求 A 最后返回不得覆盖 B 的结果/画像/文本/lastQuery；确认连点两次作答都保留 | 画像缺失一律走安全空状态（详情页通用提示、我的页空态引导），不静默换数据、不自动改写 lastQuery、不删除另一模式资料；匹配逻辑、数据、接口契约零改动；测试数：render 166→184、page-check 288→302、svc-e2e 65→135（本地）/127（静态，竞态用例仅本地模式） |

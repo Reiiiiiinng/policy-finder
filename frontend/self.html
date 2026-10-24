@@ -260,7 +260,11 @@
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
         const viewportY = btn.getBoundingClientRect().top;
         btn.disabled = true;
-        const profile = Object.assign({}, current.profile, { [key]: value });
+        // 合并基线取 store 最新画像（与家庭页 bindConfirm 同一规则）：
+        // 上一次确认的重匹配还在飞行中时再确认另一项，快照合并会丢前一次作答。
+        const stored = store.read().selfProfile;
+        const base = (stored && Object.keys(stored).length) ? stored : current.profile;
+        const profile = Object.assign({}, base, { [key]: value });
         store.write({ selfProfile: profile });
         // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
         // 去掉问句前缀（「您是否具有…」→「…」），避免状态条被撑长。
@@ -284,8 +288,11 @@
       const btn = document.querySelector('[data-scene="' + CSS.escape(
         (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
       const viewportY = btn ? btn.getBoundingClientRect().top : 0;
+      // 同 bindConfirm：合并基线取 store 最新画像，快速连续操作不互相覆盖
+      const stored = store.read().selfProfile;
+      const base = (stored && Object.keys(stored).length) ? stored : current.profile;
       // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
-      const profile = Object.assign({}, current.profile, {
+      const profile = Object.assign({}, base, {
         confirmed_scenes: scenes,
         scenes_edited: true,
       });

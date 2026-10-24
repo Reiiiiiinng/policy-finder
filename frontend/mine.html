@@ -105,18 +105,19 @@
   /**
    * 我的家庭：只显示本次查询真实涉及的家人。
    * 没查过就是「还没选」，不预置父亲/母亲这类没发生过的成员。
-   * 本人模式查询存的是 selfText/selfProfile，同样算「查过」——
-   * 只认 text 的话，本人查询后这里会显示成没查过。
+   * 展示哪一格由 activeQueryMode 决定，且只读当前模式自己的字段：
+   * lastQuery 已标记本人模式时，家庭模式的旧受益人绝不出现；
+   * 当前模式没有对应查询内容时，这里就只剩「添加家人」这一格。
    */
   function paintFamily() {
     const grid = document.getElementById('famGrid');
     const s = readQuerySession();
-    const selfActive = !!(s && s.selfText && activeQueryMode() === 'self');
+    const mode = s ? activeQueryMode() : 'family';
     const cells = [];
-    if (s && s.demo && !selfActive) {
+    if (s && s.demo && mode !== 'self') {
       cells.push({ face: '演', name: '演示案例', sub: '预置样例' });
-    } else if (selfActive) {
-      cells.push({ face: '我', name: '本人', sub: '本人模式' });
+    } else if (mode === 'self') {
+      if (s && s.selfText) cells.push({ face: '我', name: '本人', sub: '本人模式' });
     } else if (s && s.beneficiary) {
       cells.push({ face: s.beneficiary.slice(-2, -1) || '家', name: s.beneficiary, sub: '家庭成员' });
     }
@@ -136,7 +137,6 @@
       add.addEventListener('click', go);
       add.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     }
-    document.getElementById('famManage').addEventListener('click', () => { location.href = 'family.html'; });
   }
 
   /**
@@ -187,25 +187,30 @@
   /**
    * 本次查询。这里如实只显示「这一次」，不伪造历史列表——
    * 产品没有存查询历史，编一份出来就是假信息。
-   * 当前生效的查询由 activeQueryMode 决定：家庭查过、又做过本人查询时，
-   * 显示的是本人这次；两种记录都在时清空只清当前这种。
+   * 当前生效的查询由 activeQueryMode 决定，且只读当前模式自己的字段：
+   * lastQuery 已标记本人模式时，家庭模式的旧文本/受益人绝不充当本次查询；
+   * 当前模式没有查询内容（另一模式留有旧数据，或数据不完整）时，
+   * 显示空状态并引导重新查询，不静默换用另一模式的内容。
    */
   function paintQuery() {
     const box = document.getElementById('queryBox');
     const s = readQuerySession();
-    if (!s) {
+    const mode = s ? activeQueryMode() : 'family';
+    const selfActive = mode === 'self';
+    const hasCurrent = s && (selfActive ? !!s.selfText : !!s.text);
+    if (!s || !hasCurrent) {
+      const goHref = selfActive ? 'self.html' : 'discover.html';
       box.innerHTML = `
         <div class="card empty-mini">
           <p class="em-t">还没有查询过</p>
-          <p class="em-d">在「发现」里用一句话描述家里的情况，就能看到可能相关的权益。</p>
+          <p class="em-d">在「发现」里用一句话描述情况，就能看到可能相关的权益。</p>
           <button type="button" class="btn ghost" id="qGo">去发现</button>
         </div>`;
       document.getElementById('qGo').addEventListener('click', () => {
-        location.href = 'discover.html';
+        location.href = goHref;
       });
       return;
     }
-    const selfActive = !!(s.selfText && activeQueryMode() === 'self');
     const who = selfActive
       ? '本人模式'
       : (s.demo ? '演示案例' : (s.beneficiary ? '帮' + s.beneficiary : '家庭协助'));
@@ -245,6 +250,15 @@
     aboutToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
     aboutToggle.classList.toggle('is-open', !open);
   });
+
+  // 「管理 ›」是固定元素，不随 famGrid 重绘重建——绑定必须放在初始化做一次。
+  // 之前写在 paintFamily 里，每重绘一次家庭区就多挂一个监听器，
+  // 清空查询等触发重绘后，一次点击会触发多次处理。
+  const famManage = document.getElementById('famManage');
+  if (famManage && !famManage.__bound) {
+    famManage.__bound = true;
+    famManage.addEventListener('click', () => { location.href = 'family.html'; });
+  }
 
   paintFamily();
   paintSaved();

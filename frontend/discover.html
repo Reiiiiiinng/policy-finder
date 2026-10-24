@@ -305,9 +305,14 @@
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
         const viewportY = btn.getBoundingClientRect().top;
         btn.disabled = true;
+        // 合并基线必须取 store 里的最新画像，不能用渲染时的 current 快照：
+        // 上一次确认的重匹配还在飞行中时再确认另一项，快照里没有前一项，
+        // 直接按快照合并会把前一次作答静默丢掉（与 bindSceneChips 连点丢选择同族）。
+        const stored = store.read().profile;
+        const base = (stored && Object.keys(stored).length) ? stored : current.profile;
         // 保留用户已确认的生活事件：后端会把 scenes_edited / confirmed_scenes
         // 回传，这里只需原样带过去，避免重新匹配时退回 AI 的初始识别。
-        const profile = Object.assign({}, current.profile, { [key]: value });
+        const profile = Object.assign({}, base, { [key]: value });
         store.write({ profile: profile });
         // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
         // 去掉问句前缀（「老人是否具有…」→「…」），避免状态条被撑长。
@@ -330,7 +335,10 @@
       const btn = document.querySelector('[data-scene="' + CSS.escape(
         (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
       const viewportY = btn ? btn.getBoundingClientRect().top : 0;
-      const profile = Object.assign({}, current.profile, {
+      // 同 bindConfirm：合并基线取 store 最新画像，快速连续操作不互相覆盖
+      const stored = store.read().profile;
+      const base = (stored && Object.keys(stored).length) ? stored : current.profile;
+      const profile = Object.assign({}, base, {
         confirmed_scenes: scenes,
         scenes_edited: true,
       });

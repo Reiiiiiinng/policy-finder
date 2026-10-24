@@ -204,14 +204,12 @@
     }
 
     // 家庭协助模式存 profile，本人模式存 selfProfile。
-    // 两个键可能同时存在（先做家庭查询、又做本人查询，或反过来），
-    // 取值顺序在两个方向上都劫持过：profile 在前时家庭劫持本人，
-    // selfProfile 无条件优先时残留的本人画像劫持家庭。
-    // 必须先按 lastQuery 定当前模式，再取对应键。
+    // 取画像统一走 activeProfile()（与关系条同一规则）：
+    // 只取当前模式自己的键；缺失或清空后的空对象都视为没有画像，
+    // 绝不回退到另一模式——那会把另一模式的年龄、地区、生活场景
+    // 当成当前用户的数据展示，也会拿空输入凭空发匹配请求。
     const session = store.read();
-    const savedProfile = activeQueryMode() === 'self'
-      ? (session.selfProfile || session.profile || null)
-      : (session.profile || session.selfProfile || null);
+    const savedProfile = activeProfile();
     const p = detail;
     // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
     // 之后点「返回调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
@@ -219,18 +217,21 @@
 
     const ver = p.verification || {};
     const pending = ver.status === 'to_verify';
-    const selfMode = !!(savedProfile && savedProfile.mode === 'self');
-    // 本人模式下展示文案统一用「您」；家庭模式保持原称谓
-    const say = (t) => personalize(t, savedProfile || {});
+    // 模式判定只依赖 activeQueryMode：画像缺失（null）不代表模式不明，
+    // 此时页面走「通用权益提示」的安全空状态，返回目标仍按当前模式。
+    const selfMode = activeQueryMode() === 'self';
+    // 本人模式下展示文案统一用「您」；家庭模式保持原称谓。
+    // 画像缺失时按当前模式给一个只带 mode 的最小画像，保证称谓转换仍成立。
+    const say = (t) => personalize(t, selfMode ? { mode: 'self' } : (savedProfile || {}));
 
     // 真实匹配状态：本次访问是从匹配结果点进来的，session 里存着当时的画像。
     // 用同样的输入重跑一次匹配，只为取回 tier / status，绝不在前端自己判断资格。
+    // 画像缺失时没有可复现的输入，不重跑、不借用另一模式的数据。
     let matchRow = null;
     try {
       if (savedProfile) {
-        const key = selfMode ? 'selfProfile' : 'profile';
         const m = await API.match({
-          text: savedProfile.raw_text || session.text || session.selfText || '',
+          text: savedProfile.raw_text || (selfMode ? session.selfText : session.text) || '',
           mode: savedProfile.mode || (selfMode ? 'self' : undefined),
           relation: selfMode ? undefined : session.beneficiary,
           operator: selfMode ? undefined : session.operator,

@@ -522,17 +522,102 @@ console.log('== 双模式会话：当前生效查询的判定 ==');
   check('旧会话只有 text 判为家庭', sandbox.activeQueryMode() === 'family');
   setSession({ selfText: '', selfProfile: {}, text: '', profile: {} });
   check('全空会话默认家庭', sandbox.activeQueryMode() === 'family');
-  check('全空会话画像回退不抛错', sandbox.activeProfile() !== undefined);
+  check('全空会话的空对象画像视为缺失（null）',
+    sandbox.activeProfile() === null);
+
+  // 关键要求：lastQuery 已明确当前模式时，当前模式画像缺失绝不拿另一模式旧画像顶上
+  setSession({
+    lastQuery: 'self', text: '我父亲72岁', profile: { mode: 'family', age: 72 },
+    operator: '女儿', beneficiary: '父亲', selfText: '', selfProfile: {},
+  });
+  check('lastQuery=self 且本人画像缺失时返回 null（不借用家庭画像）',
+    sandbox.activeProfile() === null);
+  check('本人模式画像缺失时家庭关系条也不得出现',
+    sandbox.renderRelationStrip() === '');
+  setSession({
+    lastQuery: 'family', selfText: '我63岁', selfProfile: { mode: 'self', age: 63 },
+    text: '', profile: {},
+  });
+  check('lastQuery=family 且家庭画像缺失时返回 null（不借用本人画像）',
+    sandbox.activeProfile() === null);
+  setSession({
+    lastQuery: 'self', selfProfile: {}, text: '我父亲72岁', profile: { mode: 'family' },
+  });
+  check('本人画像为空对象时视为缺失（返回 null，不跨模式兜底）',
+    sandbox.activeProfile() === null);
 
   // 关系条是「家庭协助」轴的常驻可见元素：本人模式下必须整体消失
   setSession(Object.assign({ lastQuery: 'self' }, both));
   check('本人模式下不渲染家庭关系条', sandbox.renderRelationStrip() === '');
+  // 即便本人画像缺失（null），家庭操作者/受益人也不得出现在本人页
+  setSession({
+    lastQuery: 'self', text: '我父亲72岁', profile: { mode: 'family' },
+    selfText: '', operator: '女儿', beneficiary: '父亲',
+  });
+  check('本人画像缺失时家庭操作者/受益人同样不渲染',
+    sandbox.renderRelationStrip() === '');
   setSession(Object.assign({ lastQuery: 'family' }, both));
   const strip = sandbox.renderRelationStrip();
   check('家庭模式下渲染关系条', strip.indexOf('rel-strip') >= 0, strip.slice(0, 80));
   check('关系条含核实状态', strip.indexOf('rs-flag') >= 0);
   setSession({ lastQuery: 'family', profile: { mode: 'family' } });
   check('无操作者信息时不渲染关系条', sandbox.renderRelationStrip() === '');
+  setSession({
+    lastQuery: 'family', profile: { mode: 'family', who: '父亲' },
+    operator: '女儿', beneficiary: '父亲',
+  });
+  check('家庭关系条可带画像里的受益人称谓',
+    sandbox.renderRelationStrip().indexOf('父亲') >= 0);
+
+  // 场景9守卫原语：连续两次匹配，先发的请求晚到时必须放弃写界面资格
+  setSession({});
+  const seqA = sandbox.beginMatchRequest();
+  const seqB = sandbox.beginMatchRequest();
+  check('先发请求在晚到时不再是最新的', !sandbox.isLatestMatchRequest(seqA));
+  check('最新请求获得写界面资格', sandbox.isLatestMatchRequest(seqB));
+  check('单次请求即为最新', sandbox.isLatestMatchRequest(sandbox.beginMatchRequest()));
+}
+
+console.log('== 政策来源核验状态的展示 ==');
+{
+  // 数据层的 verification.status / 引擎派生的 source_pending 必须如实呈现：
+  // to_verify（来源待核验）的政策不得在任何卡片路径上被渲染成已核验。
+  const card = (extra) => Object.assign({
+    policy_id: 'gz1', policy_name: '社区养老服务', category: '养老服务',
+    service_type: '照护服务', region: '广州市', status: '可能相关', score: 20,
+    tier: '强相关', ai_reason: ['您父亲年龄72岁，处于服务年龄范围内'], missing_information: [],
+    source_pending: true, evidence: {},
+  }, extra || {});
+
+  const allPending = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [card(), card({ policy_id: 'gz2', policy_name: '长者饭堂' })],
+  }, {});
+  check('全部待核验时出现来源待核验标识', allPending.indexOf('来源待核验') >= 0);
+  check('全部待核验时不出现 ✓ 已核验徽章', allPending.indexOf('✓ 已核验') < 0);
+  check('全部待核验时不出现已核验徽章样式', allPending.indexOf('is-verified') < 0);
+  check('待核验政策仍标注核验维度名', allPending.indexOf('来源核验') >= 0);
+  check('待核验政策不虚构文号（缺失时回退状态文案）', allPending.indexOf('政策文号') < 0);
+
+  const allVerified = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [
+      card({ source_pending: false, source_document_no: '穗民规字〔2025〕1号' }),
+      card({ policy_id: 'gz2', policy_name: '长者饭堂', source_pending: false }),
+    ],
+  }, {});
+  check('已核验卡片出现已核验徽章',
+    allVerified.indexOf('✓ 已核验') >= 0 && allVerified.indexOf('is-verified') >= 0);
+  check('已核验卡片不出现待核验徽章样式', allVerified.indexOf('is-pending') < 0);
+  check('有文号时如实展示文号', allVerified.indexOf('穗民规字〔2025〕1号') >= 0);
+
+  // 混合批次：每条各自呈现自己的核验状态，不允许一荣俱荣
+  const mixed = sandbox.renderResultCards({
+    profile: { mode: 'family' },
+    results: [card({ source_pending: false }), card({ policy_id: 'gz2', policy_name: '长者饭堂' })],
+  }, {});
+  check('混合批次同时呈现两种核验状态',
+    mixed.indexOf('✓ 已核验') >= 0 && mixed.indexOf('来源待核验') >= 0);
 }
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);

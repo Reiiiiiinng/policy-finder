@@ -634,7 +634,7 @@ console.log('== 底部一级导航与新增一级页 ==');
   // 现行实现：匹配成功时写入 lastQuery，读取侧用 activeQueryMode() 先定模式再取键。
   const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
   check('详情页按当前模式取画像，不按存储顺序',
-    /const savedProfile = activeQueryMode\(\) === 'self'/.test(polSrc),
+    /const savedProfile = activeProfile\(\);/.test(polSrc),
     '不能写成 session.profile || session.selfProfile，也不能让 selfProfile 无条件优先');
   check('详情页顶部返回同样按当前模式判定',
     /const _navSelf = activeQueryMode\(\) === 'self'/.test(polSrc),
@@ -663,8 +663,67 @@ console.log('== 底部一级导航与新增一级页 ==');
   // 「我的」页必须认得本人查询：readQuerySession 只认 text 时，
   // 本人查询后这里显示「还没有查询过」，与事实不符（实测复现）。
   check('会话读取同时认得本人查询', /!s\.text && !s\.selfText/.test(appM));
-  check('我的页本人模式查询显示本人', /activeQueryMode\(\) === 'self'/.test(mineM));
+  check('我的页本人模式查询显示本人',
+    /const mode = s \? activeQueryMode\(\) : 'family';/.test(mineM)
+    && /const selfActive = mode === 'self';/.test(mineM));
   check('我的页清空按当前模式清对应键', /selfProfile: \{\}, selfText: ''/.test(mineM));
+}
+
+/* ---- 双模式画像严格隔离：缺失即空状态，不跨模式兜底 ---- */
+{
+  const appS = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const polS = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  const mineS = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  const idxS = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
+  check('activeProfile 只取当前模式自己的键',
+    /const p = activeQueryMode\(\) === 'self' \? s\.selfProfile : s\.profile;/.test(appS),
+    '当前模式画像缺失必须返回 null，不得回退另一模式');
+  check('activeProfile 把空对象画像视为缺失',
+    /Object\.keys\(p\)\.length === 0/.test(appS),
+    '清空查询后留下的 {} 占位不能被当成有效画像');
+  check('app.js 不再包含跨模式画像兜底',
+    !/s\.selfProfile \|\| s\.profile|s\.profile \|\| s\.selfProfile/.test(appS));
+  check('关系条本人模式判定只看当前模式（不看画像在不在）',
+    /if \(activeQueryMode\(\) === 'self'\) return '';/.test(appS));
+  check('详情页取画像同样不跨模式兜底',
+    polS.indexOf('session.selfProfile || session.profile') < 0
+    && polS.indexOf('session.profile || session.selfProfile') < 0);
+  check('详情页模式判定不依赖画像存在',
+    /const selfMode = activeQueryMode\(\) === 'self';/.test(polS),
+    '画像缺失时仍要能按当前模式决定返回目标与称谓');
+  check('详情页匹配上下文文本按模式取',
+    /selfMode \? session\.selfText : session\.text/.test(polS),
+    '不得用 session.text || session.selfText 这种跨模式链');
+  check('我的页家庭格/本人格按当前模式门控',
+    /if \(s && s\.demo && mode !== 'self'\)/.test(mineS)
+    && /else if \(mode === 'self'\)/.test(mineS)
+    && /else if \(s && s\.beneficiary\)/.test(mineS));
+  check('我的页当前模式无内容时显示空状态',
+    /const hasCurrent = s && \(selfActive \? !!s\.selfText : !!s\.text\);/.test(mineS),
+    '不得把另一模式的旧文本当作本次查询');
+  check('「管理」绑定只在初始化发生一次',
+    (mineS.match(/famManage\.addEventListener/g) || []).length === 1
+    && mineS.indexOf('famManage.__bound') >= 0,
+    '写在 paintFamily 里会随每次重绘累加监听器');
+  check('首页服务入口用统一的模式判定',
+    /const isSelf = activeQueryMode\(\) === 'self';/.test(idxS)
+    && idxS.indexOf("s && s.target === 'self'") < 0,
+    '只看 target 会把恢复方向带错页');
+  // 写回会话的合并基线必须取 store 最新值，不能用渲染快照——
+  // 否则重匹配在飞时连续作答两项，前一次作答会被后一次的快照覆盖丢失。
+  const discS = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const selfS = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  const mergeOk = (src, key) => {
+    const writes = src.split('store.write({ ' + key + ': profile })').length - 1;
+    const bases = (src.match(new RegExp('const stored = store\\.read\\(\\)\\.' + key + ';', 'g')) || []).length;
+    return writes >= 2 && bases >= 2;
+  };
+  check('发现页确认/事件写入都取 store 最新画像', mergeOk(discS, 'profile'),
+    'bindConfirm/bindScenes 用 current.profile 快照合并会丢前一次作答');
+  check('本人页确认/事件写入都取 store 最新画像', mergeOk(selfS, 'selfProfile'));
+  check('详情页取画像统一走 activeProfile',
+    /const savedProfile = activeProfile\(\);/.test(polS),
+    'policy 页自己再写一套取值规则会漏掉空对象语义');
 }
 
 
