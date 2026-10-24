@@ -211,7 +211,7 @@
     // 只拦渲染是不够的，store.write 与 mountFlow 同样会写坏状态。
     if (!isLatestMatchRequest(mySeq)) return;
 
-    store.write({ text: text, profile: data.profile, demo: false, demoBanner: false });
+    store.write({ text: text, profile: data.profile, lastQuery: 'family', demo: false, demoBanner: false });
     // 演示横幅是按页面加载时挂上去的，清掉标记后要重新对一次，
     // 否则它会一直留在页面上，把真实结果说成虚拟案例。
     if (typeof mountDemoBanner === 'function') mountDemoBanner();

@@ -105,17 +105,20 @@
   /**
    * 我的家庭：只显示本次查询真实涉及的家人。
    * 没查过就是「还没选」，不预置父亲/母亲这类没发生过的成员。
+   * 本人模式查询存的是 selfText/selfProfile，同样算「查过」——
+   * 只认 text 的话，本人查询后这里会显示成没查过。
    */
   function paintFamily() {
     const grid = document.getElementById('famGrid');
     const s = readQuerySession();
+    const selfActive = !!(s && s.selfText && activeQueryMode() === 'self');
     const cells = [];
-    if (s && s.demo) {
+    if (s && s.demo && !selfActive) {
       cells.push({ face: '演', name: '演示案例', sub: '预置样例' });
-    } else if (s && s.beneficiary) {
-      cells.push({ face: s.beneficiary.slice(-2, -1) || '家', name: s.beneficiary, sub: s.mode === 'self' ? '本人' : '家庭成员' });
-    } else if (s && s.mode === 'self') {
+    } else if (selfActive) {
       cells.push({ face: '我', name: '本人', sub: '本人模式' });
+    } else if (s && s.beneficiary) {
+      cells.push({ face: s.beneficiary.slice(-2, -1) || '家', name: s.beneficiary, sub: '家庭成员' });
     }
     cells.push({ face: '＋', name: '添加家人', sub: '', add: true });
     grid.innerHTML = cells.map((c) => `
@@ -184,6 +187,8 @@
   /**
    * 本次查询。这里如实只显示「这一次」，不伪造历史列表——
    * 产品没有存查询历史，编一份出来就是假信息。
+   * 当前生效的查询由 activeQueryMode 决定：家庭查过、又做过本人查询时，
+   * 显示的是本人这次；两种记录都在时清空只清当前这种。
    */
   function paintQuery() {
     const box = document.getElementById('queryBox');
@@ -200,20 +205,31 @@
       });
       return;
     }
-    const who = s.demo
-      ? '演示案例'
-      : (s.beneficiary ? ('帮' + s.beneficiary) : (s.mode === 'self' ? '本人模式' : '家庭协助'));
+    const selfActive = !!(s.selfText && activeQueryMode() === 'self');
+    const who = selfActive
+      ? '本人模式'
+      : (s.demo ? '演示案例' : (s.beneficiary ? '帮' + s.beneficiary : '家庭协助'));
+    const qtext = selfActive ? s.selfText : s.text;
+    // 本人查询的「回到发现结果」应回到本人页：家庭页此刻只会重新跑家庭匹配
+    const backHref = selfActive ? 'self.html' : 'discover.html';
     box.innerHTML = `
       <div class="card">
         <div class="q-who">${escapeHtml(who)}</div>
-        <p class="q-text">${escapeHtml(s.text || '')}</p>
+        <p class="q-text">${escapeHtml(qtext || '')}</p>
         <div class="q-acts">
-          <a class="btn" href="discover.html">回到发现结果</a>
+          <a class="btn" href="${backHref}">回到发现结果</a>
           <button type="button" class="btn ghost" id="qClear">清空本次查询</button>
         </div>
       </div>`;
     document.getElementById('qClear').addEventListener('click', () => {
-      store.write({ profile: {}, text: '' });
+      // 只清当前生效的那种查询；另一种还留有记录时，lastQuery 跟着切过去
+      if (selfActive) {
+        store.write({ selfProfile: {}, selfText: '' });
+        if (s.text) store.write({ lastQuery: 'family' });
+      } else {
+        store.write({ profile: {}, text: '' });
+        if (s.selfText) store.write({ lastQuery: 'self' });
+      }
       paintQuery();
       paintFamily();
       showToast('已清空本次查询');

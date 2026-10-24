@@ -292,6 +292,26 @@ async function case3_selfMode(cdp, tag) {
   ok(tag + ' 本人模式：进入本人页而不是家庭协助', s.path.endsWith('/self.html'), s.path);
   ok(tag + ' 本人模式：结果已恢复', s.cards > 0, 'cards=' + s.cards);
   ok(tag + ' 本人模式：查询内容保留', s.selfText === SELF_TEXT && s.input.trim() === SELF_TEXT);
+
+  // 本人查询后「我的」页必须认得这次查询：会话里存的是 selfText，
+  // 只认 text 的话这里会显示「还没有查询过」（实测复现过）。
+  await cdp.goto('/mine.html');
+  await cdp.waitFor("document.querySelectorAll('#queryBox .q-who').length > 0", 12000, '我的页查询卡');
+  const mine = await cdp.eval(`(() => {
+    const q = (sel) => { const el = document.querySelector(sel); return el ? el.textContent.trim() : ''; };
+    const back = document.querySelector('#queryBox .q-acts a');
+    return {
+      who: q('#queryBox .q-who'),
+      text: q('#queryBox .q-text'),
+      fam: q('#famGrid'),
+      back: back ? back.getAttribute('href') : '',
+    };
+  })()`);
+  ok(tag + ' 本人模式：我的页认得本次查询',
+    mine.who === '本人模式' && mine.text === SELF_TEXT, JSON.stringify(mine));
+  ok(tag + ' 本人模式：我的页家庭成员显示本人', mine.fam.indexOf('本人') >= 0, mine.fam);
+  ok(tag + ' 本人模式：回到发现结果指向本人页', mine.back === 'self.html', mine.back);
+
   submitOnce(tag + ' 本人模式', cdp, s.cards);
 }
 
@@ -433,8 +453,18 @@ async function main() {
     ok('用例执行未中断', false, String(e && e.message || e));
   } finally {
     try { edge.kill(); } catch { /* 已退出 */ }
-    await sleep(300);
-    await rm(profileDir, { recursive: true, force: true });
+    // Windows 上 Edge 退出有延迟：进程没退干净时 first_party_sets.db 等文件仍被
+    // 占用，直接 rm 会 EBUSY——断言全过也会在收尾时把进程崩掉，退出码变成 1。
+    // 所以先等 exit 事件（最多 3 秒），仍删不掉就放弃清理，临时目录交给系统回收。
+    await new Promise((resolve) => {
+      if (edge.exitCode !== null) return resolve();
+      edge.once('exit', resolve);
+      setTimeout(resolve, 3000);
+    });
+    await sleep(200);
+    try {
+      await rm(profileDir, { recursive: true, force: true });
+    } catch { /* 个别文件仍被占用：放弃清理，不影响测试结论 */ }
   }
 
   console.log('\n结果：通过 ' + pass + '，失败 ' + fail);

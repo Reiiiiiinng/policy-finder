@@ -626,16 +626,45 @@ console.log('== 底部一级导航与新增一级页 ==');
     app.indexOf('_negated') >= 0 || fs.readFileSync(path.join(ROOT, 'backend/policy_engine.py'), 'utf8')
       .indexOf('not _negated(text, w)') >= 0);
 
-  // 详情页要判断「这次是不是本人模式」，靠的是画像里的 mode。
-  // 两个键（profile / selfProfile）可能同时存在：先做过家庭查询、又做过本人查询。
-  // 谁在前就取谁的话，家庭页留下的 profile 会把本人模式判成家庭模式，
-  // 详情页的「返回」就会指向 discover.html 而不是 self.html。
+  // 详情页要判断「这次是不是本人模式」，靠的是当前生效的查询模式。
+  // 两个键（profile / selfProfile）可能同时存在：先做过家庭查询、又做过本人查询，
+  // 或者反过来。任何「按存储顺序取值」的写法都被劫持过：
+  //   profile || selfProfile  —— 家庭画像劫持本人模式的返回目标（实测复现）；
+  //   selfProfile 无条件优先 —— 残留的本人画像劫持家庭模式的详情页。
+  // 现行实现：匹配成功时写入 lastQuery，读取侧用 activeQueryMode() 先定模式再取键。
   const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
-  check('详情页按 mode 判断本人模式，不按存储顺序',
-    /const savedProfile = \(selfP && selfP\.mode === 'self'\)/.test(polSrc),
-    '不能直接写成 session.profile || session.selfProfile');
+  check('详情页按当前模式取画像，不按存储顺序',
+    /const savedProfile = activeQueryMode\(\) === 'self'/.test(polSrc),
+    '不能写成 session.profile || session.selfProfile，也不能让 selfProfile 无条件优先');
+  check('详情页顶部返回同样按当前模式判定',
+    /const _navSelf = activeQueryMode\(\) === 'self'/.test(polSrc),
+    '顶部返回曾用 profile || selfProfile 判定，家庭查询后本人模式详情页返回错页');
+  check('详情页顶部返回不再按存储顺序取值',
+    polSrc.indexOf('_navSession.profile || _navSession.selfProfile') < 0,
+    '旧写法 _navSession.profile || _navSession.selfProfile 会劫持本人模式返回');
   check('详情页返回目标跟随模式',
     /const backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(polSrc));
+}
+
+/* ---- 双模式会话：当前生效查询必须落库为 lastQuery ---- */
+{
+  const appM = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
+  const discM = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
+  const selfM = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
+  const mineM = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  check('会话模式判定函数存在',
+    /function activeQueryMode\(\)/.test(appM) && /function activeProfile\(\)/.test(appM));
+  check('模式判定优先认 lastQuery', /s\.lastQuery === 'self' \|\| s\.lastQuery === 'family'/.test(appM));
+  check('旧会话按字段推断本人模式', /s\.selfText && !s\.text/.test(appM));
+  check('发现页匹配成功写 lastQuery=family', /lastQuery: 'family'/.test(discM));
+  check('本人页匹配成功写 lastQuery=self', /lastQuery: 'self'/.test(selfM));
+  check('关系条按当前模式取画像', /const p = activeProfile\(\);/.test(appM),
+    '固定读 profile 会让家庭关系条出现在本人页');
+  // 「我的」页必须认得本人查询：readQuerySession 只认 text 时，
+  // 本人查询后这里显示「还没有查询过」，与事实不符（实测复现）。
+  check('会话读取同时认得本人查询', /!s\.text && !s\.selfText/.test(appM));
+  check('我的页本人模式查询显示本人', /activeQueryMode\(\) === 'self'/.test(mineM));
+  check('我的页清空按当前模式清对应键', /selfProfile: \{\}, selfText: ''/.test(mineM));
 }
 
 

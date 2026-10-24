@@ -76,6 +76,18 @@ def build_app_js(db):
  * 方法名、参数、返回结构保持与后端完全一致，页面代码无需改动。
  */
 const API = {
+  /**
+   * 请求路径白名单：与后端版一致，接口全部挂在同源 /api/ 下。
+   * 静态版没有网络请求（走本地引擎），但保持同一道入口校验，
+   * 防止将来有人把外部地址传进来。
+   */
+  _checkPath(path) {
+    const p = String(path || '');
+    if (!p.startsWith('/api/') || p.startsWith('/api//')) {
+      throw new Error('非法请求路径：' + p);
+    }
+    return p;
+  },
   _api() {
     if (!this.__api) {
       if (typeof localApi !== 'function' || typeof POLICY_DB === 'undefined') {
@@ -86,7 +98,7 @@ const API = {
     return this.__api;
   },
   async get(path) {
-    const u = new URL(path, location.origin + '/');
+    const u = new URL(this._checkPath(path), location.origin + '/');
     if (u.pathname === '/api/health') return this._api().health();
     if (u.pathname === '/api/policies') return this._api().policies();
     if (u.pathname === '/api/tiers') return this._api().tiers();
@@ -105,7 +117,7 @@ const API = {
     throw new Error('未知接口：' + u.pathname);
   },
   async post(path, body) {
-    const u = new URL(path, location.origin + '/');
+    const u = new URL(this._checkPath(path), location.origin + '/');
     if (u.pathname === '/api/profile') return this._api().profile(body);
     if (u.pathname === '/api/match') return this._api().match(body);
     if (u.pathname === '/api/explain') return this._api().explain(body);

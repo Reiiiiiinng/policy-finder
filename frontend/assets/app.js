@@ -33,12 +33,25 @@ const API = {
     }
     return data;
   },
+  /**
+   * 请求路径白名单：本应用的接口全部挂在同源 /api/ 下，
+   * 路径必须以 /api/ 开头且不允许协议相对写法（// 开头会被当成别的源）。
+   * 调用点全是写死的字面量，这条校验不改变任何现有行为，
+   * 只保证将来有人把外部地址传进来时会立刻抛错，而不是发出去。
+   */
+  _checkPath(path) {
+    const p = String(path || '');
+    if (!p.startsWith('/api/') || p.startsWith('/api//')) {
+      throw new Error('非法请求路径：' + p);
+    }
+    return p;
+  },
   async get(path) {
-    const res = await fetch(path);
+    const res = await fetch(this._checkPath(path));
     return API._read(res);
   },
   async post(path, body) {
-    const res = await fetch(path, {
+    const res = await fetch(this._checkPath(path), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {}),
@@ -71,6 +84,34 @@ const store = {
     sessionStorage.removeItem(this.key);
   },
 };
+
+/* ==========================================================================
+   双模式会话：当前生效的查询是哪一种
+   --------------------------------------------------------------------------
+   家庭协助模式把资料存在 profile/text，本人模式存在 selfProfile/selfText。
+   两组键会同时留在会话里（先帮家人查、又为自己查），所以任何
+   「现在用哪份画像」的判断都必须先确定当前模式——按存储顺序取值
+   （profile || selfProfile）两个方向都劫持过：家庭画像劫持过本人模式的
+   返回目标，残留的本人画像也劫持过家庭模式的详情页。
+
+   判定依据：匹配成功时写入的 lastQuery（'family' / 'self'）。
+   旧会话没有 lastQuery 时按字段推断：selfText 只有本人模式会写。
+   ========================================================================== */
+
+/** 当前生效的查询模式：'self'（本人）或 'family'（家庭协助）。 */
+function activeQueryMode() {
+  const s = store.read();
+  if (s.lastQuery === 'self' || s.lastQuery === 'family') return s.lastQuery;
+  if (s.selfText && !s.text) return 'self';
+  return 'family';
+}
+
+/** 当前生效的画像。模式对应的键缺失时回退另一个键，保证有值可用。 */
+function activeProfile() {
+  const s = store.read();
+  const p = activeQueryMode() === 'self' ? s.selfProfile : s.profile;
+  return p || s.profile || s.selfProfile || null;
+}
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
@@ -820,7 +861,9 @@ function renderConfirmCard(profile) {
  */
 function renderRelationStrip() {
   const s = store.read();
-  const p = s.profile || s.selfProfile;
+  // 必须按当前模式取画像：固定先读 profile 的话，先做过家庭查询、
+  // 再进本人模式时，残留的家庭画像会让关系条出现在本人页上。
+  const p = activeProfile();
   if (p && p.mode === 'self') return '';
   if (!s.operator && !s.beneficiary) return '';
 
@@ -2287,11 +2330,13 @@ function mountTabbar(current) {
 /**
  * 读取「本次查询」的会话。所有一级页读同一份，不另存一套。
  * 返回 null 表示还没查过（发现页据此显示空状态，而不是编一批结果）。
+ * 家庭模式写 text，本人模式写 selfText——只认 text 的话，
+ * 本人查询后「我的」页会显示「还没有查询过」，与事实不符。
  */
 function readQuerySession() {
   try {
     const s = JSON.parse(sessionStorage.getItem(store.key) || '{}');
-    if (!s || !s.text) return null;
+    if (!s || (!s.text && !s.selfText)) return null;
     return s;
   } catch (e) {
     return null;

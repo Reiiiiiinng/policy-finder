@@ -95,10 +95,17 @@ function main() {
   cmp('health.policy_count', expected.briefs.length, h.policy_count, 'health.policy_count');
 
   // 5) 生活事件库（无画像）
-  const scenes = sandbox.api.scenes(null);
-  const pyScenes = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'build', 'expected_scenes.json'), 'utf8'));
-  cmp('scenes', pyScenes, scenes.scenes, 'scenes');
+  // expected_scenes.json 是 gen_expected.py 的产物且不入库；文件缺失时跳过
+  // 这一步并明确说明，而不是 ENOENT 崩掉整个对照——那样前 4 步的结论也看不到。
+  const scenesPath = path.join(ROOT, 'build', 'expected_scenes.json');
+  if (fs.existsSync(scenesPath)) {
+    const scenes = sandbox.api.scenes(null);
+    const pyScenes = JSON.parse(fs.readFileSync(scenesPath, 'utf8'));
+    cmp('scenes', pyScenes, scenes.scenes, 'scenes');
+  } else {
+    console.log('（跳过生活事件库对照：build/expected_scenes.json 不存在，'
+      + '先运行 python build/gen_expected.py 生成后再跑可覆盖这一步）');
+  }
 
   console.log('对照项 %d 个，差异 %d 处', checks, fails.length);
   if (fails.length) {

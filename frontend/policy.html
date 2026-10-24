@@ -26,9 +26,10 @@
   // discover.html / self.html。实测复现：在接口返回前点顶部返回，会被带回首页，
   // 而不是回到发现权益（本人模式同理，会丢掉「我的发现结果」）。
   // selfMode 只依赖本地会话，可以同步读出，所以这里一次性给对。
+  // 判定必须走 activeQueryMode（按 lastQuery 定当前模式）：两个存储键会同时
+  // 存在，写成 profile || selfProfile 时家庭画像劫持过本人模式的返回目标。
   const _navSession = store.read();
-  const _navProfile = _navSession.profile || _navSession.selfProfile || null;
-  const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
+  const _navSelf = activeQueryMode() === 'self';
   // 从「我的」收藏点进来时，返回应该回「我的」而不是发现页——
   // 收藏是独立入口，回来却落到发现页会让人以为点错了。
   // 文档来源 document.referrer 只在同源时可信，其余一律按原规则。
@@ -203,15 +204,14 @@
     }
 
     // 家庭协助模式存 profile，本人模式存 selfProfile。
-    // 两个键可能同时存在（先做家庭查询、又做本人查询），此时必须看 mode，
-    // 否则家庭页留下的 profile 会被优先取到，selfMode 判成 false，
-    // 本人模式的详情页就会把「返回」指向 discover.html。
+    // 两个键可能同时存在（先做家庭查询、又做本人查询，或反过来），
+    // 取值顺序在两个方向上都劫持过：profile 在前时家庭劫持本人，
+    // selfProfile 无条件优先时残留的本人画像劫持家庭。
+    // 必须先按 lastQuery 定当前模式，再取对应键。
     const session = store.read();
-    const selfP = session.selfProfile;
-    const famP = session.profile;
-    const savedProfile = (selfP && selfP.mode === 'self')
-      ? selfP
-      : (famP && famP.mode === 'self' ? famP : (famP || selfP || null));
+    const savedProfile = activeQueryMode() === 'self'
+      ? (session.selfProfile || session.profile || null)
+      : (session.profile || session.selfProfile || null);
     const p = detail;
     // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
     // 之后点「返回调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。

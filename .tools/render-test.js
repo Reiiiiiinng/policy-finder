@@ -483,5 +483,57 @@ console.log('== 原有能力未被破坏 ==');
   check('explainMissing 有解释', sandbox.explainMissing('老人是否具有广州市户籍').length > 10);
 }
 
+console.log('== 双模式会话：当前生效查询的判定 ==');
+{
+  // 换上可写的 sessionStorage 桩（默认桩只读 null），两种模式的资料可以同时在场
+  const mem = new Map();
+  sandbox.sessionStorage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k),
+  };
+  const setSession = (obj) => {
+    mem.clear();
+    if (obj) mem.set('policy_finder_session', JSON.stringify(obj));
+  };
+  // 两份画像同时在场（先帮家人查、又为自己查）——这是劫持问题的事发状态
+  const both = {
+    text: '我父亲72岁', profile: { mode: 'family' },
+    selfText: '我63岁', selfProfile: { mode: 'self' },
+    operator: '女儿', beneficiary: '父亲',
+  };
+
+  // lastQuery 是唯一权威：谁最后查的，当前模式就是谁
+  setSession(Object.assign({ lastQuery: 'self' }, both));
+  check('lastQuery=self 判为本人模式', sandbox.activeQueryMode() === 'self');
+  check('lastQuery=self 画像取 selfProfile', sandbox.activeProfile().mode === 'self');
+
+  setSession(Object.assign({ lastQuery: 'family' }, both));
+  check('lastQuery=family 判为家庭模式', sandbox.activeQueryMode() === 'family');
+  // 上一轮把详情页取画像改成 selfProfile 无条件优先，反向劫持过家庭模式：
+  // 残留的本人画像不能盖过本次的家庭画像
+  check('lastQuery=family 画像取 profile（残留本人画像不劫持家庭）',
+    sandbox.activeProfile().mode === 'family');
+
+  // 旧会话兼容：没有 lastQuery 时按字段推断
+  setSession({ selfText: '我63岁', selfProfile: { mode: 'self' } });
+  check('旧会话只有 selfText 判为本人', sandbox.activeQueryMode() === 'self');
+  setSession({ text: '我父亲72岁', profile: { mode: 'family' } });
+  check('旧会话只有 text 判为家庭', sandbox.activeQueryMode() === 'family');
+  setSession({ selfText: '', selfProfile: {}, text: '', profile: {} });
+  check('全空会话默认家庭', sandbox.activeQueryMode() === 'family');
+  check('全空会话画像回退不抛错', sandbox.activeProfile() !== undefined);
+
+  // 关系条是「家庭协助」轴的常驻可见元素：本人模式下必须整体消失
+  setSession(Object.assign({ lastQuery: 'self' }, both));
+  check('本人模式下不渲染家庭关系条', sandbox.renderRelationStrip() === '');
+  setSession(Object.assign({ lastQuery: 'family' }, both));
+  const strip = sandbox.renderRelationStrip();
+  check('家庭模式下渲染关系条', strip.indexOf('rel-strip') >= 0, strip.slice(0, 80));
+  check('关系条含核实状态', strip.indexOf('rs-flag') >= 0);
+  setSession({ lastQuery: 'family', profile: { mode: 'family' } });
+  check('无操作者信息时不渲染关系条', sandbox.renderRelationStrip() === '');
+}
+
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

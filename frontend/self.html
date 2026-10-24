@@ -173,7 +173,7 @@
     // 在写任何状态之前先认领，晚到的请求直接放弃。
     if (!isLatestMatchRequest(mySeq)) return;
 
-    store.write({ selfText: text, selfProfile: data.profile, demo: false, demoBanner: false });
+    store.write({ selfText: text, selfProfile: data.profile, lastQuery: 'self', demo: false, demoBanner: false });
     if (typeof mountDemoBanner === 'function') mountDemoBanner();
     mountFlow(2);
     mountRelationStrip();
