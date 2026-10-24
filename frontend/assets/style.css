@@ -4984,6 +4984,187 @@ body.skin-b .result-card:not(.is-lead) .ev-toggle {
 .tab-item[aria-disabled="true"] { cursor: default; }
 .app.has-tabbar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 
+/* ================================================================
+   P4 咨询页（2026-10-23）
+   仅追加本页需要的组织样式；基础卡片、问句行和状态徽章复用上方组件。
+   ================================================================ */
+.consult-intro {
+  position: relative;
+  overflow: hidden;
+}
+
+.consult-intro::after {
+  content: "";
+  position: absolute;
+  right: -28px;
+  top: -32px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  opacity: .7;
+  pointer-events: none;
+}
+
+.consult-title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.consult-sub {
+  position: relative;
+  z-index: 1;
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.consult-rules {
+  position: relative;
+  z-index: 1;
+  margin: 13px 0 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.consult-rules li + li {
+  margin-top: 4px;
+}
+
+.consult-rules b {
+  color: var(--brand-dark);
+}
+
+.consult-ask-note {
+  margin: 11px 0 0;
+}
+
+.consult-summary {
+  margin: 0 0 11px;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.consult-summary b {
+  color: var(--brand-dark);
+}
+
+.consult-failure,
+.consult-empty {
+  margin-bottom: 12px;
+}
+
+.consult-depts {
+  display: grid;
+  gap: 12px;
+}
+
+.consult-dept {
+  margin: 0;
+}
+
+.consult-dept-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.consult-dept-name {
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.consult-dept-count {
+  flex: none;
+  font-size: 12px;
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+.consult-dept-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.consult-policy-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.consult-policy {
+  padding: 11px 0;
+  border-top: 1px dashed var(--line);
+}
+
+.consult-policy:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.consult-policy:last-child {
+  padding-bottom: 0;
+}
+
+.consult-policy-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.consult-policy-name {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.consult-official-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 5px;
+  color: var(--trust-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.consult-official-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+.consult-link-missing {
+  display: block;
+  margin-top: 7px;
+  color: var(--warn);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hp-enter { transition: none; }
 }

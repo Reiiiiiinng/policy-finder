@@ -98,6 +98,123 @@ function loadSiteContext() {
   return _sitePromise;
 }
 
+/* ==========================================================================
+   咨询页：主管部门视图
+   - 部门、政策名、核验状态和官方链接全部来自 /api/policy 详情；
+   - official_url 只接受 HTTP(S)，缺失或非法时不生成链接；
+   - 核验状态只读 verification.status，不根据链接是否存在反推“已核验”。
+   ========================================================================== */
+function consultOfficialUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function consultVerification(detail) {
+  const status = detail && detail.verification && detail.verification.status;
+  const hasUrl = !!(detail && detail.source && consultOfficialUrl(detail.source.official_url));
+  if (status === 'verified') {
+    return { key: 'verified', label: '来源已核验' };
+  }
+  if (status === 'to_verify' && hasUrl) {
+    return { key: 'pending', label: '国家依据已核验 · 本地待确认' };
+  }
+  if (status === 'to_verify') {
+    return { key: 'pending', label: '来源待核验' };
+  }
+  return { key: 'pending', label: '核验状态未提供' };
+}
+
+function buildConsultDirectory(details, failedCount) {
+  // 详情接口不应重复，但以 policy_id 去重可避免异常响应造成重复政策。
+  const unique = new Map();
+  (Array.isArray(details) ? details : []).forEach((detail) => {
+    if (!detail || detail.error || !detail.policy_id || !detail.policy_name) return;
+    unique.set(String(detail.policy_id), detail);
+  });
+
+  const groups = new Map();
+  unique.forEach((detail) => {
+    const source = detail.source || {};
+    const department = String(source.department || '').trim() || '责任部门未标注（待核验）';
+    if (!groups.has(department)) groups.set(department, []);
+    const verification = consultVerification(detail);
+    groups.get(department).push({
+      policyId: String(detail.policy_id),
+      policyName: String(detail.policy_name),
+      department,
+      verification,
+      officialUrl: consultOfficialUrl(source.official_url),
+    });
+  });
+
+  const rows = Array.from(groups, ([department, policies]) => ({
+    department,
+    policies: policies.sort((a, b) => a.policyName.localeCompare(b.policyName, 'zh-CN')),
+  })).sort((a, b) => {
+    const byCount = b.policies.length - a.policies.length;
+    return byCount || a.department.localeCompare(b.department, 'zh-CN');
+  });
+
+  return {
+    groups: rows,
+    total: rows.reduce((sum, group) => sum + group.policies.length, 0),
+    failedCount: Math.max(0, Math.floor(Number(failedCount) || 0)),
+  };
+}
+
+function renderConsultDirectory(details, failedCount) {
+  const model = buildConsultDirectory(details, failedCount);
+  const failure = model.failedCount
+    ? `<div class="notice warn consult-failure" role="status">另有 ${model.failedCount} 项政策详情暂时无法读取，未展示其部门或链接。</div>`
+    : '';
+
+  if (!model.total) {
+    const empty = model.failedCount
+      ? `政策详情暂时无法读取（${model.failedCount} 项失败），未展示任何部门或链接，请稍后重试。`
+      : '当前政策库暂无可展示的政策。';
+    return `<div class="notice warn consult-empty" role="${model.failedCount ? 'alert' : 'status'}">${escapeHtml(empty)}</div>`;
+  }
+
+  const summary = `<p class="consult-summary">已读取 <b>${model.total}</b> 项政策，分属 <b>${model.groups.length}</b> 个责任部门；来源状态逐条标注。</p>`;
+  const groups = model.groups.map((group) => {
+    const policies = group.policies.map((policy) => {
+      const link = policy.officialUrl
+        ? `<a class="consult-official-link"
+              href="${escapeHtml(policy.officialUrl)}"
+              target="_blank"
+              rel="noopener noreferrer">查看已提供官方依据 ↗</a>`
+        : '<span class="consult-link-missing">官方链接未提供</span>';
+      return `<li class="consult-policy"
+                  data-policy-id="${escapeHtml(policy.policyId)}"
+                  data-source-status="${escapeHtml(policy.verification.key)}">
+        <div class="consult-policy-head">
+          <strong class="consult-policy-name">${escapeHtml(policy.policyName)}</strong>
+          <span class="badge ${escapeHtml(policy.verification.key)}">${escapeHtml(policy.verification.label)}</span>
+        </div>
+        ${link}
+      </li>`;
+    }).join('');
+
+    return `<section class="card consult-dept"
+                     data-consult-dept="${escapeHtml(group.department)}">
+      <div class="consult-dept-head">
+        <h3 class="consult-dept-name">${escapeHtml(group.department)}</h3>
+        <span class="consult-dept-count">${group.policies.length} 项</span>
+      </div>
+      <p class="consult-dept-sub">以下是该责任部门在正式政策库中的当前记录。</p>
+      <ul class="consult-policy-list">${policies}</ul>
+    </section>`;
+  }).join('');
+
+  return summary + failure + `<div class="consult-depts">${groups}</div>`;
+}
+
 /**
  * 演示案例档案：按政策库覆盖城市取对应案例。
  * 广州条目与 v1.0 完全一致（不破坏现有 Demo）；其他城市缺失时用通用兜底。
@@ -1984,7 +2101,7 @@ function discoverRouteTarget() {
 /**
  * 底部导航（只连接真实存在的功能）：
  *   首页 → index.html；发现 → discoverRouteTarget()；
- *   咨询 → 暂未开放，点击给出明确提示（不伪装成可用页）；
+ *   咨询 → consult.html；
  *   我的 → family.html（现有查询关系管理页）。
  * active: 'home' | 'discover' | 'consult' | 'mine'
  */
@@ -1998,7 +2115,7 @@ function renderBottomNav(active) {
   const tabs = [
     { key: 'home', label: '首页' },
     { key: 'discover', label: '发现' },
-    { key: 'consult', label: '咨询', disabled: true },
+    { key: 'consult', label: '咨询' },
     { key: 'mine', label: '我的' },
   ];
   return '<nav class="tabbar" aria-label="底部导航">'
@@ -2028,7 +2145,7 @@ function mountBottomNav(active) {
     if (!btn) return;
     const key = btn.dataset.tab;
     if (key === 'consult') {
-      showToast('咨询功能暂未开放：核实方式与官方渠道可在每条政策的详情页内查看');
+      if (active !== 'consult') location.href = 'consult.html';
       return;
     }
     if (key === 'discover') {

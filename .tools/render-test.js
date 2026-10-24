@@ -31,6 +31,7 @@ const sandbox = {
   location: { search: '' },
   fetch: async () => ({ json: async () => ({}) }),
   setTimeout, clearTimeout, console, CSS: { escape: (s) => s },
+  URL, URLSearchParams,
 };
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
@@ -352,6 +353,55 @@ console.log('== 原有能力未被破坏 ==');
   check('已答户籍被过滤', !f.some((x) => /户籍/.test(x)));
   check('未答项保留', f.some((x) => /社区/.test(x)));
   check('explainMissing 有解释', sandbox.explainMissing('老人是否具有广州市户籍').length > 10);
+}
+
+console.log('== P4 咨询页部门视图 ==');
+{
+  const verified = {
+    policy_id: 'p-verified',
+    policy_name: '<社区>养老服务',
+    source: { department: '甲部门', official_url: 'https://example.gov.cn/a' },
+    verification: { status: 'verified' },
+  };
+  const pending = {
+    policy_id: 'p-pending',
+    policy_name: '健康管理',
+    source: { department: '乙部门', official_url: 'https://example.gov.cn/b' },
+    verification: { status: 'to_verify' },
+  };
+  const h = sandbox.renderConsultDirectory([verified, pending], 1);
+  check('咨询页渲染真实政策总数', has(h, '已读取 <b>2</b> 项政策'));
+  check('咨询页按部门分组', has(h, 'data-consult-dept="甲部门"') && has(h, 'data-consult-dept="乙部门"'));
+  check('咨询页保留政策名并转义',
+    has(h, '&lt;社区&gt;养老服务') && !has(h, '<社区>养老服务'));
+  check('咨询页核验态保留 verified', has(h, 'data-source-status="verified"') && has(h, '来源已核验'));
+  check('咨询页国家依据态表述准确',
+    has(h, 'data-source-status="pending"') && has(h, '国家依据已核验 · 本地待确认'));
+  check('咨询页官方链接使用真实字段',
+    has(h, 'href="https://example.gov.cn/a"') && has(h, 'href="https://example.gov.cn/b"'));
+  check('咨询页外链安全属性完整',
+    (h.match(/target="_blank"/g) || []).length === 2
+    && (h.match(/rel="noopener noreferrer"/g) || []).length === 2);
+  check('咨询页部分失败显式提示', has(h, '另有 1 项政策详情暂时无法读取'));
+
+  const missing = sandbox.renderConsultDirectory([{
+    policy_id: 'p-missing',
+    policy_name: '无链接政策',
+    source: { department: '', official_url: 'javascript:alert(1)' },
+    verification: { status: 'to_verify' },
+  }], 0);
+  check('非法官方链接不生成 anchor', !/href="javascript:/i.test(missing) && has(missing, '官方链接未提供'));
+  check('缺部门和状态不冒充已核验',
+    has(missing, '责任部门未标注（待核验）') && !has(missing, '>来源已核验</span>'));
+
+  const empty = sandbox.renderConsultDirectory([], 0);
+  check('咨询页空数据降级', has(empty, '当前政策库暂无可展示的政策') && !has(empty, 'consult-dept'));
+  const allFailed = sandbox.renderConsultDirectory([], 2);
+  check('咨询页全部详情失败降级',
+    has(allFailed, '政策详情暂时无法读取（2 项失败）') && !has(allFailed, 'consult-dept'));
+
+  const duplicate = sandbox.renderConsultDirectory([verified, verified], 0);
+  check('咨询页按 policy_id 去重', has(duplicate, '已读取 <b>1</b> 项政策'));
 }
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);

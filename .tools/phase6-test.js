@@ -124,8 +124,9 @@ console.log('== 问题1b：发现路由与匹配摘要（首页重设计新增�
     && app.indexOf('validLastMatch(s)') < app.indexOf('hasSelf && hasFam'));
   check('路由规则：空会话兜底 family.html', /return 'family\.html'/.test(app));
   check('首页发现卡与底部导航使用统一路由', /discoverRouteTarget\(\)/.test(idx));
-  check('「咨询」未伪装成可用导航（明确暂未开放）',
-    /aria-disabled="true"/.test(app) && /暂未开放/.test(app));
+  check('「咨询」已接入正式页面',
+    !/key: 'consult'[^\n]*disabled/.test(app)
+    && /key === 'consult'[\s\S]{0,100}consult\.html/.test(app));
 }
 
 console.log('== 问题1c：「我的」底部弹层（D1） ==');

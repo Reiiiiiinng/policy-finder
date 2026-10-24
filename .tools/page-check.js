@@ -10,7 +10,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const PAGES = ['index.html', 'family.html', 'discover.html', 'self.html', 'policy.html'];
+const PAGES = ['index.html', 'family.html', 'discover.html', 'self.html', 'policy.html', 'consult.html'];
 
 let pass = 0, fail = 0;
 function check(name, cond, detail) {
@@ -63,6 +63,8 @@ const required = {
                   'filterAnsweredMissing', 'personalize', 'explainMissing', 'statusBadge',
                   'renderValidityNote', 'renderThresholdNote',
                   'showToast', 'escapeHtml', 'query'],
+  'consult.html': ['renderTopbar', 'mountBottomNav', 'loadSiteContext', 'API',
+                   'renderConsultDirectory', 'escapeHtml'],
 };
 Object.keys(required).forEach((page) => {
   (required[page] || []).forEach((fn) => {
@@ -190,6 +192,24 @@ check('详情页保留来源信任卡', /trust-card/.test(pol));
 check('详情页保留 to_verify 提示', /来源待核验/.test(pol));
 check('详情页返回区分本人/家庭模式', /backHref = selfMode \? 'self\.html' : 'discover\.html'/.test(pol));
 
+const consult = fs.readFileSync(path.join(ROOT, 'frontend/consult.html'), 'utf8');
+check('咨询页默认返回首页并高亮咨询导航',
+  /renderTopbar\('咨询与办理指引', 'index\.html'/.test(consult)
+  && /mountBottomNav\('consult'\)/.test(consult));
+check('咨询页四问齐全',
+  ['覆盖范围', '申请入口', '所需材料', '适用标准'].every((x) => consult.indexOf(x) >= 0));
+check('咨询页明确不提供在线咨询、不代办、不代填',
+  /不提供在线咨询、不代办、不代填/.test(consult));
+check('咨询页从摘要和详情接口读取真实数据',
+  /API\.get\('\/api\/policies'\)/.test(consult) && /API\.policy\(/.test(consult));
+check('咨询页使用 allSettled 处理部分详情失败',
+  /Promise\.allSettled/.test(consult) && /renderConsultDirectory\(details, failed\)/.test(consult));
+check('咨询页不硬编码具体政策或部门',
+  !/gz_elderly_|广州市民政局|广州市卫生健康部门/.test(consult));
+check('咨询页外链安全属性完整',
+  /target="_blank"/.test(appSrc) && /rel="noopener noreferrer"/.test(appSrc)
+  && /official_url/.test(appSrc));
+
 console.log('== CSS 变量与类名一致 ==');
 const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8');
 ['.flow', '.flow-step', '.flow-dot', '.board', '.scene-chip', '.tier-head', '.tier-head.is-focus',
@@ -197,7 +217,9 @@ const css = fs.readFileSync(path.join(ROOT, 'frontend/assets/style.css'), 'utf8'
  '.evidence', '.ev-step', '.ev-cond', '.final-step', '.fs-opt', '.where-row', '.rel-strip',
  '.how-card', '.step-lead',
  '.policy-validity-warn', '.policy-validity-muted',
- '.policy-threshold-note', '.policy-threshold-note.is-hit'].forEach((sel) => {
+ '.policy-threshold-note', '.policy-threshold-note.is-hit',
+ '.consult-rules', '.consult-dept', '.consult-policy',
+ '.consult-official-link', '.consult-link-missing'].forEach((sel) => {
   check('CSS 定义 ' + sel, css.indexOf(sel) >= 0);
 });
 

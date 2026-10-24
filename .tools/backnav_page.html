@@ -147,6 +147,22 @@ async function run(){
  if(bl3){ bl3.click(); await nav(); await sleep(900); }
  check('S7 立即点击 → 发现权益', /discover\.html/.test(page()), page());
 
+ /* ---------- S8 咨询页默认返回首页 ---------- */
+ out('--- S8 咨询页默认返回首页 ---');
+ await navTo('/consult.html');
+ var bl4=q('.back-link');
+ check('S8 咨询页顶部返回按钮已渲染', !!bl4);
+ if(bl4){ bl4.click(); await nav(); await sleep(500); }
+ check('S8 默认返回 → 首页', /index\.html/.test(page()), page());
+
+ /* ---------- S9 咨询页来源参数优先 ---------- */
+ out('--- S9 咨询页 ?from= 返回指定来源 ---');
+ await navTo('/consult.html?from=self.html');
+ var bl5=q('.back-link');
+ check('S9 咨询页顶部返回按钮已渲染', !!bl5);
+ if(bl5){ bl5.click(); await nav(); await sleep(500); }
+ check('S9 ?from=self.html → 本人发现页', /self\.html/.test(page()), page());
+
  out('');
  out('=== 通过 '+pass+'，失败 '+fail+' ===', fail?'bad':'ok');
 }

@@ -331,15 +331,21 @@ async function run(){
   await waitForEvent(8000);
   check('测试7D2 底部导航「发现」路由与发现卡一致 → family.html',
     page().indexOf('family.html') >= 0, page());
-  // E. 「咨询」未开放：不跳转且给出明确提示
+  // E. 「咨询」已接入：进入正式咨询页并保持当前导航。
   await load('/index.html'); await sleep(400);
+  var consultNav = waitForEvent(8000);
   q('.tab-item[data-tab="consult"]').click();
-  await sleep(400);
-  var toastEl = q('#pfToast');
-  check('测试7E 咨询 tab 未跳转且提示暂未开放',
-    page().indexOf('index.html') >= 0 && !!toastEl && toastEl.hidden === false
-      && toastEl.textContent.indexOf('暂未开放') >= 0,
-    toastEl ? ('toast=' + toastEl.textContent.slice(0, 30) + ' hidden=' + toastEl.hidden) : 'no toast');
+  await consultNav;
+  await sleep(500);
+  var consultTab = q('.tab-item[data-tab="consult"]');
+  check('测试7E 咨询 tab 进入正式咨询页',
+    page().indexOf('consult.html') >= 0 && q('.consult-title'),
+    page());
+  check('测试7E2 咨询页底部导航四项齐全且咨询为当前项',
+    qa('.tabbar .tab-item').length === 4 && !!consultTab
+      && consultTab.classList.contains('is-active')
+      && consultTab.getAttribute('aria-current') === 'page',
+    consultTab ? ('active=' + consultTab.classList.contains('is-active')) : 'no consult tab');
 
   out('');
   out('=== 390×844 实测：通过 ' + pass + '，失败 ' + fail + ' ===', fail ? 'bad' : 'ok');
