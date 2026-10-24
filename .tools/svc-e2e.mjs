@@ -35,8 +35,9 @@ const SELF_TEXT = '我今年63岁，一个人住在广州，最近下楼越来�
 
 /**
  * 确定性竞态闸门（注入到每个新文档，页面加载前执行）。
- * 仅当 sessionStorage 里 pf_race_hold='1' 时拦截 /api/match：
- * 把已发出的响应 Promise 扣进 window.__holds（按请求顺序），
+ * 仅当 sessionStorage 里 pf_race_hold='1' 时拦截接口：
+ *   /api/match   响应扣进 window.__holds（按请求顺序）
+ *   /api/profile 响应扣进 window.__profileHolds（按请求顺序）
  * 测试先放行哪个、后放行哪个，返回顺序就完全由测试决定，
  * 不依赖真实网络延迟。其余请求原样透传。
  */
@@ -47,6 +48,7 @@ const RACE_HOLD_SCRIPT = `
     const orig = window.fetch ? window.fetch.bind(window) : null;
     if (!orig) return;
     window.__holds = [];
+    window.__profileHolds = [];
     window.fetch = function (input, init) {
       const p = orig.apply(this, arguments);
       let url = '';
@@ -56,6 +58,12 @@ const RACE_HOLD_SCRIPT = `
         let release;
         const gate = new Promise(function (r) { release = r; });
         window.__holds.push(release);
+        return gate.then(function () { return p; });
+      }
+      if (url.indexOf('/api/profile') >= 0) {
+        let release;
+        const gate = new Promise(function (r) { release = r; });
+        window.__profileHolds.push(release);
         return gate.then(function () { return p; });
       }
       return p;
@@ -701,9 +709,15 @@ async function case8_raceDeterministic(cdp, tag) {
   await cdp.click('#esStart');
   await cdp.eval("document.getElementById('situation').value = '我父亲72岁，一个人在广州生活，最近行动不方便。'");
   cdp.resetRequests();
-  await cdp.click('#discoverBtn');   // A：发出后被闸门扣住
+  await cdp.click('#discoverBtn');   // A：画像请求被闸门扣住
+  await cdp.waitFor('window.__profileHolds && window.__profileHolds.length === 1', 15000, 'A 画像请求已扣住');
+  // A 此刻仍是最新请求，放行其画像 → A 推进到第 2 步并发起匹配（被扣住）
+  await cdp.eval('window.__profileHolds[0]()');
+  await cdp.waitFor('window.__holds && window.__holds.length === 1', 15000, 'A 匹配请求已扣住');
   await cdp.eval("document.getElementById('situation').value = '我母亲75岁，一个人在广州生活，最近走路越来越困难。'");
-  await cdp.click('#discoverBtn');   // B：发出后被闸门扣住
+  await cdp.click('#discoverBtn');   // B：画像请求被闸门扣住
+  await cdp.waitFor('window.__profileHolds.length === 2', 15000, 'B 画像请求已扣住');
+  await cdp.eval('window.__profileHolds[1]()');
   await cdp.waitFor('window.__holds && window.__holds.length === 2', 15000, '两个匹配请求均已扣住');
   const held = await cdp.eval(`(() => {
     const saved = JSON.parse(sessionStorage.getItem('policy_finder_session') || '{}');
@@ -793,6 +807,130 @@ async function case8_raceDeterministic(cdp, tag) {
   await cdp.eval("sessionStorage.removeItem('pf_race_hold')");
 }
 
+/**
+ * 进度竞态（行为级，确定性）：旧请求的画像/匹配响应在新请求仍在等待时返回，
+ * 不得推进新请求的进度、不得提前标成完成、不得继续发起过期匹配、不得写会话。
+ * 返回顺序全部由 RACE_HOLD_SCRIPT 闸门决定，不依赖网络时序。
+ * 仅本地后端模式执行（静态站没有 /api 请求可扣）。
+ */
+async function case9_raceProgress(cdp, tag) {
+  await seed(cdp, {
+    target: 'parents', operator: '女儿', beneficiary: '父亲', confirmed: true,
+    demo: false, demoBanner: false,
+  });
+  await cdp.goto('/index.html');
+  await cdp.eval("sessionStorage.setItem('pf_race_hold', '1')");
+  await cdp.goto('/discover.html');
+  await cdp.waitFor("document.querySelectorAll('#esStart').length > 0", 12000, '空态开始按钮（进度竞态）');
+  await cdp.click('#esStart');
+  await cdp.eval("document.getElementById('situation').value = '我父亲72岁，一个人在广州生活，最近行动不方便。'");
+
+  // —— 阶段一：A 的画像在 B 等待期间返回 ——
+  await cdp.click('#discoverBtn');   // A：画像被扣住
+  await cdp.waitFor('window.__profileHolds && window.__profileHolds.length === 1', 15000, 'A 画像已扣住');
+  await cdp.eval("document.getElementById('situation').value = '我母亲75岁，一个人在广州生活，最近走路越来越困难。'");
+  await cdp.click('#discoverBtn');   // B：画像被扣住（A 的画像仍未放行）
+  await cdp.waitFor('window.__profileHolds.length === 2', 15000, 'B 画像已扣住');
+  const stage1a = await cdp.eval(`(() => {
+    const saved = JSON.parse(sessionStorage.getItem('policy_finder_session') || '{}');
+    return {
+      matchHolds: window.__holds.length,
+      done: document.querySelectorAll('.ai-steps .is-done').length,
+      text: saved.text || '',
+    };
+  })()`);
+  ok(tag + ' 进度竞态：两请求都在等画像时无人发匹配、无进度推进',
+    stage1a.matchHolds === 0 && stage1a.done === 0 && stage1a.text === '', JSON.stringify(stage1a));
+
+  // 放行 A 的画像：A 已过期（B 是最新）——必须立即退出
+  await cdp.eval('window.__profileHolds[0]()');
+  await sleep(500);
+  const stage1b = await cdp.eval(`(() => {
+    const saved = JSON.parse(sessionStorage.getItem('policy_finder_session') || '{}');
+    return {
+      matchHolds: window.__holds.length,
+      done: document.querySelectorAll('.ai-steps .is-done').length,
+      text: saved.text || '',
+      age: saved.profile ? saved.profile.age : null,
+    };
+  })()`);
+  ok(tag + ' 进度竞态：过期请求画像返回后不发过期匹配',
+    stage1b.matchHolds === 0, 'matchHolds=' + stage1b.matchHolds);
+  ok(tag + ' 进度竞态：过期画像不推进 B 的进度',
+    stage1b.done === 0, 'done=' + stage1b.done);
+  ok(tag + ' 进度竞态：过期请求不写会话',
+    stage1b.text === '' && stage1b.age === null, JSON.stringify(stage1b));
+
+  // 放行 B 的画像：B 正常推进并发起匹配
+  await cdp.eval('window.__profileHolds[1]()');
+  await cdp.waitFor("window.__holds.length === 1 && document.querySelectorAll('.ai-steps .is-done').length === 2",
+    15000, 'B 推进到第 2 步并发出匹配');
+  const stage1c = await cdp.eval(`(() => ({
+    matchHolds: window.__holds.length,
+    done: document.querySelectorAll('.ai-steps .is-done').length,
+  }))()`);
+  ok(tag + ' 进度竞态：最新请求画像返回后正常推进', stage1c.done === 2, JSON.stringify(stage1c));
+
+  // —— 阶段二：A2 的匹配响应在 B2 等待期间返回 ——
+  // （先放行 A2 画像——此时 A2 仍是最新，合法发出匹配并被扣住；再让 B2 后来居上）
+  await cdp.eval("document.getElementById('situation').value = '我爷爷78岁，一个人在广州生活，最近腿脚没力气。'");
+  await cdp.click('#discoverBtn');
+  await cdp.waitFor('window.__profileHolds.length === 3', 15000, 'A2 画像已扣住');
+  await cdp.eval('window.__profileHolds[2]()');   // A2 仍是最新 → 合法推进并发匹配
+  await cdp.waitFor('window.__holds.length === 2', 15000, 'A2 匹配已扣住');
+  await cdp.eval("document.getElementById('situation').value = '我奶奶80岁，一个人在广州生活，最近记性变差。'");
+  await cdp.click('#discoverBtn');
+  await cdp.waitFor('window.__profileHolds.length === 4', 15000, 'B2 画像已扣住');
+  const stage2a = await cdp.eval(`(() => ({
+    done: document.querySelectorAll('.ai-steps .is-done').length,
+    matchHolds: window.__holds.length,
+  }))()`);
+  // __holds=[阶段一的B, A2]：两条匹配在闸门里，B2 还在等画像
+  ok(tag + ' 进度竞态：B2 开始后进度条归零等待', stage2a.done === 0 && stage2a.matchHolds === 2,
+    JSON.stringify(stage2a));
+
+  // 此刻放行 A2 的匹配响应：A2 已过期——不得把 B2 还在等待的进度标成完成
+  await cdp.eval('window.__holds[1]()');
+  await sleep(500);
+  const stage2b = await cdp.eval(`(() => {
+    const saved = JSON.parse(sessionStorage.getItem('policy_finder_session') || '{}');
+    return {
+      done: document.querySelectorAll('.ai-steps .is-done').length,
+      cards: document.querySelectorAll('.result-card').length,
+      text: saved.text || '',
+      age: saved.profile ? saved.profile.age : null,
+    };
+  })()`);
+  ok(tag + ' 进度竞态：过期匹配不把 B2 的进度提前标成完成',
+    stage2b.done === 0, 'done=' + stage2b.done);
+  ok(tag + ' 进度竞态：过期匹配不渲染结果卡、不写会话',
+    stage2b.cards === 0 && stage2b.text === '' && stage2b.age === null, JSON.stringify(stage2b));
+
+  // 放行 B2 的画像与匹配：B2 正常走完全程
+  await cdp.eval('window.__profileHolds[3]()');
+  await cdp.waitFor("window.__holds.length === 3 && document.querySelectorAll('.ai-steps .is-done').length === 2",
+    15000, 'B2 推进到第 2 步');
+  await cdp.eval('window.__holds[2]()');
+  await cdp.waitFor("document.querySelectorAll('.result-card').length > 0", 25000, 'B2 结果渲染');
+  const stage2c = await cdp.eval(`(() => {
+    const saved = JSON.parse(sessionStorage.getItem('policy_finder_session') || '{}');
+    const vals = [...document.querySelectorAll('.board-fact .bf-v')].map((x) => x.textContent.trim());
+    return {
+      doneStrip: document.querySelectorAll('.ai-done-strip .i').length,
+      age: saved.profile ? saved.profile.age : null,
+      text: saved.text || '',
+      lastQuery: saved.lastQuery || '',
+      vals: vals.join('|'),
+    };
+  })()`);
+  ok(tag + ' 进度竞态：B2 完成后流程摘要走满四步', stage2c.doneStrip === 4,
+    'doneStrip=' + stage2c.doneStrip);
+  ok(tag + ' 进度竞态：最终结果/画像/文本/lastQuery 均属于 B2',
+    stage2c.age === 80 && stage2c.text.indexOf('80') >= 0 && stage2c.lastQuery === 'family'
+      && stage2c.vals.indexOf('80 岁') >= 0, JSON.stringify(stage2c));
+  await cdp.eval("sessionStorage.removeItem('pf_race_hold')");
+}
+
 async function main() {
   if (!EDGE) {
     console.log('未找到本机浏览器（msedge.exe / chrome.exe），无法实测。');
@@ -841,8 +979,12 @@ async function main() {
     await case5_otherEntries(cdp, '[1440]');
     await case6_mixedModeIsolation(cdp, '[1440]');
     await case7_familyMissingProfile(cdp, '[1440]');
-    if (HAS_API) await case8_raceDeterministic(cdp, '[1440]');
-    else console.log('（静态站无 /api 请求，确定性竞态用例仅本地后端模式执行）');
+    if (HAS_API) {
+      await case8_raceDeterministic(cdp, '[1440]');
+      await case9_raceProgress(cdp, '[1440]');
+    } else {
+      console.log('（静态站无 /api 请求，确定性竞态用例仅本地后端模式执行）');
+    }
 
     // 手机
     await viewport(cdp, 390, 844);

@@ -187,10 +187,12 @@
           relation: saved.beneficiary,
           operator: saved.operator,
         });
+        // 画像返回先认领：过期请求到此退出——不推进新请求的进度，
+        // 也不拿着过期输入继续发起匹配请求。
+        if (!isLatestMatchRequest(mySeq)) return;
         updateAiFlow(2);
       }
       data = await API.match(payload);
-      if (!isRefresh) updateAiFlow(4);
     } catch (e) {
       if (!isLatestMatchRequest(mySeq)) return;
       hideRefreshBar();
@@ -208,8 +210,11 @@
     // 慢请求后到会把新结果盖掉：用户连点两个场景 chip 时，
     // 先发的那次若最后才返回，界面就会停在旧请求的结果上，
     // 用户以为自己点的那下没生效。这里在写任何状态之前先认领——
-    // 只拦渲染是不够的，store.write 与 mountFlow 同样会写坏状态。
+    // 只拦渲染是不够的，store.write 与 mountFlow 同样会写坏状态；
+    // 进度推进也一样：旧请求的匹配响应若先于新请求返回，
+    // 会把新请求还在等待的进度条直接标成完成，必须先认领再打勾。
     if (!isLatestMatchRequest(mySeq)) return;
+    if (!isRefresh) updateAiFlow(4);
 
     store.write({ text: text, profile: data.profile, lastQuery: 'family', demo: false, demoBanner: false });
     // 演示横幅是按页面加载时挂上去的，清掉标记后要重新对一次，

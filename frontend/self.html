@@ -149,6 +149,9 @@
       if (!isRefresh) {
         // 第 1 步：真实调用画像接口，返回后才打勾前两步
         await API.post('/api/profile', { text: text, mode: 'self' });
+        // 画像返回先认领：过期请求到此退出——不推进新请求的进度，
+        // 也不拿着过期输入继续发起匹配请求。
+        if (!isLatestMatchRequest(mySeq)) return;
         updateAiFlow(2);
       }
       data = await API.match({
@@ -156,7 +159,6 @@
         mode: 'self',
         profile: saved.selfProfile || {},
       });
-      if (!isRefresh) updateAiFlow(4);
     } catch (e) {
       if (!isLatestMatchRequest(mySeq)) return;
       area.style.minHeight = '';
@@ -170,8 +172,11 @@
     }
 
     // 慢请求后到会把新结果盖掉，见 app.js 里 beginMatchRequest 的说明。
-    // 在写任何状态之前先认领，晚到的请求直接放弃。
+    // 在写任何状态之前先认领，晚到的请求直接放弃；进度推进也一样：
+    // 旧请求的匹配响应若先于新请求返回，会把新请求还在等待的进度条
+    // 直接标成完成，必须先认领再打勾。
     if (!isLatestMatchRequest(mySeq)) return;
+    if (!isRefresh) updateAiFlow(4);
 
     store.write({ selfText: text, selfProfile: data.profile, lastQuery: 'self', demo: false, demoBanner: false });
     if (typeof mountDemoBanner === 'function') mountDemoBanner();
