@@ -663,6 +663,9 @@ function deriveValidity(policy, today) {
   // 只有「键存在但值为空」与「键不存在」在这里都落到 null，故统一取 vp，
   // 缺键时 vp 里没有该键，取出来即 undefined。
   const vp = _pickValiditySource(v);
+  // basis：政策本体被延期/修改时，数据层把依据文件写在 validity.basis。
+  // 原样透传（与后端 policy_engine.derive_validity 保持一致），仅用于展示，不参与时效判断。
+  const basis = truthy(v.basis) ? v.basis : null;
 
   if (stored === 'superseded' && truthy(sup)) {
     const name = sup.name || '新文件';
@@ -674,6 +677,7 @@ function deriveValidity(policy, today) {
       verified_at: Object.prototype.hasOwnProperty.call(vp, 'verified_at') ? vp.verified_at : null,
       superseded_by: sup,
       message: '该政策已由《' + name + '》替代，请查看新规',
+      basis: basis,
     };
   }
 
@@ -686,6 +690,7 @@ function deriveValidity(policy, today) {
       verified_at: Object.prototype.hasOwnProperty.call(vp, 'verified_at') ? vp.verified_at : null,
       superseded_by: sup,
       message: '该政策已过有效期，请以最新文件为准',
+      basis: basis,
     };
   }
 
@@ -698,6 +703,7 @@ function deriveValidity(policy, today) {
       verified_at: Object.prototype.hasOwnProperty.call(vp, 'verified_at') ? vp.verified_at : null,
       superseded_by: null,
       message: '本办法有效期至 ' + v.expires_at + '，届时请以最新文件为准',
+      basis: basis,
     };
   }
 
@@ -709,6 +715,7 @@ function deriveValidity(policy, today) {
     verified_at: Object.prototype.hasOwnProperty.call(vp, 'verified_at') ? vp.verified_at : null,
     superseded_by: null,
     message: '',
+    basis: basis,
   };
 }
 

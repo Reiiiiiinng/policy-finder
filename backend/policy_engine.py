@@ -705,8 +705,12 @@ def derive_validity(policy, today=None):
     从 validity 派生展示状态。
     数据层只存 active / expired / superseded；expiring 由 expires_at 与当天日期计算，
     不写死在数据里（见 docs/policy-data-spec.md 第二节）。
-    返回 {status, level, expires_at, effective_from, verified_at, superseded_by, message}
+    返回 {status, level, expires_at, effective_from, verified_at, superseded_by, message, basis}
     level: normal | warn | muted
+
+    basis（可选）：当政策本体的效力来源是另一份文件（延期/修改通知）时，
+    数据层会把那份文件写在 validity.basis 里。这里原样透传——它只用于展示
+    「有效期依据」，不参与任何时效判断。
     """
     import datetime
     v = policy.get("validity") or {}
@@ -715,6 +719,7 @@ def derive_validity(policy, today=None):
     stored = v.get("status") or "active"
     expires = _parse_date(v.get("expires_at"))
     sup = v.get("superseded_by")
+    basis = v.get("basis") or None
 
     if stored == "superseded" and sup:
         name = sup.get("name") or "新文件"
@@ -726,6 +731,7 @@ def derive_validity(policy, today=None):
             "verified_at": v.get("verified_at"),
             "superseded_by": sup,
             "message": "该政策已由《%s》替代，请查看新规" % name,
+            "basis": basis,
         }
 
     if stored == "expired" or (expires and expires < today):
@@ -737,6 +743,7 @@ def derive_validity(policy, today=None):
             "verified_at": v.get("verified_at"),
             "superseded_by": sup,
             "message": "该政策已过有效期，请以最新文件为准",
+            "basis": basis,
         }
 
     if expires and (expires - today).days <= EXPIRING_DAYS:
@@ -748,6 +755,7 @@ def derive_validity(policy, today=None):
             "verified_at": v.get("verified_at"),
             "superseded_by": None,
             "message": "本办法有效期至 %s，届时请以最新文件为准" % v.get("expires_at"),
+            "basis": basis,
         }
 
     return {
@@ -758,6 +766,7 @@ def derive_validity(policy, today=None):
         "verified_at": v.get("verified_at"),
         "superseded_by": None,
         "message": "",
+        "basis": basis,
     }
 
 

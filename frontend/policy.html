@@ -456,12 +456,48 @@
     const verNote = clean(ver.note)
       ? `<p class="tc-note">核验说明：${escapeHtml(ver.note)}</p>` : '';
 
+    // 有效期依据（validity.basis）：当政策本体已被延期/修改时，本体文号与
+    // 「有效期到哪天」不是同一份文件。此前只展示本体链接，效力来源（延期通知）
+    // 只写在核验说明的散文里，用户点不进去、也没法自己核对——2026-10 的
+    // gz_elderly_009 就是这种情况（本体 穗医保规字〔2024〕1号 + 延期文 〔2026〕1号）。
+    // 这里把依据文件单独列一行，带自己的官方链接；没有 basis 时整行不渲染。
+    // 注意：这里不能引用下面第 520 行的 val（那是 const，存在 TDZ），
+    // 直接读 matchRow.validity，避免 "Cannot access 'val' before initialization"。
+    const basis = (matchRow && matchRow.validity && matchRow.validity.basis) || null;
+    const basisName = clean(basis && basis.document);
+    const basisDocNo = clean(basis && basis.document_no);
+    const basisDate = clean(basis && basis.published_date);
+    const basisUrl = clean(basis && basis.official_url);
+    let basisHtml = '';
+    if (basisName || basisDocNo) {
+      let bHost = '';
+      if (basisUrl) {
+        try { bHost = new URL(basisUrl).host; } catch (e) { bHost = ''; }
+      }
+      const basisLink = basisUrl
+        ? `<a class="tc-link" href="${escapeHtml(basisUrl)}" target="_blank" rel="noopener">
+             <span>查看延期原文${bHost ? `<span class="tc-link-url">${escapeHtml(bHost)}</span>` : ''}</span>
+           </a>`
+        : '';
+      basisHtml = `
+        <div class="tc-basis">
+          <div class="tc-row">
+            <span class="k">有效期依据</span>
+            <span class="v">${escapeHtml(basisName || '—')}${
+              basisDocNo ? `（${escapeHtml(basisDocNo)}）` : ''
+            }${basisDate ? `<span class="tc-basis-date"> · ${escapeHtml(basisDate)} 发布</span>` : ''}</span>
+          </div>
+          ${basisLink}
+        </div>`;
+    }
+
     const sourceCard = `
       <div class="trust-card" id="dblock-source">
         <h3><span class="q-num">2</span><span class="q-title">政策来源</span></h3>
         ${tcStatus}
         <div class="tc-rows">${rowsHtml}</div>
         ${linkHtml}
+        ${basisHtml}
         ${verNote}
       </div>`;
 
