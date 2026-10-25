@@ -113,16 +113,26 @@ async function run(){
  check('S4 刷新后返回 → 发现权益', /discover\.html/.test(page()), page());
 
  /* ---------- S5 浏览器后退与顶部返回混用 ---------- */
+ /* 产品口径：顶栏「← 返回」只出现在二级页（family / self / policy）。
+    discover 是一级页（顶栏只有标题），从二级页退回它之后没有返回按钮可点，
+    S5 因此断言「退回发现权益且无返回按钮」，再经发现页→详情页验证顶部返回。
+    （原断言在 discover 上点 .back-link，该元素按设计不会存在。） */
  out('--- S5 浏览器后退 + 顶部返回混用 ---');
  sessionStorage.clear(); seedSession(FAMILY);
  await navTo('/discover.html'); await sleep(400);
  await toPolicy(); await sleep(900);
  W().history.back(); await nav(); await sleep(900);
  check('S5 浏览器后退 → 发现权益', /discover\.html/.test(page()), page());
+ check('S5 退回一级页后不显示顶部返回（一级页无父页面）',
+   q('.back-link') === null, q('.back-link') ? '仍存在 .back-link' : '');
+ await toPolicy(); await sleep(900);
+ check('S5 再进详情页仍有顶部返回', q('.back-link') !== null, page());
  q('.back-link').click(); await nav(); await sleep(900);
- check('S5 随后顶部返回 → 家庭协助', /family\.html/.test(page()), page());
+ check('S5 详情页顶部返回 → 发现权益', /discover\.html/.test(page()), page());
+ await navTo('/family.html'); await sleep(600);
+ check('S5 家庭协助页有顶部返回（二级页）', q('.back-link') !== null, page());
  q('.back-link').click(); await nav(); await sleep(900);
- check('S5 再顶部返回 → 首页', /index\.html/.test(page()), page());
+ check('S5 家庭协助顶部返回 → 首页', /index\.html/.test(page()), page());
 
  /* ---------- S6 本人模式：立即点击 ---------- */
  out('--- S6 本人模式：详情页 load 后立即点击 ---');

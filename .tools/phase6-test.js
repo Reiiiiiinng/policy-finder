@@ -102,7 +102,9 @@ console.log('== 问题2：父母 / 长辈入口区分 ==');
   check('回填兼容折叠区', /inAlt/.test(html) && /beneficiaryBox/.test(html));
   check('绑定覆盖两个容器', /#beneficiaryBox \.choice/.test(html));
   check('跳转契约不变（仍回family.html）', /family\.html/.test(read('frontend/index.html')));
-  check('步骤条文案随入口变化', /选择长辈/.test(html));
+  // P1-3 后本地三步条移除，入口差异由受益人区提示承担（父母 vs 长辈两套文案）
+  check('入口提示随入口变化',
+    /先选父亲或母亲/.test(html) && /选择祖辈、配偶或其他需要帮助的长辈/.test(html));
 }
 
 console.log('== 问题3：绿智共生弱化 ==');
@@ -112,10 +114,11 @@ console.log('== 问题3：绿智共生弱化 ==');
   check('已从 topbar 移除 theme-tag', !/class="theme-tag">绿智共生/.test(html));
   check('赛事信息保留在页脚', /参赛主题 · 绿智共生/.test(html));
   check('绿智共生 仍在页面出现', /绿智共生/.test(html));
-  check('页脚样式为弱提示', /\.theme-foot/.test(css) && /font-size: 11\.5px/.test(css.split('.theme-foot')[1].slice(0, 200)));
-  // 产品标题应是首屏最大字号
-  const heroTitle = parseFloat((css.split('.hero-title')[1] || '').match(/font-size:\s*([\d.]+)px/)?.[1] || '0');
-  const footSize = parseFloat((css.split('.theme-foot')[1] || '').match(/font-size:\s*([\d.]+)px/)?.[1] || '99');
+  // P0-1 后字号走 6 档令牌：页脚弱提示落在 caption 档
+  check('页脚样式为弱提示', /\.theme-foot/.test(css) && /font-size: var\(--fs-caption\)/.test(css.split('.theme-foot')[1].slice(0, 200)));
+  // 产品标题应是首屏最大字号：display 档至少是 caption 档的两倍
+  const heroTitle = parseFloat((css.match(/--fs-display:\s*([\d.]+)px/) || [])[1] || '0');
+  const footSize = parseFloat((css.match(/--fs-caption:\s*([\d.]+)px/) || [])[1] || '99');
   check('「政策找人」字号 > 绿智共生字号', heroTitle > footSize * 2, heroTitle + ' vs ' + footSize);
 }
 

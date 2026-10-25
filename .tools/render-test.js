@@ -329,7 +329,7 @@ console.log('== 结果分层 ==');
     has(h, '还需确认 1 项 · 政策来源') || has(h, '政策来源'));
   check('P6 折叠不等于删除',
     has(h, '还需确认') && has(h, '政策来源') && has(h, 'rc-block is-warm'));
-  check('P6 主按钮指向为什么推荐', has(h, '为什么推荐？看依据'));
+  check('P6 主按钮指向为什么推荐', has(h, '为什么推荐？展开依据'));
   check('优先项在折叠项之前', h.indexOf('data-id="p1"') < h.indexOf('data-id="p3"'));
   check('折叠区默认收起', has(h, 'aria-expanded="false"') && has(h, 'data-more-body'));
   check('折叠区有可访问性关联', has(h, 'aria-controls="moreItems"') && has(h, 'id="moreItems"'));

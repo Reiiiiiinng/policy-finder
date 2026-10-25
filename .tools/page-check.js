@@ -185,7 +185,11 @@ check('发现页处理 focus 参数', /applyFocus/.test(disc));
 const pol = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
 check('详情页有第4步进一步确认', /进一步确认|renderFinalStep/.test(pol));
 check('详情页有去哪里核实', /去哪里核实/.test(pol));
-check('详情页保留五问结构', /qBlock\(1/.test(pol) && /qBlock\(3/.test(pol) && /qBlock\(5/.test(pol));
+// P2-2：分段编号改为「每个标签页内独立、连续」（原 1-6 跨页跳变）
+check('详情页分段编号每页独立连续',
+  /qBlock\(1, '这是什么/.test(pol) && /qBlock\(1, '为什么推荐/.test(pol)
+  && /qBlock\(2, '还需要确认/.test(pol) && /qBlock\(1, '去哪里核实/.test(pol)
+  && /qBlock\(2, '怎么办理/.test(pol));
 check('详情页保留来源信任卡', /trust-card/.test(pol));
 // P1：出门前清单。低碳落点是「减少无效往返」，不是「电子化更环保」；
 // 材料只能从申请条件推导，不能凭空编造证件名目。
@@ -345,8 +349,9 @@ console.log('== 全局一致性（P7-B）==');
   // 状态标签尺寸：两维度同名同尺寸，颜色语义唯一。
   // 字号锁的是「不小于 12px」——11px 对长辈偏小，「匹配／来源」又是
   // 区分两个判断维度的关键词，读不清就看不出这是两层判断。
+  // P0-1 后全站字号走 6 档令牌，axis 维度名落在 caption 档（12.5px ≥ 12px）。
   check('状态标签字号统一且不小于 12px',
-    /\.axis-k \{[\s\S]{0,240}?font-size:\s*1[2-9](\.\d+)?px/.test(css));
+    /\.axis-k \{[\s\S]{0,240}?font-size:\s*(1[2-9](\.\d+)?px|var\(--fs-caption\))/.test(css));
 }
 
 console.log('== UI 重构（按设计参考图） ==');
@@ -811,8 +816,11 @@ check('矛盾标签用风险红而非暖橙',
 check('矛盾提示块里不再残留 --warn',
   !/\.board-conflict[^{]*\{[^}]*--warn/.test(stSrc2));
 
-check('普通提醒仍是暖橙 --warn',
-  /\.notice\.warn \{[\s\S]{0,160}?var\(--warn\)/.test(stSrc2));
+// P0-2 后暖橙文字统一用深一档的 --warn-dark（浅底上对比度 ≥4.5），
+// 语义仍是暖橙一族而非风险红，断言随色值同步。
+check('普通提醒仍是暖橙（warn 家族而非 risk 红）',
+  /\.notice\.warn \{[\s\S]{0,160}?var\(--warn-dark\)/.test(stSrc2)
+  && !/\.notice\.warn \{[\s\S]{0,160}?var\(--risk\)/.test(stSrc2));
 
 console.log('\n通过 ' + pass + '，失败 ' + fail);
 process.exit(fail ? 1 : 0);

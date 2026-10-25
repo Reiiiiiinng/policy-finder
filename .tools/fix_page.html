@@ -135,9 +135,12 @@ async function run(){
 
  f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
  check('A3 详情页顶部返回 → 发现权益', /discover\.html/.test(page()), page());
- f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
- check('A4 发现权益顶部返回 → 家庭协助', /family\.html/.test(page()), page());
- check('A4 没有回到进一步确定', !/policy\.html/.test(page()), page());
+ /* 产品口径：discover 是一级页，顶栏只有标题、按设计没有「← 返回」。
+    这里改为断言一级页确实不出现返回按钮，再用家庭协助（二级页）验证顶部返回。 */
+ check('A4 发现权益（一级页）不显示顶部返回', q('.back-link') === null,
+   q('.back-link') ? '仍存在 .back-link' : '');
+ await navTo('/family.html'); await sleep(600);
+ check('A4 家庭协助页显示顶部返回（二级页）', q('.back-link') !== null, page());
  f.contentDocument.querySelector('.back-link').click(); await nav(); await sleep(900);
  check('A5 家庭协助顶部返回 → 首页', /index\.html/.test(page()), page());
  check('A5 仍未出现进一步确定', !/policy\.html/.test(page()), page());

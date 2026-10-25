@@ -11,15 +11,6 @@
 <div class="app">
   <div class="topbar"></div>
 
-  <!-- 三步流程：当前步骤高亮 -->
-  <div class="steps-bar" id="stepsBar" aria-label="查询流程进度">
-    <div class="step" data-step="1"><span class="n">1</span><span class="t">选择帮助对象</span></div>
-    <span class="step-line" aria-hidden="true"></span>
-    <div class="step" data-step="2"><span class="n">2</span><span class="t">确认家庭关系</span></div>
-    <span class="step-line" aria-hidden="true"></span>
-    <div class="step" data-step="3"><span class="n">3</span><span class="t">描述生活变化</span></div>
-  </div>
-
   <div class="notice">
     这个页面专为「帮别人查」设计：权益的受益人是老人本人，家属可以代为描述和查询，
     但关键信息仍应取得老人本人的确认。本平台只做「可能相关」的初步提示，
@@ -104,16 +95,12 @@
     <p class="hint" id="nextHint">请先选择操作者与帮助对象。</p>
   </div>
 
-  <div class="footnote">
-    第一步 选择帮助对象 → 第二步 确认家庭关系 → 第三步 描述生活变化
-  </div>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
   renderTopbar('家庭协助', 'index.html', '操作者 ≠ 受益人');
   mountDemoBanner();
-  mountDemoProgress(1);
   mountFlow(1);
   mountRelationStrip();
 
@@ -164,15 +151,14 @@
     altBody.hidden = open;
   });
 
-  // 入口不同，标题与提示也不同
+  // 入口不同，提示也不同（P1-3：本地三步条已并入全局流程条，
+  // 入口差异由受益人区的提示文案承担）
   const tip = document.getElementById('beneficiaryTip');
   if (entry === 'parents') {
     tip.textContent = '先选父亲或母亲；如果是祖辈或其他亲属，可展开下方「其他关系」。';
   } else {
     tip.textContent = '选择祖辈、配偶或其他需要帮助的长辈。';
   }
-  document.querySelector('#stepsBar .step[data-step="1"] .t').textContent =
-    entry === 'parents' ? '选择帮助对象' : '选择长辈';
 
   function bindGrid(gridId, onPick) {
     // 受益人可能分布在主区与折叠区两个容器里，这里按 data-kind 统一绑定
@@ -214,16 +200,6 @@
     return { ok: false, text: '待确认' };
   }
 
-  function updateSteps(confirmed) {
-    const hasPair = !!operator && !!beneficiary;
-    const current = !hasPair ? 1 : (!confirmed ? 2 : 3);
-    document.querySelectorAll('#stepsBar .step').forEach((el) => {
-      const n = Number(el.dataset.step);
-      el.classList.toggle('done', n < current || (n === 2 && confirmed));
-      el.classList.toggle('active', n === current);
-    });
-  }
-
   function refresh() {
     const checked = document.getElementById('confirmCheck').checked;
     // 「本人」已从协助查询中移除（本人走独立入口），这里不存在本人代查的情况
@@ -253,7 +229,6 @@
       ? '下一步只需要用一句话描述老人最近的生活变化。'
       : '请先选择操作者与帮助对象。';
 
-    updateSteps(confirmed);
     store.write({ operator, beneficiary, confirmed });
     // 关系条依赖 operator/beneficiary：选择变化后必须重挂，否则仍显示旧值
     mountRelationStrip();

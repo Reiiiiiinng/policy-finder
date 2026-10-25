@@ -12,7 +12,14 @@
 <div class="app">
   <div class="topbar"></div>
   <div id="content">
-    <div class="loading">正在加载政策依据…</div>
+    <!-- 加载骨架：与 .skeleton 共用 shimmer（prefers-reduced-motion 下自动关停），
+         替换原先只有一行小字的空档，滚动位置跳变更小。 -->
+    <div class="loading" role="status" aria-live="polite">
+      正在加载政策依据……
+      <span class="sk-line skeleton" style="width:64%"></span>
+      <span class="sk-line skeleton b" style="width:52%"></span>
+      <span class="sk-line skeleton c" style="width:40%"></span>
+    </div>
   </div>
   <div class="footnote">
     政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。
@@ -370,7 +377,7 @@
         </div>
       </div>
       ${tripList}
-      <p class="q-lead" style="margin:12px 0 0;font-size:13px;color:var(--muted)">
+      <p class="q-lead" style="margin:12px 0 0;font-size:var(--fs-sub);color:var(--muted)">
         属地街道、镇与社区的服务覆盖范围和申请入口会有差异，最终以受理单位现场或线上告知为准。
       </p>`;
 
@@ -391,7 +398,7 @@
       ${steps.length
         ? `<ol>${processHtml}</ol>`
         : '<p style="color:var(--muted)">本页未收录办理流程，请以受理单位现场或线上指引为准。</p>'}
-      <p style="margin-top:8px;color:var(--muted);font-size:12.5px">
+      <p style="margin-top:8px;color:var(--muted);font-size:var(--fs-caption)">
         所需材料以受理单位现场或线上告知为准，本页不代为列明，避免给您错误信息。
       </p>`;
 
@@ -416,9 +423,22 @@
 
     const url = clean(src.official_url);
     const linkHtml = url
-      ? `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
-           <span>🔗</span><span>${escapeHtml(url)}</span></a>`
-      : `<div class="tc-none"><span>⚠</span>
+      ? (() => {
+          // 展示域名 + 截断路径，完整地址在 href（浏览器状态栏 / 长按可复制）。
+          // 此前整串 URL 裸排，从单词中间断行，既难读也不像链接。
+          let host = url;
+          let path = '';
+          try {
+            const u = new URL(url);
+            host = u.host;
+            path = u.pathname + u.search;
+          } catch (e) { /* 非 URL 原样兜底展示 */ }
+          const shortPath = path.length > 24 ? path.slice(0, 24) + '…' : path;
+          return `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+             <span>查看官方原文<span class="tc-link-url">${escapeHtml(host + shortPath)}</span></span>
+             <span class="tc-ext-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5"/><path d="M19 5l-8.5 8.5"/><path d="M18 13.4V18a1.6 1.6 0 0 1-1.6 1.6H6A1.6 1.6 0 0 1 4.4 18V7.6A1.6 1.6 0 0 1 6 6h4.6"/></svg></span></a>`;
+        })()
+      : `<div class="tc-none"><span class="tc-none-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.2 21 19.4H3Z"/><path d="M12 10v4.2"/><path d="M12 17.2h.01"/></svg></span>
            <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
 
     // 来源维度单独呈现：带维度名、无药丸底，与顶部的匹配维度明显不同形
@@ -438,7 +458,7 @@
 
     const sourceCard = `
       <div class="trust-card" id="dblock-source">
-        <h3><span class="q-num">6</span><span class="q-title">政策来源</span></h3>
+        <h3><span class="q-num">2</span><span class="q-title">政策来源</span></h3>
         ${tcStatus}
         <div class="tc-rows">${rowsHtml}</div>
         ${linkHtml}
@@ -464,9 +484,12 @@
     // 右侧：匹配给谁 + 符合度的小卡。
     // 有效期只展示库里真实有的数据：没有起始/结束日期时写「库内未记录」，不推算。
     const val = (matchRow && matchRow.validity) || {};
-    const validRange = (val.effective_from || val.expires_at)
-      ? `${clean(val.effective_from) || '未记录'} 至 ${clean(val.expires_at) || '未记录'}`
-      : '库内未记录起止日期';
+    // P2-1：库里没有起止日期时直接隐藏「有效期」行——
+    // 「库内未记录」写在日期栏里会被误读成已核实的口径。
+    const hasValidity = !!(val.effective_from || val.expires_at);
+    const validRange = hasValidity
+      ? `${clean(val.effective_from) || '待补充'} 至 ${clean(val.expires_at) || '待补充'}`
+      : '';
     const scorePct = matchRow
       ? Math.max(0, Math.min(100, Math.round(Number(matchRow.score) || 0)))
       : null;
@@ -495,8 +518,8 @@
             </div>
             <p class="dhead-meta">
               <span class="dk">政策依据</span>${escapeHtml(clean((p.source || {}).document_no) || '库内未记录文号')}<br>
-              <span class="dk">发布机构</span>${escapeHtml(clean(srcDept) || '库内未记录')}<br>
-              <span class="dk">有 效 期</span>${escapeHtml(validRange)}
+              <span class="dk">发布机构</span>${escapeHtml(clean(srcDept) || '库内未记录')}${hasValidity ? `<br>
+              <span class="dk">有 效 期</span>${escapeHtml(validRange)}` : ''}
             </p>
           </div>
           <div class="dhead-side">
@@ -505,7 +528,8 @@
               <span class="ds-v">${escapeHtml(whoTop)}</span>
             </div>
             ${scorePct === null ? '' : `
-            <div class="ds-fit"><span>符合度</span> <b>${scorePct}%</b></div>`}
+            <div class="ds-fit"><span>符合度</span> <b>${scorePct}%</b>
+              <small class="ds-fit-note">同批结果内的相对参考分，不是资格概率</small></div>`}
           </div>
         </div>
       </div>`;
@@ -551,13 +575,13 @@
       </div>
 
       <div class="section dpane" id="dpane-cond" role="tabpanel" data-dpane="cond" hidden>
-        ${qBlock(2, '为什么推荐给您？', why)}
-        ${qBlock(3, '还需要确认什么？', needConfirm, 'is-warm')}
+        ${qBlock(1, '为什么推荐给您？', why)}
+        ${qBlock(2, '还需要确认什么？', needConfirm, 'is-warm')}
       </div>
 
       <div class="section dpane" id="dpane-proc" role="tabpanel" data-dpane="proc" hidden>
-        ${qBlock(4, '去哪里核实？', verifyWhere)}
-        ${qBlock(5, '怎么办理？', needProcess)}
+        ${qBlock(1, '去哪里核实？', verifyWhere)}
+        ${qBlock(2, '怎么办理？', needProcess)}
       </div>
 
       <div class="section dpane" id="dpane-faq" role="tabpanel" data-dpane="faq" hidden>
