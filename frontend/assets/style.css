@@ -1633,6 +1633,9 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  /* 单行时盒子只有 36.5px 高，低于项目 44px 的触控要求（窄屏折行后本来够高）。
+   * 补最小高度，文字在框内垂直居中，虚线分隔线与字号不变。 */
+  min-height: 44px;
   /* P1-2：每张卡唯一的主操作是「查看详情」，在卡尾用品牌色强调；
      展开依据 / 还需确认折叠等其余动作保持次级文本形态 */
   color: var(--brand-dark);
@@ -2157,6 +2160,11 @@ input:focus {
   font-size: var(--fs-sub);
   color: var(--ink-2);
   line-height: 1.7;
+  /* 单行时整行只有 24px 高（窄屏折行后有 47px），这是勾选前必须点的确认行，
+   * 所以在不折行的宽度下也补到 44px：上下各留 10px 空白，文字与复选框位置不变。 */
+  padding-top: 10px;
+  padding-bottom: 10px;
+  min-height: 44px;
 }
 
 .confirm-line input[type="checkbox"] {
@@ -4192,7 +4200,11 @@ input:focus {
 .fs-clear {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 48px;
+  /* 「清除」只有两个字，盒子按文字宽度算出来是 36px，低于项目 44px 的触控要求。
+   * 补一个最小宽度，视觉上只是左右各多留一点白，字号与位置不变。 */
+  min-width: 44px;
   border: none;
   background: none;
   color: var(--muted);

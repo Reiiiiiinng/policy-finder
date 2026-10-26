@@ -215,11 +215,33 @@
   "document": "佛山市医疗救助实施办法",
   "document_no": "佛医保〔2025〕13号",
   "publish_date": "2025-02-28",
+  "document_date": "2025-02-20",
   "official_url": "https://www.foshan.gov.cn/gfxwj/sbmgfxwj/fssylbzj/content/post_6274174.html"
 }
 ```
 
 `document` 为 `to_verify` 时，`document_no` / `official_url` 一律留空，页面显示「来源待核验」。
+
+#### 4.3.1 日期字段：`publish_date` 与 `document_date`
+
+一份政府文件上通常有两个不同的日期，**不可互相替代**：
+
+| 字段 | 含义 | 来源要求 |
+| --- | --- | --- |
+| `publish_date` | 政府官方页面明确标注的**发布日期 / 发布时间** | 必填（待核验记录可为空，见下）；取自官网该篇目的发布信息，不是网页抓取时间，也不是文件落款 |
+| `document_date` | 原文明确标注的**成文日期 / 印发日期 / 签署日期** | 可选；仅当原文或元数据栏确实写出时才填 |
+
+硬性约定：
+
+1. **不得把文件落款日期当作网页发布日期**，也不得反过来用发布日期冒充成文日期。官网元数据栏写「成文日期：2024-03-14、发布日期 2024-03-22」时必须分别落库；正文只有落款「2026年8月31日」而页头写「2026-09-01」时，`document_date=2026-08-31`、`publish_date=2026-09-01`。
+2. 精确到日的记录，`document_date` 不得晚于 `publish_date`（先成文、后发布）。
+3. `publish_date` 允许三种精度：`YYYY-MM-DD`、`YYYY-MM`、`YYYY`。**只有官方来源确实只提供该精度时**才保留粗精度，不得自行补造具体日期。
+4. 精度与核验状态绑定（这条是收紧，不是放宽）：
+   - `verification.status = verified` ⇒ `publish_date` **必须精确到日**。只到年月或年份的记录不能标为已核验。
+   - `verification.status = to_verify` ⇒ 允许 `YYYY-MM` / `YYYY` / 空值，但 `verification.note` 必须写明原因（官方只给到该精度、尚未取得日级出处等），否则视为不符合规范。
+5. 官方页面正文里必须能找到 `document_no`、`publish_date`（以及填了的 `document_date`）。比对时同时接受 `YYYY-MM-DD`、`YYYY年M月D日`、`YYYY/M/D` 三种写法。
+
+校验实现：`.tools/datacheck.py`（规则函数 `publish_date_rule` / `document_date_rule`，联网时额外校验正文），规则本身的边界由 `.tools/datespec-test.py` 用构造用例覆盖。
 
 ### 4.4 画像侧新增字段
 

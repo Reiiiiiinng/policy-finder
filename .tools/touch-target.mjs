@@ -308,6 +308,215 @@ await goto(`${BASE}/family.html`);
     `outline=${tabInfo.outlineStyle} ${tabInfo.outlineWidth}`);
 }
 
+console.log('\n== 6. 全页面 × 多视口的真实可点击区域审计 ==');
+// 目标尺寸口径（两套阈值，不是同一件事）：
+//   移动端（<768）：项目要求主要操作 ≥ 44×44 CSS px。
+//   桌面端（≥768）：WCAG 2.2 AA 2.5.8 要求 ≥ 24×24；但项目对关键操作仍按 44 卡。
+// 例外（WCAG 2.2 明列的「inline」例外）：正文段落里的行内链接，display 是 inline、
+// 其尺寸由文字流决定，不按 44/24 要求；这里单独统计，不算通过也不算违规。
+const DESKTOP_MIN = 24;
+const KEY_SELECTORS = '.back-link, .btn, .choice, .tb-item, #nextBtn, #discoverBtn, #demoEntry, #esStart, .tc-link, .dock-btn, .seg';
+const PAGES = [
+  'index.html', 'family.html', 'self.html', 'discover.html',
+  'mine.html', 'consult.html', 'policy.html',
+];
+const AUDIT_VIEWPORTS = [
+  [390, 844, true, '390 移动'],
+  [768, 1024, true, '768 平板'],
+  [1024, 800, false, '1024 桌面'],
+  [1280, 800, false, '1280 桌面'],
+  [1440, 900, false, '1440 桌面'],
+  [1920, 1080, false, '1920 桌面'],
+];
+
+// policy.html 需要有会话才能渲染详情（否则停在加载态），所以这条页面单独走会话流程
+async function ensureDetailSession() {
+  await goto(`${BASE}/family.html`);
+  const okSession = await evalJs(`(() => {
+    const pick = (grid, label) => {
+      const el = [...document.querySelectorAll(grid + ' button.choice')]
+        .find((b) => b.textContent.trim().startsWith(label));
+      if (el) el.click();
+      return !!el;
+    };
+    const a = pick('#operatorGrid', '女儿');
+    const b = pick('#beneficiaryGrid', '父亲');
+    const chk = document.getElementById('confirmCheck');
+    if (chk && !chk.checked) chk.click();
+    return a && b && !!chk;
+  })()`);
+  await sleep(300);
+  await evalJs("document.getElementById('nextBtn').click()");
+  await sleep(1200);
+  await evalJs("document.getElementById('esStart') && document.getElementById('esStart').click()");
+  await sleep(400);
+  await evalJs(`(() => {
+    const t = document.getElementById('situation');
+    if (t) { t.value = '父亲 72 岁，独居，最近行动不便，吃饭也困难'; t.dispatchEvent(new Event('input', { bubbles: true })); }
+    const b = document.getElementById('discoverBtn');
+    if (b) b.click();
+  })()`);
+  await sleep(2500);
+  return okSession;
+}
+
+const auditJs = (threshold, isMobile) => `(() => {
+  const TH = ${threshold};
+  const KEY = ${JSON.stringify(KEY_SELECTORS)};
+  const sel = 'a[href], button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])';
+  // 只认同一个元素或它的后代：祖先容器包含该元素，点祖先并不等于点中它，
+  // 把祖先算进来会把所有小控件的命中区虚增成父容器的尺寸。
+  const contains = (owner, hit) => !!(hit && (hit === owner || owner.contains(hit)));
+  // 有些控件的视觉盒子小于命中区（例如 .ph-back 用 ::after{inset:-4px} 把命中区补到
+  // 48px）。只量 getBoundingClientRect 会误判成「不达标」，所以盒子不足门槛时
+  // 用 elementFromPoint 向外探，量出**真实**命中范围再判定。
+  function probe(owner, r) {
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const step = (dx, dy) => {
+      let k = 0;
+      for (let d = 1; d <= 12; d++) {
+        const h = document.elementFromPoint(cx + dx * (r.width / 2 + d), cy + dy * (r.height / 2 + d));
+        if (!contains(owner, h)) break;
+        k = d;
+      }
+      return k;
+    };
+    const l = step(-1, 0), rr = step(1, 0), t = step(0, -1), b = step(0, 1);
+    return { w: r.width + l + rr, h: r.height + t + b, pad: [l, rr, t, b] };
+  }
+  const out = { total: 0, violations: [], inlineExempt: 0, smallest: null, keyViolations: [], probed: [] };
+  for (const el of document.querySelectorAll(sel)) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
+    if (el.disabled) continue;
+    let r = el.getBoundingClientRect();
+    if (r.width < 0.5 || r.height < 0.5) continue;
+    // 「真实可点击区域」：input 被 label 包着时整行都是热区，取 label 的盒子
+    let owner = el;
+    if (el.tagName === 'INPUT') {
+      const lab = el.closest('label') || (el.id && document.querySelector('label[for="' + el.id + '"]'));
+      if (lab) { owner = lab; r = lab.getBoundingClientRect(); }
+    }
+    // WCAG 2.2 的 inline 例外：正文里的行内链接不按目标尺寸卡
+    const inlineInText = cs.display === 'inline' && el.tagName === 'A'
+      && el.parentElement && /^(P|LI|SPAN|DIV|TD|DD)$/.test(el.parentElement.tagName)
+      && (el.parentElement.textContent || '').trim().length > (el.textContent || '').trim().length;
+    if (inlineInText) { out.inlineExempt++; continue; }
+    out.total++;
+    const label = (el.tagName + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '')).slice(0, 48);
+    let ew = r.width, eh = r.height;
+    if (ew < TH - 0.5 || eh < TH - 0.5) {
+      owner.scrollIntoView({ block: 'center' });
+      r = owner.getBoundingClientRect();
+      const p = probe(owner, r);
+      if (p.w > ew || p.h > eh) out.probed.push({ label, box: [+ew.toFixed(1), +eh.toFixed(1)], hit: [+p.w.toFixed(1), +p.h.toFixed(1)], pad: p.pad });
+      ew = Math.max(ew, p.w);
+      eh = Math.max(eh, p.h);
+    }
+    const ok = ew >= TH - 0.5 && eh >= TH - 0.5;
+    if (!out.smallest || r.width * r.height < out.smallest.area) {
+      out.smallest = { label, w: +r.width.toFixed(1), h: +r.height.toFixed(1), area: r.width * r.height };
+    }
+    if (!ok) {
+      const isKey = el.matches(KEY) || (owner !== el && owner.matches(KEY));
+      const rec = { label, w: +ew.toFixed(1), h: +eh.toFixed(1) };
+      out.violations.push(rec);
+      if (isKey) out.keyViolations.push(rec);
+    }
+  }
+  // 关键操作单独卡 44：即便桌面阈值是 24，主要按钮也不许缩水
+  out.keySmall = [];
+  for (const el of document.querySelectorAll(KEY)) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 0.5) continue;
+    if (r.width < 43.5 || r.height < 43.5) {
+      el.scrollIntoView({ block: 'center' });
+      const p = probe(el, el.getBoundingClientRect());
+      if (Math.max(p.w, r.width) < 43.5 || Math.max(p.h, r.height) < 43.5) {
+        out.keySmall.push({ label: (el.tagName + '.' + String(el.className).split(' ')[0]).slice(0, 40), w: +Math.max(p.w, r.width).toFixed(1), h: +Math.max(p.h, r.height).toFixed(1) });
+      }
+    }
+  }
+  return out;
+})()`;
+
+for (const [w, h, mobile, label] of AUDIT_VIEWPORTS) {
+  // 触控设备（模拟 mobile）一律按项目的 44px 卡，包括 768 平板；只有桌面视口
+  // 退到 WCAG 2.2 AA 的 24px。比「到 768 就放宽」更严，避免平板被当成桌面。
+  const threshold = mobile ? MIN : DESKTOP_MIN;
+  console.log(`\n  视口 ${label}（门槛 ${threshold}px${threshold === MIN ? '，项目要求 44' : '，WCAG 2.2 AA 2.5.8 为 24'}）`);
+  await setViewport(w, h, mobile);
+  for (const page of PAGES) {
+    if (page === 'policy.html') {
+      await ensureDetailSession();
+      await goto(`${BASE}/policy.html?id=gz_elderly_009`);
+      await sleep(800);
+    } else {
+      await goto(`${BASE}/${page}`);
+    }
+    const r = await evalJs(auditJs(threshold, mobile));
+    const detail = r.violations.slice(0, 3).map((v) => `${v.label} ${v.w}×${v.h}`).join('；');
+    check(`${label} ${page} 可点击目标全部 ≥ ${threshold}px（测 ${r.total} 个，行内链接豁免 ${r.inlineExempt} 个）`,
+      r.violations.length === 0, r.violations.length ? `不足：${detail}` : '');
+    check(`${label} ${page} 关键操作 ≥ 44px`, r.keySmall.length === 0,
+      r.keySmall.slice(0, 3).map((v) => `${v.label} ${v.w}×${v.h}`).join('；'));
+    if (r.probed.length) {
+      for (const p of r.probed.slice(0, 3)) {
+        console.log(`      盒子 ${p.box[0]}×${p.box[1]} → 实际命中 ${p.hit[0]}×${p.hit[1]}（${p.label}，向外补 ${p.pad.join('/')}px）`);
+      }
+    }
+    if (r.smallest) {
+      console.log(`      最小目标 ${r.smallest.label} ${r.smallest.w}×${r.smallest.h}`);
+    }
+  }
+}
+
+console.log('\n== 7. 最小目标的真实点击命中测试（不看 CSS，看 elementFromPoint 与点击结果）==');
+// 只挑「最可能出错」的两类：顶栏返回键、确认复选框所在整行。
+{
+  await setViewport(390, 844, true);
+  await goto(`${BASE}/family.html`);
+  const probe = await evalJs(`(() => {
+    const back = document.querySelector('.back-link');
+    const chk = document.getElementById('confirmCheck');
+    const lab = chk && chk.closest('label');
+    const pick = (el) => {
+      if (!el) return null;
+      el.scrollIntoView({ block: 'center' });
+      const r = el.getBoundingClientRect();
+      // 命中点取盒子中「离中心最远的可用点」——边缘最能暴露 padding 假热区
+      const pts = { center: [r.left + r.width / 2, r.top + r.height / 2],
+                    topEdge: [r.left + r.width / 2, r.top + 1.5],
+                    bottomEdge: [r.left + r.width / 2, r.top + r.height - 1.5] };
+      const hits = {};
+      for (const [k, [x, y]] of Object.entries(pts)) {
+        const hit = document.elementFromPoint(x, y);
+        hits[k] = hit ? (hit.tagName + (hit.className && typeof hit.className === 'string' ? '.' + hit.className.split(' ')[0] : '')) : null;
+      }
+      return { box: [r.width.toFixed(1), r.height.toFixed(1)], hits };
+    };
+    return { back: pick(back), label: pick(lab) };
+  })()`);
+  if (probe.back) {
+    console.log(`  返回键 ${probe.back.box[0]}×${probe.back.box[1]}，命中：${JSON.stringify(probe.back.hits)}`);
+    check('返回键上下边缘都命中的是按钮本身（热区真实覆盖 44px，不是 padding 假象）',
+      Object.values(probe.back.hits).every((v) => v === 'A.back-link'));
+  } else { FAIL++; console.log('  FAIL 没找到 .back-link'); }
+  if (probe.label) {
+    console.log(`  确认行 ${probe.label.box[0]}×${probe.label.box[1]}，命中：${JSON.stringify(probe.label.hits)}`);
+    // 命中 label 自身或它内部的 span 都算命中整行（span 是 label 的子元素，
+    // 点它一样触发 label 的勾选行为）。断言「不是裸的 18px 方块」即可。
+    check('确认行上下边缘都落在 label 内（整行可点，不只是 18px 小方块）',
+      Object.values(probe.label.hits).every((v) => v && (v === 'LABEL.confirm-line' || v === 'SPAN' || v === 'INPUT')));
+  } else { FAIL++; console.log('  FAIL 没找到 #confirmCheck 外层 label'); }
+}
+
+console.log('\n注意：以上视口由 CDP Emulation.setDeviceMetricsOverride 模拟，');
+console.log('不等同于真实 iOS Safari / Android / 微信内置浏览器的实测结论。');
+
 ws.close();
 child.kill();
 try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* 忽略占用 */ }

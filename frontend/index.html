@@ -296,7 +296,9 @@
   <!-- 口径说明（每一格都要能被读出来的数字本身解释清楚，不使用变量名当标签）：
        ① 收录政策：库里可匹配的政策条目总数
        ② 已核一手来源：verification.status === 'verified' 的条目数，其余标「来源待核验」
-       ③ 官方原文链接：source.official_url 非空、可直接点开的官方页面数 -->
+       ③ 不同官方原文页：source.official_url 去重后、可直接点开的政府页面数。
+          这是「页」不是「条」——《广州市基本养老服务清单（2024年版）》被
+          001/002/004/005 四条政策共用，所以条目数 10 > 页数 7。 -->
   <div class="trust-strip animate-in d2" id="trustStrip" hidden>
     <div class="trust-item">
       <span class="trust-num" id="statTotal">—</span>
@@ -308,7 +310,7 @@
     </div>
     <div class="trust-item">
       <span class="trust-num" id="statSources">—</span>
-      <span class="trust-label">官方原文链接</span>
+      <span class="trust-label">不同官方原文页</span>
     </div>
   </div>
 
@@ -554,7 +556,10 @@
   // 口径（每个数字都能在页面上自解释）：
   //   收录政策      —— /api/policies 返回的条目数
   //   已核一手来源  —— verification.status === 'verified' 的条目数
-  //   官方原文链接  —— 库里有 official_url 的条目数（点进去就是发文机关页面）
+  //   不同官方原文页 —— 各条 official_url 去重后的页面数。**不是条目数**：
+  //                    《广州市基本养老服务清单（2024年版）》被 4 条政策共用，
+  //                    条目数 10、去重页数 7。标签用「页」而不是「链接」，
+  //                    避免读者把 10 当成「有 10 个不同的官方页面」。
   //
   // 这里刻意**不再展示「生活场景数」**：`life_scenes` 是政策侧描述字段，
   // 同一条政策会挂多个标签，各条之间命名也不统一，把它加起来当「覆盖广度」
@@ -570,16 +575,21 @@
       const total = d.total || list.length;
       if (!total) return;
 
-      // 可信度条只用到 brief；原文链接数需要详情，逐条补齐（本地引擎，无网络开销）
+      // 可信度条只用到 brief；原文页数需要详情，逐条补齐（本地引擎，无网络开销）
       const details = await Promise.all(list.map((p) => API.policy(p.policy_id).catch(() => null)));
-      const withUrl = details.filter((pd) => pd && String(((pd.source || {}).official_url) || '').trim()).length;
+      const urlSet = new Set(
+        details
+          .map((pd) => (pd && String(((pd.source || {}).official_url) || '').trim()) || '')
+          .filter(Boolean),
+      );
+      const distinctPages = urlSet.size;
 
       const verified = list.filter((p) => p.verification_status === 'verified').length;
       const pending = total - verified;
 
       document.getElementById('statTotal').textContent = total;
       document.getElementById('statVerified').textContent = verified;
-      document.getElementById('statSources').textContent = withUrl;
+      document.getElementById('statSources').textContent = distinctPages;
 
       // ---- 来源核验分布条（两段，宽度按真实条数比例） ----
       const bar = document.getElementById('spVerifyBar');

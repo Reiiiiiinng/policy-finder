@@ -463,7 +463,18 @@
     // 这里把依据文件单独列一行，带自己的官方链接；没有 basis 时整行不渲染。
     // 注意：这里不能引用下面第 520 行的 val（那是 const，存在 TDZ），
     // 直接读 matchRow.validity，避免 "Cannot access 'val' before initialization"。
-    const basis = (matchRow && matchRow.validity && matchRow.validity.basis) || null;
+    //
+    // 两级来源，优先级固定：
+    //   ① matchRow.validity.basis —— 从匹配结果进来的这次访问（本次匹配的判断依据）
+    //   ② p.validity.basis        —— 本条政策自身的静态记录
+    // 为什么要 ②：matchRow 来自上面重跑匹配，依赖 session 里的画像；无会话直开
+    // policy.html?id=… 时 matchRow 必为 null，此前整块「有效期依据」就消失了——
+    // 但依据文件本身是政策数据的一部分，与「有没有匹配上」无关。回退到 ② 只让
+    // 用户看到这条政策自己声明的延期/修改依据，不改变匹配状态（tier/status 仍只
+    // 看 matchRow），也就不会伪造「已匹配」。两者都没有时整块不渲染，不留空壳。
+    const basisFromMatch = (matchRow && matchRow.validity && matchRow.validity.basis) || null;
+    const basisFromDetail = (p && p.validity && p.validity.basis) || null;
+    const basis = basisFromMatch || basisFromDetail || null;
     const basisName = clean(basis && basis.document);
     const basisDocNo = clean(basis && basis.document_no);
     const basisDate = clean(basis && basis.published_date);
