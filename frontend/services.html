@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="集中查看您挑选的待核实政策、核实进度与核实记录；记录只保存在本设备。">
+  <title>我的服务 · 政策找人</title>
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <section class="section">
+    <div class="card">
+      <div class="ov-title" style="font-size:14px;font-weight:600;margin-bottom:8px;">核实进度概览</div>
+      <p class="vf-ov-line" id="vfOvLine"></p>
+      <p class="vf-ov-line" id="vfOvEmpty" style="color:var(--muted);" hidden>还没有加入待核实的政策。挑选政策后会集中显示在这里。</p>
+      <div class="vf-bar" id="vfOvBarWrap" hidden><i id="vfOvBar" style="width:0%"></i></div>
+      <p class="vf-bar-cap" id="vfOvCap" hidden></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">接下来做什么</h2>
+    <div class="vf-entries">
+      <button type="button" class="vf-entry" id="entList">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5v1"/><path d="M9 10h6M9 14h6M9 18h3.5"/></svg></span>
+        <span class="e-t">待核实清单</span>
+        <span class="e-d" id="entListD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entPlan">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 5h11.5l-2.4 3.5 2.4 3.5H6"/></svg></span>
+        <span class="e-t">少跑腿计划</span>
+        <span class="e-d" id="entPlanD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entRecords">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+        <span class="e-t">核实记录</span>
+        <span class="e-d" id="entRecD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entFamily">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.7-3 2.9-4.8 5.5-4.8s4.8 1.8 5.5 4.8"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M16.5 14.6c2.2.2 3.7 1.8 4.2 4.2"/></svg></span>
+        <span class="e-t">家庭画像</span>
+        <span class="e-d">查看或重新评估家庭情况</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">本次查询会话</h2>
+    <div class="card">
+      <div class="vf-ov-line" id="sessLine">—</div>
+      <p class="vf-bar-cap" id="sessExtra"></p>
+      <div class="vf-actions">
+        <button type="button" class="vf-btn" id="sessFamily">重新评估家庭情况</button>
+        <button type="button" class="vf-btn" id="sessSelf">为自己查找</button>
+      </div>
+      <div class="vf-actions" style="margin-top:8px;">
+        <button type="button" class="vf-btn is-danger-text" id="sessReset" style="min-height:40px;">重置本次查询</button>
+      </div>
+      <p class="vf-bar-cap" id="sessResetNote" style="margin-top:6px;" hidden>重置将清空本次会话数据：家庭画像、情况描述与最近一次匹配记录；核实记录会保留在本设备上，不影响政策数据。</p>
+    </div>
+  </section>
+
+  <div class="footnote">
+    <span>加入待核实清单不代表符合政策申请条件；资格认定以主管部门审核为准。</span><br>
+    <span>本页与核实相关记录只保存在本设备浏览器中，不会提交给任何部门。</span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=20261030b"></script>
+<script>
+  renderTopbar('我的服务', 'index.html', '我的');
+  mountBottomNav('mine');
+
+  function renderServices() {
+    const items = vListRecords();
+    const total = items.length;
+    const verified = items.filter((it) => VERIFIED_SET[it.status]).length;
+    const pending = total - verified;
+
+    if (total > 0) {
+      document.getElementById('vfOvLine').hidden = false;
+      document.getElementById('vfOvLine').innerHTML =
+        '共 <b>' + total + '</b> 项 · 待处理 <b>' + pending + '</b> 项 · 已核实 <b>' + verified + '</b> 项';
+      document.getElementById('vfOvEmpty').hidden = true;
+      document.getElementById('vfOvBarWrap').hidden = false;
+      document.getElementById('vfOvCap').hidden = false;
+      const pct = Math.round(verified / total * 100);
+      document.getElementById('vfOvBar').style.width = pct + '%';
+      document.getElementById('vfOvCap').textContent = '整体核实进度 ' + pct + '%';
+    } else {
+      document.getElementById('vfOvLine').hidden = true;
+      document.getElementById('vfOvEmpty').hidden = false;
+      document.getElementById('vfOvBarWrap').hidden = true;
+      document.getElementById('vfOvCap').hidden = true;
+    }
+    document.getElementById('entListD').textContent = pending > 0 ? (pending + ' 项待处理') : '暂无待处理';
+    document.getElementById('entPlanD').textContent = total > 0
+      ? (vHasPlanProgress() ? '继续查看核实安排' : '制定少跑腿计划')
+      : '挑选政策后可安排';
+    const recCount = vLoadRecords().filter((r) => r.benKey === vBenKey()).length;
+    document.getElementById('entRecD').textContent = recCount > 0 ? (recCount + ' 条记录') : '暂无记录';
+  }
+
+  function renderSession() {
+    const d = mineSessionLines();
+    document.getElementById('sessLine').innerHTML =
+      '<b>' + escapeHtml(d.mode) + '</b> · ' + escapeHtml(d.relation) + (d.extra ? ' · ' + escapeHtml(d.extra) : '');
+    document.getElementById('sessExtra').textContent = '';
+  }
+
+  document.getElementById('entList').addEventListener('click', () => { location.href = 'verify-list.html'; });
+  document.getElementById('entPlan').addEventListener('click', () => { location.href = 'plan.html'; });
+  document.getElementById('entRecords').addEventListener('click', () => { location.href = 'records.html'; });
+  document.getElementById('entFamily').addEventListener('click', () => { location.href = 'family.html'; });
+  document.getElementById('sessFamily').addEventListener('click', () => {
+    const prev = store.read().target;
+    store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
+    location.href = 'family.html';
+  });
+  document.getElementById('sessSelf').addEventListener('click', () => {
+    store.write({ target: 'self', demo: false, demoBanner: false });
+    location.href = 'self.html';
+  });
+  const resetBtn = document.getElementById('sessReset');
+  resetBtn.addEventListener('click', () => {
+    if (resetBtn.dataset.armed !== '1') {
+      resetBtn.dataset.armed = '1';
+      resetBtn.textContent = '确认重置？再次点击执行';
+      resetBtn.classList.add('is-armed');
+      document.getElementById('sessResetNote').hidden = false;
+      return;
+    }
+    store.clear();
+    location.href = 'index.html';
+  });
+
+  renderSession();
+  renderServices();
+</script>
+</body>
+</html>

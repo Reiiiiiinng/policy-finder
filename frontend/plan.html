@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="先线上问清楚，再决定是否出门；多项事务在信息充分时提示合并咨询。本页不代办、不代填。">
+  <title>少跑腿计划 · 政策找人</title>
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <section class="section">
+    <p class="vf-ov-line" id="plSum" style="margin:0 0 10px;"></p>
+
+    <div class="card vf-empty" id="plEmpty" hidden>
+      <div class="t">还没有选择政策</div>
+      <div class="d">少跑腿计划会根据您选中的政策整理核实问题与出发前准备。<br>请先选择至少一项想进一步了解的政策。</div>
+      <div class="vf-empty-actions">
+        <button type="button" class="vf-btn is-primary" data-act="goList">去待核实清单</button>
+        <button type="button" class="vf-btn" data-act="discover">去发现政策</button>
+      </div>
+    </div>
+
+    <div id="plContent" hidden>
+      <h2 class="section-title">本次已选政策<span class="vf-opt-tag" id="plCnt" style="font-weight:400;margin-left:6px;"></span></h2>
+      <div id="plList" aria-live="polite"></div>
+
+      <div class="card">
+        <div class="vf-ov-line" style="font-weight:600;font-size:14px;margin-bottom:6px;">整体思路</div>
+        <p class="vf-plain" id="plWhole" style="margin:0;">—</p>
+      </div>
+
+      <h2 class="section-title">需要向官方核实的问题</h2>
+      <div id="plOnline" aria-live="polite"></div>
+
+      <h2 class="section-title">出门之前</h2>
+      <div class="vf-prep-card">
+        <button type="button" class="vf-prep-head" id="plPrepHead" aria-expanded="false" aria-controls="plPrepBody">
+          <span class="t">出发前准备</span>
+          <span class="n" id="plPrepCount">0/4</span>
+          <span class="arrow" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+        </button>
+        <div class="vf-prep-body" id="plPrepBody" hidden>
+          <label class="vf-check"><input type="checkbox" data-key="p1"><span class="box" aria-hidden="true"></span><span class="txt">已确认政策条件。</span></label>
+          <label class="vf-check"><input type="checkbox" data-key="p2"><span class="box" aria-hidden="true"></span><span class="txt">已问清材料。</span></label>
+          <label class="vf-check"><input type="checkbox" data-key="p3"><span class="box" aria-hidden="true"></span><span class="txt">已确认线上咨询或办理渠道。</span></label>
+          <label class="vf-check"><input type="checkbox" data-key="p4"><span class="box" aria-hidden="true"></span><span class="txt">已确认地点、时间和预约要求。</span></label>
+          <p class="vf-prep-tip">勾选只作提醒之用，不代表核验完成；全部勾选后，也建议出发前再和官方确认一次。</p>
+        </div>
+      </div>
+
+      <!-- 合并建议：仅在多项待处理政策存在可对照的共同来源信息时显示。 -->
+      <div class="vf-merge-card" id="plMergeCard" hidden>
+        <div class="vf-mc-head">
+          <span class="vf-mc-ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.3"/><circle cx="18" cy="5.5" r="2.3"/><circle cx="12" cy="18.5" r="2.3"/><path d="M6 8v2.5c0 1.5 1 2.5 2.5 2.5h7c1.5 0 2.5-1 2.5-2.5V8"/><path d="M12 13v3.2"/></svg></span>
+          <span style="flex:1;min-width:0;">
+            <span class="vf-mc-title">可尝试一并咨询</span>
+            <span class="vf-mc-sub">先确认受理范围，再决定是否集中安排</span>
+          </span>
+        </div>
+        <div class="vf-mc-line"></div>
+        <div id="plMergeBody"></div>
+      </div>
+      <div class="card" id="plMergePlain" hidden>
+        <div class="vf-ov-line" style="font-weight:600;font-size:14px;">暂不提供合并建议</div>
+        <p class="vf-plain" id="plMergePlainBody" style="margin:6px 0 0;">—</p>
+      </div>
+
+      <div class="notice warn" style="margin-top:14px;">
+        本页只整理您已选的政策与公开信息，不代办、不代填；本页不预置电话、地址或承诺「一次办完」，办理条件与渠道以官方答复为准。
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    <span>数据范围：正式政策库；来源链接仅供查看政策原文，不代表可在线办理。</span><br>
+    <span>出发前准备与核实记录只保存在本设备浏览器中。</span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=20261030b"></script>
+<script>
+  const planFrom = query('from');
+  const planParent = (planFrom === 'verify-list.html' || planFrom === 'index.html')
+    ? planFrom : 'services.html';
+  const planParentLabel = planParent === 'verify-list.html'
+    ? '待核实清单' : (planParent === 'index.html' ? '首页' : '我的服务');
+  renderTopbar('少跑腿计划', planParent, planParentLabel);
+  mountBottomNav('mine');
+  mountVerifySheet();
+
+  let plItems = [];
+
+  function renderSum() {
+    const total = plItems.length;
+    const verified = plItems.filter((it) => VERIFIED_SET[it.status]).length;
+    const pending = total - verified;
+    document.getElementById('plEmpty').hidden = total > 0;
+    document.getElementById('plContent').hidden = total === 0;
+    document.getElementById('plSum').innerHTML = total > 0
+      ? '已选 <b>' + total + '</b> 项政策，其中已核实 <b>' + verified + '</b> 项，还有 <b>' + pending + '</b> 项待处理。'
+      : '目前还没有挑选任何政策。';
+    document.getElementById('plWhole').textContent = total > 0
+      ? '按「先线上、能合并、后出门」的顺序处理：能在线上问清的不出门；多项事务先看能否合并咨询；确需线下办理时，先核对着手准备清单再出发。'
+      : '挑选政策后，这里会帮你安排「先线上、能合并、后出门」的处理顺序。';
+    document.getElementById('plCnt').textContent = total > 0 ? ('（' + total + ' 项）') : '';
+  }
+
+  function renderList() {
+    const box = document.getElementById('plList');
+    if (plItems.length === 0) {
+      box.innerHTML = '<div class="card vf-empty">'
+        + '<div class="t">还没有挑选政策</div>'
+        + '<div class="d">先到「待核实清单」或政策详情页挑选政策，<br>这里会根据你的选择整理核实建议。</div>'
+        + '<button type="button" class="vf-btn" data-act="goList">去待核实清单</button>'
+        + '</div>';
+      return;
+    }
+    box.innerHTML = plItems.map((it) => {
+      let ex = '';
+      if (it.note) ex += '<div class="vf-extra"><span class="k">核实备注：</span>' + escapeHtml(it.note) + '</div>';
+      if (it.next) ex += '<div class="vf-extra"><span class="k">接下来：</span>' + escapeHtml(it.next) + '</div>';
+      return '<article class="card" data-pid="' + escapeHtml(it.pid) + '">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+        + '<div style="flex:1;min-width:0;font-weight:600;font-size:15px;line-height:1.5;">' + escapeHtml(it.pname || it.pid) + '</div>'
+        + vStatusPill(it.status)
+        + '</div>'
+        + '<div class="vf-meta">查询对象：' + escapeHtml(vBenLabel())
+        + (it.dept ? ' · ' + escapeHtml(it.dept) : '') + '</div>'
+        + '<div class="vf-hint"><b>下一步：</b>' + escapeHtml(VHINT[it.status] || VHINT.pending) + '</div>'
+        + ex
+        + '<div class="vf-actions">'
+        + '<button type="button" class="vf-btn is-primary" data-act="edit" data-pid="' + escapeHtml(it.pid) + '">更新状态 · 记录结果</button>'
+        + '<button type="button" class="vf-btn" data-act="detail" data-pid="' + escapeHtml(it.pid) + '">查看详情</button>'
+        + '</div>'
+        + '</article>';
+    }).join('');
+  }
+
+  function renderMerge() {
+    const card = document.getElementById('plMergeCard');
+    const plain = document.getElementById('plMergePlain');
+    const total = plItems.length;
+    if (total < 2) { card.hidden = true; plain.hidden = true; return; }
+    const actionable = plItems.filter((it) => it.status !== 'done');
+    if (actionable.length < 2) {
+      card.hidden = true; plain.hidden = false;
+      document.getElementById('plMergePlainBody').textContent =
+        '当前待处理的事项不足两项，暂无需合并安排。其余事项可继续通过官方渠道跟进。';
+      return;
+    }
+    /* 依据 = 正式政策库中的来源部门（dept）相同；
+       部门相同只提示「尝试一并咨询」，不假定可以合并办理 */
+    const PLACEHOLDER = '责任部门未标注';
+    const byDept = {};
+    actionable.forEach((it) => {
+      const d = String(it.dept || '').trim();
+      if (d && d.indexOf(PLACEHOLDER) === -1) {
+        (byDept[d] = byDept[d] || []).push(it);
+      }
+    });
+    const groups = Object.keys(byDept)
+      .map((d) => ({ dept: d, items: byDept[d] }))
+      .filter((g) => g.items.length >= 2);
+    if (groups.length === 0) {
+      card.hidden = true; plain.hidden = false;
+      document.getElementById('plMergePlainBody').textContent =
+        '根据正式政策库中的数据，还没有找到「同一来源部门」等可靠的共同信息。不同政策即使名称相近，也不一定能一次办理，建议先逐项向官方确认主管部门，之后再来看能否合并咨询。';
+      return;
+    }
+    card.hidden = false; plain.hidden = true;
+    let n = 0;
+    groups.forEach((g) => { n += g.items.length; });
+    document.getElementById('plMergeBody').innerHTML = groups.map((g) => {
+      return '<div class="vf-mc-group">'
+        + '<div class="vf-mc-headline">可尝试一并咨询 · <b>' + g.items.length + '</b> 项政策'
+        + '<span class="vf-mc-dept">' + escapeHtml(g.dept) + '</span></div>'
+        + '<ul class="vf-mc-items">'
+        + g.items.map((p) => '<li><span class="dot" aria-hidden="true"></span>' + escapeHtml(p.pname || p.pid) + '</li>').join('')
+        + '</ul>'
+        + '</div>';
+    }).join('')
+      + '<p class="vf-mc-note">仅因正式政策库中这 ' + n + ' 项政策的来源部门相同而提示先向同一部门问清；'
+      + '能否合并咨询或一次办结，以官方答复为准。</p>'
+      + '<button type="button" class="vf-mc-cta" data-act="merge-ask">查看合并咨询建议'
+      + '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>'
+      + '</button>'
+      + '<div class="vf-mc-note" id="plMergeAsk" hidden style="margin-top:10px;">'
+      + '建议一起问：<br>① 这几项政策目前是否仍然有效，是否都适用于我们所在地区？<br>'
+      + '② 能否在同一个窗口或同一次咨询中一并了解？<br>'
+      + '③ 如果都可以申请，是否需要分别提交材料？'
+      + '</div>';
+  }
+
+  function renderOnline() {
+    const box = document.getElementById('plOnline');
+    if (plItems.length === 0) {
+      box.innerHTML = '<div class="card vf-empty" style="padding:22px 16px;">'
+        + '<div class="d">还没有挑选政策。挑选后，这里会逐项整理线上核实建议。</div></div>';
+      return;
+    }
+    box.innerHTML = plItems.map((it) => {
+      const url = it.url ? consultOfficialUrl(it.url) : '';
+      const src = url
+        ? '<div class="vf-meta">来源链接：<a class="vf-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">查看政策原文（官方页面）</a></div>'
+        : '<div class="vf-meta">来源链接：待确认</div>';
+      const questions = [
+        '这项政策目前是否适用于' + (it.region || '本人所在地区') + '？',
+        '本人的年龄、户籍、参保或失能等条件是否符合政策列明的范围？',
+        '需要准备哪些材料，是否必须预约或到现场办理？',
+      ];
+      return '<div class="card" style="padding:14px 16px;">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+        + '<div style="flex:1;min-width:0;font-weight:600;font-size:14.5px;line-height:1.5;">' + escapeHtml(it.pname || it.pid) + '</div>'
+        + '<span class="vf-wait-tag">线上渠道待确认</span>'
+        + '</div>'
+        + '<div class="vf-meta">' + escapeHtml(it.dept || '来源部门待确认') + '</div>'
+        + src
+        + '<div class="vf-ask"><div class="vf-ask-title">建议问清</div><ul>'
+        + questions.map((q) => '<li>' + escapeHtml(q) + '</li>').join('')
+        + '</ul></div>'
+        + '<div class="vf-hint">本页未预置电话、地址或在线办理入口。请先通过主管部门的官方发布渠道确认受理范围与安排；'
+        + '来源链接仅供查看政策原文，不代表可在线办理。</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderPrep() {
+    const prep = vLoadPrep();
+    let done = 0;
+    ['p1', 'p2', 'p3', 'p4'].forEach((k) => {
+      const box = document.querySelector('.vf-check input[data-key="' + k + '"]');
+      if (box) { box.checked = prep[k]; if (prep[k]) done++; }
+    });
+    document.getElementById('plPrepCount').textContent = done + '/4';
+    document.getElementById('plPrepHead').setAttribute('aria-expanded',
+      document.getElementById('plPrepBody').hidden ? 'false' : 'true');
+  }
+
+  document.getElementById('plPrepHead').addEventListener('click', () => {
+    const body = document.getElementById('plPrepBody');
+    body.hidden = !body.hidden;
+    document.getElementById('plPrepHead').setAttribute('aria-expanded', body.hidden ? 'false' : 'true');
+  });
+  document.querySelectorAll('.vf-check input[data-key]').forEach((box) => {
+    box.addEventListener('change', () => {
+      const prep = vLoadPrep();
+      prep[box.dataset.key] = box.checked;
+      vSavePrep(prep);
+      let done = 0;
+      ['p1', 'p2', 'p3', 'p4'].forEach((k) => { if (prep[k]) done++; });
+      document.getElementById('plPrepCount').textContent = done + '/4';
+    });
+  });
+
+  document.getElementById('plEmpty').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'goList') {
+      location.href = 'verify-list.html';
+    } else if (btn.dataset.act === 'discover') {
+      location.href = discoverRouteTarget();
+    }
+  });
+
+  document.getElementById('plList').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'goList') {
+      location.href = 'verify-list.html';
+      return;
+    }
+    if (act === 'discover') {
+      location.href = discoverRouteTarget();
+      return;
+    }
+    const pid = btn.dataset.pid;
+    const it = plItems.find((x) => x.pid === pid);
+    if (!it) return;
+    if (act === 'edit') {
+      openVerifySheet(it, () => { refresh(); });
+    } else if (act === 'detail') {
+      location.href = 'policy.html?id=' + encodeURIComponent(pid);
+    }
+  });
+  document.getElementById('plMergeBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="merge-ask"]');
+    if (!btn) return;
+    const ask = document.getElementById('plMergeAsk');
+    ask.hidden = !ask.hidden;
+    btn.firstChild.textContent = ask.hidden ? '查看合并咨询建议' : '收起合并咨询建议 ';
+  });
+
+  async function refresh() {
+    const items = vListRecords();
+    const details = await vFetchDetails(items.map((it) => it.pid));
+    plItems = items.map((it) => {
+      const d = details[it.pid] || {};
+      const pname = d.policy_name || it.pname || '';
+      const dept = (d.source && d.source.department) || it.dept || '';
+      const url = (d.source && d.source.official_url) || it.url || '';
+      const rec = it.noRecord ? vEnsureRecord(it.pid, pname, dept, url) : it;
+      return {
+        pid: it.pid, pname: pname, dept: dept, url: url,
+        region: d.region || '',
+        status: rec.status || 'pending', note: rec.note || '', next: rec.next || '',
+      };
+    });
+    renderSum();
+    renderList();
+    renderMerge();
+    renderOnline();
+    renderPrep();
+  }
+
+  refresh();
+</script>
+</body>
+</html>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f7f5ee">
   <title>政策找人 · 家庭协助</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
 </head>
 <body>
 <div class="app">
@@ -20,10 +20,9 @@
     <div class="step" data-step="3"><span class="n">3</span><span class="t">描述生活变化</span></div>
   </div>
 
-  <div class="notice">
-    这个页面专为「帮别人查」设计：权益的受益人是老人本人，家属可以代为描述和查询，
-    但关键信息仍应取得老人本人的确认。本平台只做「可能相关」的初步提示，
-    不代办任何事项，最终资格由主管部门核定。
+  <div class="notice notice-cozy">
+    <span class="notice-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path fill="#2e7d4f" d="M12 20.2s-6.9-4.2-6.9-9a3.9 3.9 0 0 1 6.9-2.5 3.9 3.9 0 0 1 6.9 2.5c0 4.8-6.9 9-6.9 9Z"/></svg></span>
+    <span class="notice-txt"><b>这个页面专为「帮别人查」设计：</b>权益的受益人是老人本人，家属可以代为描述和查询，但关键信息仍应取得老人本人的确认。本平台只做「可能相关」的初步提示，不代办任何事项，最终资格由主管部门核定。</span>
   </div>
 
   <div class="section">
@@ -33,11 +32,11 @@
       再点一次已选中的项可取消选择。
     </p>
     <div class="choice-grid" id="operatorGrid">
-      <button type="button" class="choice" data-role="女儿"><span class="title">女儿</span></button>
-      <button type="button" class="choice" data-role="儿子"><span class="title">儿子</span></button>
-      <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
-      <button type="button" class="choice" data-role="其他家属"><span class="title">其他家属</span></button>
-      <button type="button" class="choice" data-role="社区工作人员"><span class="title">社区工作人员</span></button>
+      <button type="button" class="choice" data-role="女儿"><span class="ch-badge" aria-hidden="true">女</span><span class="title">女儿</span></button>
+      <button type="button" class="choice" data-role="儿子"><span class="ch-badge" aria-hidden="true">子</span><span class="title">儿子</span></button>
+      <button type="button" class="choice" data-role="配偶"><span class="ch-badge" aria-hidden="true">伴</span><span class="title">配偶 / 老伴</span></button>
+      <button type="button" class="choice" data-role="其他家属"><span class="ch-badge" aria-hidden="true">家</span><span class="title">其他家属</span></button>
+      <button type="button" class="choice" data-role="社区工作人员"><span class="ch-badge" aria-hidden="true">社</span><span class="title">社区工作人员</span></button>
     </div>
   </div>
 
@@ -47,14 +46,14 @@
     <!-- 受益人选择区：主区 + 折叠区放在同一容器内，便于统一绑定与回填 -->
     <div id="beneficiaryBox">
       <div class="choice-grid" id="beneficiaryGrid">
-        <button type="button" class="choice" data-role="父亲"><span class="title">父亲</span></button>
-        <button type="button" class="choice" data-role="母亲"><span class="title">母亲</span></button>
-        <button type="button" class="choice" data-role="爷爷"><span class="title">爷爷</span></button>
-        <button type="button" class="choice" data-role="奶奶"><span class="title">奶奶</span></button>
-        <button type="button" class="choice" data-role="外公"><span class="title">外公</span></button>
-        <button type="button" class="choice" data-role="外婆"><span class="title">外婆</span></button>
-        <button type="button" class="choice" data-role="配偶"><span class="title">配偶 / 老伴</span></button>
-        <button type="button" class="choice" data-role="其他"><span class="title">其他长辈</span></button>
+        <button type="button" class="choice" data-role="父亲"><span class="ch-badge" aria-hidden="true">父</span><span class="title">父亲</span></button>
+        <button type="button" class="choice" data-role="母亲"><span class="ch-badge" aria-hidden="true">母</span><span class="title">母亲</span></button>
+        <button type="button" class="choice" data-role="爷爷"><span class="ch-badge" aria-hidden="true">爷</span><span class="title">爷爷</span></button>
+        <button type="button" class="choice" data-role="奶奶"><span class="ch-badge" aria-hidden="true">奶</span><span class="title">奶奶</span></button>
+        <button type="button" class="choice" data-role="外公"><span class="ch-badge" aria-hidden="true">公</span><span class="title">外公</span></button>
+        <button type="button" class="choice" data-role="外婆"><span class="ch-badge" aria-hidden="true">婆</span><span class="title">外婆</span></button>
+        <button type="button" class="choice" data-role="配偶"><span class="ch-badge" aria-hidden="true">伴</span><span class="title">配偶 / 老伴</span></button>
+        <button type="button" class="choice" data-role="其他"><span class="ch-badge" aria-hidden="true">长</span><span class="title">其他长辈</span></button>
       </div>
       <!-- 父母入口下，祖辈/配偶选项收在「其他关系」里，避免两个入口语义雷同 -->
       <div class="alt-group" id="altGroup" hidden>
@@ -109,13 +108,14 @@
   </div>
 </div>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=20261030b"></script>
 <script>
   renderTopbar('家庭协助', 'index.html', '操作者 ≠ 受益人');
   mountDemoBanner();
   mountDemoProgress(1);
   mountFlow(1);
   mountRelationStrip();
+  mountChoiceAvatars();   // 选择卡字徽章 → 卡通角色头像（幂等；仅换展示层）
 
   const session = store.read();
   // 「本人」已从操作者列表移除。老会话里可能存着 operator='本人'，
@@ -201,7 +201,7 @@
   /** 逐项信息状态行：ok 时绿色 ✓，否则中性 ○ */
   function factRow(ok, label, value) {
     return `<div class="fact-row ${ok ? 'ok' : 'todo'}">
-      <span class="fact-mark" aria-hidden="true">${ok ? '✓' : '○'}</span>
+      <span class="fact-mark" aria-hidden="true">${ok ? icon('check') : icon('circle')}</span>
       <span class="fact-label">${escapeHtml(label)}</span>
       <span class="fact-val">${escapeHtml(value)}</span>
     </div>`;

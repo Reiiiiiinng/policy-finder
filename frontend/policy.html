@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="查看政策依据、适用条件、官方来源与办理方式，并决定下一步怎么核实。">
   <title>政策找人 · 政策依据</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
 </head>
 <body>
 <div class="app">
@@ -19,7 +19,7 @@
   </div>
 </div>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=20261030b"></script>
 <script>
   // 顶部返回的父页面必须「同步」确定，不能等异步接口回来再补。
   // 之前这里先写死 index.html，再由 updateTopbarParent() 在接口返回后补登记成
@@ -29,7 +29,8 @@
   const _navSession = store.read();
   const _navProfile = _navSession.profile || _navSession.selfProfile || null;
   const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
-  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html', '第 3 步 · 查看依据');
+  // 进度由主流程条第 3 步高亮承担，顶部不再重复
+  renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html');
   mountDemoBanner();
   mountFlow(3);
   mountRelationStrip();
@@ -61,7 +62,8 @@
     try {
       detail = await API.policy(id);
     } catch (e) {
-      content.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动。</div>';
+      // 本地启动方式见 docs/README.md；不对用户暴露启动命令
+      content.innerHTML = '<div class="notice warn">暂时无法连接服务，请稍后重试。</div>';
       return;
     }
     if (detail.error) {
@@ -129,9 +131,7 @@
               <div class="mi-q">${escapeHtml(x)}</div>
               <div class="mi-why">${escapeHtml(explainMissing(x))}</div>
             </li>`).join('')}
-        </ul>
-        <p class="q-lead" style="margin:10px 0 0">以上不影响本条出现在您的可能相关列表中，
-          但会影响最终能否适用。</p>`
+        </ul>`
       : '<p>暂无必须补充的信息，但仍建议向受理单位核实适用口径后再办理。</p>';
 
     // ④ 去哪里核实（不是「怎么办理」——本平台不代办，只告诉用户去哪问）
@@ -171,10 +171,7 @@
       ${processWarn}
       ${steps.length
         ? `<ol>${processHtml}</ol>`
-        : '<p style="color:var(--muted)">本页未收录办理流程，请以受理单位现场或线上指引为准。</p>'}
-      <p style="margin-top:8px;color:var(--muted);font-size:12.5px">
-        所需材料以受理单位现场或线上告知为准，本页不代为列明，避免给您错误信息。
-      </p>`;
+        : '<p style="color:var(--muted)">本页未收录办理流程，请以受理单位现场或线上指引为准。</p>'}`;
 
     // ⑥ 政策来源（浅蓝信任卡）
     const src = p.source || {};
@@ -198,8 +195,8 @@
     const url = clean(src.official_url);
     const linkHtml = url
       ? `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
-           <span>🔗</span><span>${escapeHtml(url)}</span></a>`
-      : `<div class="tc-none"><span>⚠</span>
+           <span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span>${escapeHtml(url)}</span></a>`
+      : `<div class="tc-none"><span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
            <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
 
     const verBadge = pending
@@ -211,8 +208,8 @@
         ${verBadge}
         <span>${pending
           ? (clean(src.official_url)
-             ? '国家政策依据已核验，本地具体服务及预约方式仍待确认，请以主管部门发布的正式信息为准。'
-             : '这条政策的一手文件尚未核到，以下内容仅供参考，请以主管部门发布的正式信息为准。')
+             ? '国家政策依据已核验，本地具体服务及预约方式仍待确认。'
+             : '这条政策的一手文件尚未核到，以下内容仅供参考。')
           : '政策名称、对象、服务内容与依据文件已核对。'}</span>
       </div>`;
 
@@ -229,16 +226,11 @@
       </div>`;
 
     // 顶部概要：状态徽章用真实匹配结果，不再一律写「可能相关」
+    // tier（强相关/可能相关/待确认）与 status 同源派生（policy_engine.assign_tier），
+    // 且列表分组标题已用「优先关注」等用户语言表达分层——详情页不再重复展示 tier-strip。
     const statusLine = matchRow
       ? statusBadge(matchRow.status, pending, clean(src.official_url))
       : statusBadge('可能相关', pending, clean(src.official_url));
-    const tierLine = matchRow && matchRow.tier
-      ? `<div class="tier-strip ${matchRow.tier === '强相关' ? 'tier-strong'
-          : (matchRow.tier === '可能相关' ? 'tier-mid' : 'tier-low')}" style="margin-top:10px">
-           <span class="ts-name">${escapeHtml(matchRow.tier)}</span>
-           <span class="ts-desc">结合您已确认的信息得出</span>
-         </div>`
-      : '';
 
     const backHref = selfMode ? 'self.html' : 'discover.html';
     const backLabel = selfMode ? '← 返回我的发现结果' : '← 返回发现结果';
@@ -263,7 +255,6 @@
             <span class="chip plain">${escapeHtml((p.region || {}).scope || '')}</span>
           </div>
           <div style="margin-top:8px">${statusLine}</div>
-          ${tierLine}
           ${p.service_note ? `<p class="hint">${escapeHtml(p.service_note)}</p>` : ''}
         </div>
       </div>
@@ -311,7 +302,7 @@
           <span class="fs-n">4</span>
           <div>
             <div class="fs-t">看完依据，接下来怎么做？</div>
-            <div class="fs-s">这一步只帮您把思路理清楚，本平台不代办、不代填，也不会替您做决定。</div>
+            <div class="fs-s">本平台不代办、不代填；您的选择只保存在本设备，不会提交给任何部门。</div>
           </div>
         </div>
 
@@ -343,15 +334,17 @@
         <div class="fs-tail">
           已核实过「${escapeHtml(p.policy_name)}」：<span id="fsMark" class="fs-mark">尚未表态</span>
           <button type="button" class="fs-clear" id="fsClear" hidden>清除</button>
+          <a class="fs-listlink" href="verify-list.html">查看待核实清单</a>
         </div>
         ${pending ? `<p class="fs-pending">提示：这条权益的一手文件尚未核到，建议先向${escapeHtml(dept)}确认是否确有此项服务。</p>` : ''}
       </div>`;
   }
 
+  // 确认语保持工具语气：只陈述已发生的事实（本地保存），不承诺、不拟人
   const FS_TEXT = {
-    verify: '好的。带齐证件去咨询时，可以直接报政策名称与文号，请对方确认本人是否在服务覆盖范围内。',
-    later: '已记下。这条会一直在这里，等您需要的时候再回来核实，不用现在决定。',
-    notmatch: '已记录为不适用。若之后情况有变化，可以随时重新匹配。',
+    verify: '带齐证件前往咨询时，可直接报政策名称与文号，请对方确认本人是否在服务覆盖范围内。',
+    later: '选择只保存在本设备浏览器中，可随时回来查看或重新选择。',
+    notmatch: '已标记为「不适用」。如之后情况有变化，可随时重新匹配。',
   };
 
   function fsKey(pid) { return 'pf_fs_' + pid; }

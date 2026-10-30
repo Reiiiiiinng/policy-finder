@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="集中查看您标记为「打算去核实」的政策，更新核实状态与备注；记录只保存在本设备。">
+  <title>待核实清单 · 政策找人</title>
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <section class="section">
+    <p class="vf-ov-line" style="color:var(--muted);margin:0 0 10px;">把想进一步了解的政策收在一起，确认清楚再决定下一步。</p>
+    <div class="vf-next-card" id="vlPlanCta" hidden>
+      <div class="vf-next-copy">
+        <span class="vf-next-kicker">下一步</span>
+        <strong id="vlPlanTitle">把这些政策整理成少跑腿计划</strong>
+        <span class="vf-next-desc">先看需要向官方问清的事项，再安排出发前准备。</span>
+      </div>
+      <button type="button" class="vf-btn is-primary vf-next-btn" id="vlPlanBtn">制定少跑腿计划</button>
+    </div>
+    <p class="vf-ov-line" id="vlSum" style="margin:0 0 10px;"></p>
+    <div class="vf-chips" id="vlChips" aria-label="按状态筛选"></div>
+    <div id="vlCards" aria-live="polite"></div>
+  </section>
+
+  <div class="footnote">
+    <span>清单中的政策来自您在政策详情页的选择；加入清单不代表符合申请条件。</span><br>
+    <span>从清单移除不会删除核实记录；记录只保存在本设备浏览器中。</span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=20261030b"></script>
+<script>
+  renderTopbar('待核实清单', 'services.html', '我的服务');
+  mountBottomNav('mine');
+  mountVerifySheet();
+
+  let vFilter = 'all';
+  let vItems = [];   /* {pid,pname,dept,url,status,note,next,detail} */
+
+  function counts() {
+    const c = { all: vItems.length };
+    VORDER.forEach((k) => { c[k] = 0; });
+    vItems.forEach((it) => { c[it.status] = (c[it.status] || 0) + 1; });
+    return c;
+  }
+
+  function renderChips() {
+    const c = counts();
+    let html = '<button type="button" class="vf-chip' + (vFilter === 'all' ? ' on' : '')
+      + '" data-f="all">全部<span class="n">' + c.all + '</span></button>';
+    VORDER.forEach((k) => {
+      html += '<button type="button" class="vf-chip' + (vFilter === k ? ' on' : '')
+        + '" data-f="' + k + '">' + escapeHtml(VSTATUS[k].label) + '<span class="n">' + (c[k] || 0) + '</span></button>';
+    });
+    document.getElementById('vlChips').innerHTML = html;
+  }
+
+  function renderPlanCta() {
+    const box = document.getElementById('vlPlanCta');
+    if (vItems.length === 0) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const started = vHasPlanProgress();
+    document.getElementById('vlPlanTitle').textContent = started
+      ? '继续查看少跑腿计划'
+      : '把这些政策整理成少跑腿计划';
+    document.getElementById('vlPlanBtn').textContent = started
+      ? '查看少跑腿计划'
+      : '制定少跑腿计划';
+  }
+
+  function cardHtml(it) {
+    const url = it.url ? consultOfficialUrl(it.url) : '';
+    const src = url
+      ? '<div class="vf-meta">' + escapeHtml(it.dept || '来源部门待确认')
+        + ' · <a class="vf-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">查看政策来源</a></div>'
+      : '<div class="vf-meta">' + escapeHtml(it.dept || '来源部门待确认（待确认）') + '</div>';
+    let ex = '';
+    if (it.note) ex += '<div class="vf-extra"><span class="k">核实备注：</span>' + escapeHtml(it.note) + '</div>';
+    if (it.next) ex += '<div class="vf-extra"><span class="k">接下来：</span>' + escapeHtml(it.next) + '</div>';
+    return '<article class="card" data-pid="' + escapeHtml(it.pid) + '">'
+      + '<div class="vf-ov-line" style="font-weight:600;font-size:15px;">' + escapeHtml(it.pname || it.pid) + '</div>'
+      + '<div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;align-items:flex-start;">'
+      + '<div class="vf-meta" style="margin-top:0;">查询对象：' + escapeHtml(vBenLabel()) + '</div>'
+      + vStatusPill(it.status)
+      + '</div>'
+      + src
+      + '<div class="vf-hint"><b>下一步：</b>' + escapeHtml(VHINT[it.status] || VHINT.pending) + '</div>'
+      + ex
+      + '<div class="vf-actions">'
+      + '<button type="button" class="vf-btn is-primary" data-act="edit" data-pid="' + escapeHtml(it.pid) + '">更新状态</button>'
+      + '<button type="button" class="vf-btn" data-act="detail" data-pid="' + escapeHtml(it.pid) + '">查看详情</button>'
+      + '<button type="button" class="vf-btn" data-act="records" data-pid="' + escapeHtml(it.pid) + '">核实记录</button>'
+      + '</div>'
+      + '<div class="vf-subrow">'
+      + '<button type="button" class="vf-btn is-danger-text' + (it._armRemove ? ' is-armed' : '')
+      + '" data-act="remove" data-pid="' + escapeHtml(it.pid) + '">'
+      + (it._armRemove ? '确认移除？' : '从清单移除') + '</button>'
+      + '</div>'
+      + '</article>';
+  }
+
+  function renderCards() {
+    const c = counts();
+    const pending = c.all - vItems.filter((it) => VERIFIED_SET[it.status]).length;
+    document.getElementById('vlSum').textContent = c.all > 0
+      ? ('共 ' + c.all + ' 项政策，其中待处理 ' + pending + ' 项。')
+      : '';
+    const shown = vItems.filter((it) => vFilter === 'all' || it.status === vFilter);
+    const box = document.getElementById('vlCards');
+    if (c.all === 0) {
+      box.innerHTML = '<div class="card vf-empty">'
+        + '<div class="t">清单是空的</div>'
+        + '<div class="d">在政策详情页点击「打算去核实」，政策就会收进这里。<br>也可以先回「发现」完成一次匹配。</div>'
+        + '<button type="button" class="vf-btn" data-act="discover">去发现权益</button>'
+        + '</div>';
+      return;
+    }
+    if (shown.length === 0) {
+      box.innerHTML = '<div class="card vf-empty">'
+        + '<div class="t">这个状态下暂时没有政策</div>'
+        + '<div class="d">可以切换上方筛选，查看其他状态的政策。</div>'
+        + '</div>';
+      return;
+    }
+    box.innerHTML = shown.map(cardHtml).join('');
+  }
+
+  function renderAll() { renderChips(); renderPlanCta(); renderCards(); }
+
+  document.getElementById('vlPlanBtn').addEventListener('click', () => {
+    location.href = 'plan.html?from=verify-list.html';
+  });
+
+  document.getElementById('vlChips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.vf-chip');
+    if (!chip) return;
+    vFilter = chip.dataset.f;
+    renderAll();
+  });
+
+  document.getElementById('vlCards').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'discover') {
+      location.href = discoverRouteTarget();
+      return;
+    }
+    const pid = btn.dataset.pid;
+    const it = vItems.find((x) => x.pid === pid);
+    if (!it) return;
+    if (act === 'edit') {
+      openVerifySheet(it, () => { refresh(); });
+    } else if (act === 'detail') {
+      location.href = 'policy.html?id=' + encodeURIComponent(pid);
+    } else if (act === 'records') {
+      location.href = 'records.html';
+    } else if (act === 'remove') {
+      if (!it._armRemove) {
+        it._armRemove = true;
+        renderCards();
+        showToast('再点一次「确认移除」即可从清单移除');
+      } else {
+        it._armRemove = false;
+        vRemoveFromList(pid);
+        refresh();
+        showToast('已从清单移除；核实记录保留');
+      }
+    }
+  });
+
+  async function refresh() {
+    const items = vListRecords();
+    const details = await vFetchDetails(items.map((it) => it.pid));
+    const prevArm = {};
+    vItems.forEach((it) => { if (it._armRemove) prevArm[it.pid] = true; });
+    vItems = items.map((it) => {
+      const d = details[it.pid] || {};
+      const pname = d.policy_name || it.pname || '';
+      const dept = (d.source && d.source.department) || it.dept || '';
+      const url = (d.source && d.source.official_url) || it.url || '';
+      const rec = it.noRecord
+        ? vEnsureRecord(it.pid, pname, dept, url)
+        : it;
+      return {
+        pid: it.pid, pname: pname, dept: dept, url: url,
+        status: rec.status || 'pending', note: rec.note || '', next: rec.next || '',
+        _armRemove: !!prevArm[it.pid],
+      };
+    });
+    renderAll();
+  }
+
+  refresh();
+</script>
+</body>
+</html>

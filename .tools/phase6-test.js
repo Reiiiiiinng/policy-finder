@@ -129,11 +129,12 @@ console.log('== 问题1b：发现路由与匹配摘要（首页重设计新增�
     && /key === 'consult'[\s\S]{0,100}consult\.html/.test(app));
 }
 
-console.log('== 问题1c：「我的」底部弹层（D1） ==');
+console.log('== 问题1c：「我的」当前入口与旧弹层兼容 ==');
 {
   const app = read('frontend/assets/app.js');
-  check('「我的」不再直接跳转 family.html（改为弹层）',
-    /key === 'mine'\) \{\s*openMineSheet/.test(app));
+  check('「我的」进入独立服务页（不再直接跳 family.html）',
+    /key === 'mine'\) \{[\s\S]{0,180}services\.html/.test(app)
+    && !/key === 'mine'\) \{\s*openMineSheet/.test(app));
   check('弹层读取真实会话（家庭/本人/未开始三态）',
     /function mineSessionLines/.test(app)
     && /s\.beneficiary/.test(app)

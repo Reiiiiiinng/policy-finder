@@ -344,16 +344,20 @@ function mountDemoProgress(current) {
   anchor.insertAdjacentHTML('afterend', renderDemoProgress(current));
 }
 
-/** 状态徽章：可能相关 / 待确认 + 核验状态 */
+/** 状态徽章：可能相关 / 待确认 + 核验状态
+ *  图标升级（2026-10-27）：形状 + 文字 + 颜色三通道表达状态——
+ *  可能相关=圆形对勾、待确认=时钟、来源待核验=眼睛；verified 徽章文字中的 ✓ 保留。
+ *  状态文案与语义一字不改（措辞红线）。 */
 function statusBadge(status, sourcePending, sourceVerified) {
   let cls = 'maybe';
   let text = status || '可能相关';
-  if (status === '待确认') cls = 'confirm';
-  let html = `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
+  let ico = iconF('status-maybe');
+  if (status === '待确认') { cls = 'confirm'; ico = iconF('status-clock'); }
+  let html = `<span class="badge ${cls}"><span class="st-ico" aria-hidden="true">${ico}</span>${escapeHtml(text)}</span>`;
   // 来源核验状态：来源已核验 ✓；待核验时区分「有官方一手来源（国家依据已核，本地待确认）」与「来源未核验」
   html += sourcePending
-    ? (sourceVerified ? ' <span class="badge pending">本地待确认</span>'
-                      : ' <span class="badge pending">来源待核验</span>')
+    ? (sourceVerified ? ' <span class="badge pending"><span class="st-ico" aria-hidden="true">' + icon('eye') + '</span>本地待确认</span>'
+                      : ' <span class="badge pending"><span class="st-ico" aria-hidden="true">' + icon('eye') + '</span>来源待核验</span>')
     : ' <span class="badge verified">✓ 来源已核验</span>';
   return html;
 }
@@ -561,6 +565,238 @@ function isLatestMatchRequest(requestId) {
 }
 
 /* ==========================================================================
+   图标注册表（图标升级 2026-10-27 · P1）
+   - 统一 24 viewBox / stroke 1.7 / round 端点；颜色一律 currentColor，
+     由所在文字色继承，图标自身不携带固定色。
+   - 图形取自 Lucide（ISC License，https://lucide.dev），本地内联，无外部依赖；
+     home / user 沿用本项目原有手写路径，与库图形风格一致。
+   - icon(name) 返回 svg 字符串；映射不到时返回空串并回退到调用方的文字兜底，
+     不允许因缺图标导致页面报错。
+   ========================================================================== */
+const ICONS = {
+  home: '<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  user: '<circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  minus: '<path d="M5 12h14"/>',
+  circle: '<circle cx="12" cy="12" r="9"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/>',
+  'arrow-left': '<path d="M19 12H5"/><path d="m11.5 18.5-6.5-6.5 6.5-6.5"/>',
+  eye: '<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/>',
+  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="m8.6 12.2 2.4 2.4 4.6-5"/>',
+};
+
+/** 取图标 svg；仅返回结构化字符串，不做任何 DOM 操作（render-test 的 vm 环境可安全加载） */
+function icon(name) {
+  const p = ICONS[name];
+  if (!p) return '';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"'
+    + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
+}
+
+/* ==========================================================================
+   填充风格图标注册表（图标升级 2026-10-27 · P2 · 对照《政策找人图标设计方案》）
+   - 用于底部导航 / 状态徽章 / 类别芯片 / 首页入口 / 空态等主视觉位置；
+     通用操作（返回箭头、外链、警示三角、刷新等）仍用上方线性 icon()，
+     与参考图「通用操作图标」的细线风格一致，不造成风格混用。
+   - 填充图形为手写简化版：圆润、双色平涂（主形 currentColor 继承主题色，
+     强调形用固定辅色/白），未复刻参考图的渐变立体感——已知差异，见验收报告。
+   - 未新增任何业务入口：仅替换已存在图标的图形。
+   ========================================================================== */
+const ICONF = {
+  home: '<path fill="currentColor" d="M12 3.1 3.7 10.2a1 1 0 0 0-.35.76V19a1.6 1.6 0 0 0 1.6 1.6h4.55v-5.1c0-1.1.9-2 2-2h1c1.1 0 2 .9 2 2v5.1h4.55A1.6 1.6 0 0 0 20.65 19v-8.04a1 1 0 0 0-.35-.76L12 3.1Z"/>'
+    + '<path fill="#f2b33d" d="M9.2 8h5.6a.8.8 0 0 1 .8.8v1.7a.8.8 0 0 1-.8.8H9.2a.8.8 0 0 1-.8-.8V8.8a.8.8 0 0 1 .8-.8Z"/>',
+  compass: '<circle cx="12" cy="12" r="9.3" fill="currentColor"/>'
+    + '<path fill="#fff" d="m16.9 7.1-2.7 7-7 2.7 2.7-7 7-2.7Z"/>'
+    + '<circle cx="12" cy="12" r="1.3" fill="currentColor"/>',
+  headset: '<path fill="currentColor" d="M12 3.2a8.1 8.1 0 0 0-8.1 8.1v4.9a3.1 3.1 0 0 0 3.1 3.1h.6a1.6 1.6 0 0 0 1.6-1.6v-3.2a1.6 1.6 0 0 0-1.6-1.6H6.1v-1.6a5.9 5.9 0 0 1 11.8 0v1.6h-1.5a1.6 1.6 0 0 0-1.6 1.6v3.2a1.6 1.6 0 0 0 1.6 1.6h.6a3.1 3.1 0 0 0 3.1-3.1v-4.9A8.1 8.1 0 0 0 12 3.2Z"/>',
+  user: '<circle cx="12" cy="8.1" r="3.7" fill="currentColor"/>'
+    + '<path fill="currentColor" d="M12 13.6c-4.1 0-7 2.5-7 5.5 0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4 0-3-2.9-5.5-7-5.5Z"/>',
+  'user-plus': '<circle cx="10.2" cy="7.9" r="3.5" fill="currentColor"/>'
+    + '<path fill="currentColor" d="M10.2 12.9c-3.8 0-6.5 2.3-6.5 5.2 0 .8.6 1.4 1.4 1.4h6.9a5.9 5.9 0 0 1-.8-3.5 5.9 5.9 0 0 1 1.3-3.1Z"/>'
+    + '<path d="M18.6 14.4v5.2M16 17h5.2" fill="none" stroke="#2e7d4f" stroke-width="2" stroke-linecap="round"/>',
+  'status-maybe': '<circle cx="12" cy="12" r="10" fill="currentColor"/>'
+    + '<path d="m7.7 12.2 2.8 2.8 5.8-6.1" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  'status-clock': '<circle cx="12" cy="12" r="10" fill="currentColor"/>'
+    + '<path d="M12 6.9V12l3.4 2" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  'status-none': '<circle cx="12" cy="12" r="10" fill="currentColor"/>'
+    + '<path d="M7.8 12h8.4" stroke="#fff" stroke-width="2.3" stroke-linecap="round"/>',
+  magnifier: '<circle cx="10.9" cy="10.9" r="6.4" fill="currentColor"/>'
+    + '<path d="m15.8 15.8 4.4 4.4" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>'
+    + '<path d="M8.2 9.2a3.4 3.4 0 0 1 2.5-1.7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>',
+  'shield-check': '<path fill="currentColor" d="M12 2.6 19.8 5.7v5.7c0 4.7-3.2 8.7-7.8 10-4.6-1.3-7.8-5.3-7.8-10V5.7L12 2.6Z"/>'
+    + '<path d="m8.5 11.9 2.5 2.5 4.7-5.1" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  gift: '<path fill="currentColor" d="M4.5 13.2h15v6.2a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5v-6.2Z"/>'
+    + '<path fill="currentColor" d="M3.5 8.2h17a1 1 0 0 1 1 1v2.5a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1V9.2a1 1 0 0 1 1-1Z"/>'
+    + '<path fill="#fff" opacity=".55" d="M11.05 8.2h1.9v12.7h-1.9z"/>'
+    + '<path fill="currentColor" d="M12 7.9c-2.9 0-4.8-1.3-4.8-3C7.2 3.5 8.3 2.5 9.7 2.5c1.7 0 2.3 2.6 2.3 5.4Zm0 0c2.9 0 4.8-1.3 4.8-3 0-1.4-1.1-2.4-2.5-2.4-1.7 0-2.3 2.6-2.3 5.4Z"/>',
+  pin: '<path fill="currentColor" d="M12 2.5c-4.1 0-7.4 3.3-7.4 7.4 0 5.2 6.4 11.1 7.1 11.7a.45.45 0 0 0 .6 0c.7-.6 7.1-6.5 7.1-11.7 0-4.1-3.3-7.4-7.4-7.4Z"/>'
+    + '<circle cx="12" cy="9.9" r="2.7" fill="#fff"/>',
+  'users-two': '<circle cx="9.2" cy="8.3" r="2.9" fill="currentColor"/>'
+    + '<path fill="currentColor" d="M9.2 12.4c-3.2 0-5.5 2-5.5 4.3 0 .7.5 1.2 1.2 1.2h8.6c.7 0 1.2-.5 1.2-1.2 0-2.3-2.3-4.3-5.5-4.3Z"/>'
+    + '<circle cx="16.7" cy="9.2" r="2.3" fill="currentColor" opacity=".55"/>'
+    + '<path fill="currentColor" opacity=".55" d="M16.9 12.6c2.1.4 3.6 1.9 3.9 4.1.1.6-.4 1.2-1 1.2h-2.6a6.6 6.6 0 0 0-1.5-4.1c.4-.1.8-.2 1.2-.2Z"/>',
+  play: '<path fill="currentColor" d="M8.3 5.6v12.8c0 .95 1.05 1.53 1.85 1.02l10-6.4a1.2 1.2 0 0 0 0-2.04l-10-6.4c-.8-.51-1.85.07-1.85 1.02Z"/>',
+  brand: '<circle cx="10.6" cy="11" r="6.5" fill="none" stroke="#1b5e3b" stroke-width="2.3"/>'
+    + '<circle cx="10.6" cy="9.2" r="1.9" fill="#2e7d4f"/>'
+    + '<path d="M7.4 15c.6-1.7 1.8-2.7 3.2-2.7s2.6 1 3.2 2.7" fill="none" stroke="#2e7d4f" stroke-width="1.9" stroke-linecap="round"/>'
+    + '<path d="m15.7 16.2 3.9 3.9" stroke="#1b5e3b" stroke-width="2.6" stroke-linecap="round"/>'
+    + '<path fill="#e8833a" d="M17.7 3.5c.7-.8 1.9-.5 2.3.3.4-.8 1.6-1.1 2.3-.3.7.7.4 1.7-.5 2.4l-1.8 1.5-1.8-1.5c-.9-.7-1.2-1.7-.5-2.4Z"/>',
+};
+
+/** 填充风格图标：主形 currentColor 继承所在文字色；强调形固定辅色。 */
+function iconF(name) {
+  const p = ICONF[name];
+  if (!p) return '';
+  return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' + p + '</svg>';
+}
+
+/* ==========================================================================
+   家庭成员头像注册表（头像升级 2026-10-27 · 对照《政策找人图标设计方案》成员头像栏）
+   - 圆润卡通半身像：圆底 + 发型 + 脸 + 肩部衣着，双色平涂，无渐变无 clipPath
+     （同页多实例无 ID 冲突）；色板取参考图系（政务绿/暖红/橙/蓝灰）。
+   - 角色映射只用用户在 family.html 已选择的可靠关系标签（白名单），
+     不解析姓名用字、不从姓名猜性别；白名单外一律中性兜底。
+   - 自定义姓名、其他关系 → neutral；配偶 → couple（双人像，不预设性别）；
+     本人模式 → self（中性深发，不预设性别）；添加成员 → add。
+   ========================================================================== */
+const AVATAR_MALE_WORDS = ['父亲', '爸爸', '爷爷', '外公', '姥爷'];
+const AVATAR_FEMALE_WORDS = ['母亲', '妈妈', '奶奶', '外婆', '姥姥'];
+
+const AVATARS = {
+  'elder-male': '<circle cx="12" cy="12" r="11" fill="#e3f1e7"/>'
+    + '<path fill="#f8dcbf" d="M12 5.6c-2.4 0-4.2 1.9-4.2 4.4 0 2.6 1.8 4.9 4.2 4.9s4.2-2.3 4.2-4.9c0-2.5-1.8-4.4-4.2-4.4Z"/>'
+    + '<path fill="#cdd3d6" d="M7.7 10.9c-.2-1.5.1-2.9.9-3.8.6-.7 1.5-1.2 2.5-1.3-.9.8-1.4 2-1.5 3.4-.7.3-1.4.9-1.9 1.7Z"/>'
+    + '<path fill="#cdd3d6" d="M16.3 10.9c.2-1.5-.1-2.9-.9-3.8-.6-.7-1.5-1.2-2.5-1.3.9.8 1.4 2 1.5 3.4.7.3 1.4.9 1.9 1.7Z"/>'
+    + '<circle cx="10.4" cy="9.9" r=".55" fill="#4a3f35"/><circle cx="13.6" cy="9.9" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.8 12.1c.7.6 1.7.6 2.4 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#2e7d4f" d="M12 15.4c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  'elder-female': '<circle cx="12" cy="12" r="11" fill="#fdf0e7"/>'
+    + '<circle cx="12" cy="5.4" r="1.6" fill="#cdd3d6"/>'
+    + '<path fill="#cdd3d6" d="M12 5.9c-2.6 0-4.5 2.1-4.5 4.9 0 1.1.2 2.1.7 2.9l.5-2.2c.3-1.7 1.6-2.8 3.3-2.8s3 1.1 3.3 2.8l.5 2.2c.5-.8.7-1.8.7-2.9 0-2.8-1.9-4.9-4.5-4.9Z"/>'
+    + '<path fill="#f8dcbf" d="M12 6.9c-2 0-3.6 1.6-3.6 3.9 0 2.5 1.6 4.6 3.6 4.6s3.6-2.1 3.6-4.6c0-2.3-1.6-3.9-3.6-3.9Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#e2615c" d="M12 15.6c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  neutral: '<circle cx="12" cy="12" r="11" fill="#eff2f5"/>'
+    + '<path fill="#c2c9ce" d="M12 5.4c-2.7 0-4.7 2.2-4.7 5 0 1 .2 1.9.6 2.7l.4-1.8c.3-1.8 1.7-3 3.7-3s3.4 1.2 3.7 3l.4 1.8c.4-.8.6-1.7.6-2.7 0-2.8-2-5-4.7-5Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.1c-1.9 0-3.4 1.5-3.4 3.6 0 2.4 1.5 4.4 3.4 4.4s3.4-2 3.4-4.4c0-2.1-1.5-3.6-3.4-3.6Z"/>'
+    + '<circle cx="10.5" cy="10.5" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.5" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.6c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#61707c" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  self: '<circle cx="12" cy="12" r="11" fill="#eaf3ec"/>'
+    + '<path fill="#4a3f35" d="M12 4.9c-2.8 0-4.9 2.2-4.9 5.2 0 1 .2 1.9.6 2.7l.5-2.3c.3-1.8 1.8-3 3.8-3s3.5 1.2 3.8 3l.5 2.3c.4-.8.6-1.7.6-2.7 0-3-2.1-5.2-4.9-5.2Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.2c-1.9 0-3.4 1.5-3.4 3.6 0 2.4 1.5 4.4 3.4 4.4s3.4-2 3.4-4.4c0-2.1-1.5-3.6-3.4-3.6Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#3a8b5c" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  /* ---- 成人角色（操作者选项 · 2026-10-27 UI 提升轮）：只映射 family.html
+     用户点选的固定关系标签，不做任何姓名/用字推断 ---- */
+  'adult-female': '<circle cx="12" cy="12" r="11" fill="#fdeee2"/>'
+    + '<path fill="#5f4432" d="M12 4.5c-3.3 0-5.5 2.3-5.5 5.5 0 1.5.2 2.8.7 3.8.2-1.7.7-3.1 1.6-4 .9.5 2 .8 3.2.8s2.3-.3 3.2-.8c.9.9 1.4 2.3 1.6 4 .5-1 .7-2.3.7-3.8 0-3.2-2.2-5.5-5.5-5.5Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.1c-1.9 0-3.5 1.6-3.5 3.8 0 2.4 1.6 4.5 3.5 4.5s3.5-2.1 3.5-4.5c0-2.2-1.6-3.8-3.5-3.8Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#e07a5f" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  'adult-male': '<circle cx="12" cy="12" r="11" fill="#e9eff4"/>'
+    + '<path fill="#3a3f45" d="M12 4.8c-2.9 0-5 2.1-5 5 0 .9.1 1.7.4 2.4l.6-2c.4-1.6 2-2.7 4-2.7s3.6 1.1 4 2.7l.6 2c.3-.7.4-1.5.4-2.4 0-2.9-2.1-5-5-5Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.2c-1.9 0-3.4 1.5-3.4 3.6 0 2.4 1.5 4.4 3.4 4.4s3.4-2 3.4-4.4c0-2.1-1.5-3.6-3.4-3.6Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#5b7a99" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  /* 配偶：两位长辈并肩，不预设性别 */
+  couple: '<circle cx="12" cy="12" r="11" fill="#f3efe4"/>'
+    + '<circle cx="8.4" cy="10.2" r="2.5" fill="#f8dcbf"/>'
+    + '<path fill="#cdd3d6" d="M8.4 7.6c-1.4 0-2.4 1-2.6 2.3.5-.5 1.5-.8 2.6-.8s2.1.3 2.6.8C10.8 8.6 9.8 7.6 8.4 7.6Z"/>'
+    + '<path fill="#2e7d4f" d="M8.4 13.2c-2.5 0-4.4 1.4-5 3.4 1.4 1.6 3.2 2.6 5 2.9.4-.9.6-1.9.6-3 0-1.2-.2-2.3-.6-3.3Z"/>'
+    + '<circle cx="15.4" cy="10.6" r="2.7" fill="#f8dcbf"/>'
+    + '<path fill="#e8e4da" d="M15.4 7.8c-1.5 0-2.6 1.1-2.8 2.5.5-.6 1.6-.9 2.8-.9s2.3.3 2.8.9c-.2-1.4-1.3-2.5-2.8-2.5Z"/>'
+    + '<path fill="#c96f5a" d="M15.4 13.7c-2.3 0-4 1.1-4.7 2.9.9 1.9 2.7 3.1 4.7 3.3 2-.2 3.8-1.4 4.7-3.3-.7-1.8-2.4-2.9-4.7-2.9Z"/>',
+  /* 社区工作人员：青色马甲 + 白色工牌 */
+  worker: '<circle cx="12" cy="12" r="11" fill="#e6f2ee"/>'
+    + '<path fill="#4a3f35" d="M12 4.9c-2.7 0-4.7 2-4.7 4.8 0 .8.1 1.5.3 2.1l.7-1.7c.4-1.5 1.8-2.5 3.7-2.5s3.3 1 3.7 2.5l.7 1.7c.2-.6.3-1.3.3-2.1 0-2.8-2-4.8-4.7-4.8Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.2c-1.9 0-3.4 1.5-3.4 3.6 0 2.4 1.5 4.4 3.4 4.4s3.4-2 3.4-4.4c0-2.1-1.5-3.6-3.4-3.6Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#2f7f6f" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>'
+    + '<path d="m10.2 15.8 1.8 2.1 1.8-2.1" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<rect x="11.1" y="18.3" width="1.8" height="2.3" rx=".4" fill="#fff"/>',
+  /* 其他家属：暖米底 + 灰绿衣着，与「中性」区分 */
+  other: '<circle cx="12" cy="12" r="11" fill="#f6efe4"/>'
+    + '<path fill="#7a6a55" d="M12 4.9c-2.8 0-4.9 2.2-4.9 5.2 0 1 .2 1.9.6 2.7l.5-2.3c.3-1.8 1.8-3 3.8-3s3.5 1.2 3.8 3l.5 2.3c.4-.8.6-1.7.6-2.7 0-3-2.1-5.2-4.9-5.2Z"/>'
+    + '<path fill="#f8dcbf" d="M12 7.2c-1.9 0-3.4 1.5-3.4 3.6 0 2.4 1.5 4.4 3.4 4.4s3.4-2 3.4-4.4c0-2.1-1.5-3.6-3.4-3.6Z"/>'
+    + '<circle cx="10.5" cy="10.6" r=".55" fill="#4a3f35"/><circle cx="13.5" cy="10.6" r=".55" fill="#4a3f35"/>'
+    + '<path d="M10.9 12.7c.7.6 1.5.6 2.2 0" fill="none" stroke="#b97c50" stroke-width=".7" stroke-linecap="round"/>'
+    + '<path fill="#8a7a62" d="M12 15.5c-3.7 0-6.5 2-7.3 4.9A10.9 10.9 0 0 0 12 23a10.9 10.9 0 0 0 7.3-2.7c-.8-2.9-3.6-4.9-7.3-4.9Z"/>',
+  add: '<circle cx="12" cy="12" r="11" fill="#f4faf6"/>'
+    + '<circle cx="10.8" cy="9.8" r="3" fill="none" stroke="#2e7d4f" stroke-width="1.6"/>'
+    + '<path d="M5.6 18.3c.9-2.7 2.9-4.2 5.2-4.2 1.1 0 2.1.3 3 1" fill="none" stroke="#2e7d4f" stroke-width="1.6" stroke-linecap="round"/>'
+    + '<path d="M17.9 14.4v5.2M15.3 17h5.2" stroke="#2e7d4f" stroke-width="1.8" stroke-linecap="round"/>',
+};
+
+/* ---- 卡通位图头像映射（2026-10-28 线描风接入，用户参考图定稿）：
+   仅覆盖有素材的角色；其余角色保持原内联 svg，避免改动本次任务范围外的 UI。
+   素材为纯色底方形 PNG（浅绿/米杏/浅蓝/暖杏），容器圆形裁切即可；
+   文件名与角色一一对应，单一映射源，多页面复用不再各自维护。 */
+const AVATAR_IMG = {
+  'elder-male': 'assets/avatars/elder-male.png',
+  'elder-female': 'assets/avatars/elder-female.png',
+  'adult-male': 'assets/avatars/adult-male.png',
+  'adult-female': 'assets/avatars/adult-female.png',
+  'self': 'assets/avatars/self.png',
+  'couple': 'assets/avatars/couple.png',
+  'worker': 'assets/avatars/worker.png',
+  'other': 'assets/avatars/other.png',
+  'neutral': 'assets/avatars/neutral.png',
+};
+
+/** 取成员头像：有卡通位图时优先返回 <img>（装饰性，aria-hidden），
+   否则回退内联 svg；角色映射不到时回退中性 svg，不返回空串。 */
+function avatarSvg(role) {
+  const img = AVATAR_IMG[role];
+  if (img) {
+    return '<img class="ava-img" src="' + img + '" alt="" aria-hidden="true">';
+  }
+  return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + (AVATARS[role] || AVATARS.neutral) + '</svg>';
+}
+
+/** 关系标签 → 头像角色：只用已选择的可靠关系词白名单，不猜姓名。 */
+function memberAvatarRole(beneficiary, mode) {
+  if (mode === 'self') return 'self';
+  const b = String(beneficiary || '').trim();
+  if (!b) return 'neutral';
+  if (b === '配偶') return 'couple';
+  if (AVATAR_MALE_WORDS.indexOf(b) >= 0) return 'elder-male';
+  if (AVATAR_FEMALE_WORDS.indexOf(b) >= 0) return 'elder-female';
+  return 'neutral';
+}
+
+/* ---- family.html 选择卡头像：键 = 页面上固定的关系标签（用户点选值），
+   不做姓名/用字推断；映射不到的键回退 neutral，不返回空串。 ---- */
+const CHOICE_AVATARS = {
+  '女儿': 'adult-female', '儿子': 'adult-male',
+  '配偶': 'couple', '其他家属': 'other', '社区工作人员': 'worker',
+  '父亲': 'elder-male', '母亲': 'elder-female',
+  '爷爷': 'elder-male', '奶奶': 'elder-female',
+  '外公': 'elder-male', '外婆': 'elder-female', '其他': 'neutral',
+};
+
+/** 把 family.html choice 卡的字徽章替换为对应角色头像（幂等，可重复调用）。 */
+function mountChoiceAvatars(root) {
+  (root || document).querySelectorAll('.choice-grid .choice[data-role]').forEach((btn) => {
+    const badge = btn.querySelector('.ch-badge');
+    if (!badge || badge.dataset.ava === '1') return;
+    badge.dataset.ava = '1';
+    badge.classList.add('ch-ava');
+    badge.textContent = '';
+    badge.innerHTML = avatarSvg(CHOICE_AVATARS[btn.dataset.role] || 'neutral');
+  });
+}
+
+/* ==========================================================================
    AI 发现过程
    原则：每一个 ✓ 都对应一次真实接口的返回，不使用 setTimeout 伪造进度。
    1) /api/profile 真正返回 → 打勾「识别生活信息」「分析可能涉及的服务场景」
@@ -579,7 +815,7 @@ function aiFlowItems(doneCount) {
     const active = i === doneCount;
     const cls = done ? 'is-done' : (active ? 'is-active' : '');
     return `<li class="ai-step ${cls} animate-in d${i + 1}">
-      <span class="ai-mark" aria-hidden="true">${done ? '✓' : ''}</span>
+      <span class="ai-mark" aria-hidden="true">${done ? icon('check') : ''}</span>
       <span class="ai-text">${escapeHtml(s.text)}</span>
     </li>`;
   }).join('');
@@ -695,7 +931,7 @@ function renderProfileCard(profile, opts) {
 
   const html = rows.map(function (r) {
     return `<div class="basis-row ${r.ok ? 'ok' : 'todo'}">
-      <span class="basis-mark" aria-hidden="true">${r.ok ? '✓' : '—'}</span>
+      <span class="basis-mark" aria-hidden="true">${r.ok ? icon('check') : icon('minus')}</span>
       <span class="basis-key">${escapeHtml(r.k)}</span>
       <span class="basis-val">${escapeHtml(r.v)}</span>
     </div>`;
@@ -747,9 +983,13 @@ function renderSceneSummary(list) {
   const rows = groups.map((g) => {
     const shown = g.policies.slice(0, 4);
     const rest = g.policies.length - shown.length;
-    const glyph = SCENE_GLYPH[g.name] || g.name.slice(0, 1);
+    // 类别角标：优先用统一类别图标（CAT_ICONS）；未收录类别退回 SCENE_GLYPH 汉字，
+    // 再退回首字——任何情况下都有可读内容，不会渲染空白或报错。
+    const badgeInner = CAT_ICONS[g.name]
+      ? catSvgIcon(g.name)
+      : escapeHtml(SCENE_GLYPH[g.name] || g.name.slice(0, 1));
     return `<div class="scene-row">
-      <span class="scene-badge" aria-hidden="true">${escapeHtml(glyph)}</span>
+      <span class="scene-badge" aria-hidden="true">${badgeInner}</span>
       <div class="scene-main">
         <div class="scene-name">${escapeHtml(g.name)}<span class="scene-count">${g.policies.length} 项</span></div>
         ${g.types.length ? `<div class="scene-types">${escapeHtml(g.types.join(' · '))}</div>` : ''}
@@ -823,7 +1063,7 @@ function renderEmptyState(data, opts) {
     <div class="section">
       <div class="empty-card">
         <div class="empty-head">
-          <span class="empty-mark" aria-hidden="true">○</span>
+          <span class="empty-mark" aria-hidden="true">${iconF('status-none')}</span>
           <div class="empty-title">${escapeHtml(state.title)}</div>
         </div>
         <p class="empty-sub">${escapeHtml(state.sub)}不代表${escapeHtml(who)}一定没有可用权益。</p>
@@ -1157,7 +1397,7 @@ function returnBarHtml(o) {
   if (o.gone) {
     return `
       <div class="return-bar is-gone" data-return-bar role="status">
-        <div class="rb-icon" aria-hidden="true">○</div>
+        <div class="rb-icon" aria-hidden="true">${icon('circle')}</div>
         <div class="rb-main">
           <div class="rb-title">调整后，这项政策暂未继续匹配</div>
           <div class="rb-sub">${escapeHtml(o.sub || '')}</div>
@@ -1166,7 +1406,7 @@ function returnBarHtml(o) {
   }
   return `
     <div class="return-bar" data-return-bar role="status">
-      <div class="rb-icon" aria-hidden="true">↩</div>
+      <div class="rb-icon" aria-hidden="true">${icon('undo')}</div>
       <div class="rb-main">
         <div class="rb-title">你刚才查看的是这项政策</div>
         <div class="rb-sub">${escapeHtml(o.name || '')}</div>
@@ -1368,7 +1608,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
   ];
   const factsHtml = facts.map((f) => `
     <div class="board-fact ${f.ok ? 'ok' : 'todo'}">
-      <span class="bf-mark" aria-hidden="true">${f.ok ? '✓' : '—'}</span>
+      <span class="bf-mark" aria-hidden="true">${f.ok ? icon('check') : icon('minus')}</span>
       <span class="bf-k">${escapeHtml(f.k)}</span>
       <span class="bf-v">${escapeHtml(f.v || '未提供')}</span>
     </div>`).join('');
@@ -1402,8 +1642,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
         <span class="board-sec-n">${detected.length} 项</span>
       </div>
       <p class="board-sec-tip">
-        这些是 AI 从您的描述里读到的。请核对一下：认错了就点掉，漏了就在下面补上——
-        您的确认会直接改变匹配结果。
+        认错了就点掉，漏了就在下面补上——您的勾选会直接改变匹配结果。
       </p>
       ${profile.scenes_edited ? '<p class="board-edited">已按您的确认调整过，下面是调整后的情况。</p>' : ''}
       <div class="scene-chips is-on">${chips(detected, 'on')}</div>
@@ -1470,8 +1709,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
     <div class="section">
       <h2 class="section-title">${escapeHtml(opts.title || '第一步：确认情况')}</h2>
       <p class="hint" style="margin:-4px 0 10px">
-        这一步是整件事的地基。AI 先读一遍您描述的情况，再由您核对——
-        家属代为填写也不等于${escapeHtml(who)}本人已确认。
+        AI 已读取您描述的情况，下面请您核对。家属代为填写不等于${escapeHtml(who)}本人已确认。
       </p>
       ${noneHint}
       <div class="card board">
@@ -1584,27 +1822,28 @@ function renderEvidenceChain(ev, opts) {
 }
 
 /**
- * v6 视觉迁移：权益分类图标（纯展示，不参与任何业务判断）。
- * 4 组线性 SVG 与 v6 定稿一致；未知分类回退为首字，保证不渲染空白。
- * 数据字段仍是生产的 r.category，不改数据、不新增判断。
+ * v6 视觉迁移 → 2026-10-27 UI 提升轮重绘：
+ * 旧版「红心+白色弧线」在 20px 下弧线与心形轮廓相交，被误读为 ✕（关闭/错误）。
+ * 重绘原则：单色实底剪影 + 一处白色重点，剪影互相独立可区分，
+ * 颜色只承担分类语义（红=养老照护 / 橙=医疗 / 青=健康 / 蓝=保障），状态语义仍由徽章承担。
  */
 const CAT_ICONS = {
-  '养老服务': '<path d="M7 20V9.5A2.5 2.5 0 0 1 9.5 7h1A2.5 2.5 0 0 1 13 9.5V20"/>'
-    + '<path d="M7 14h6"/><path d="M13 20h3.2a1.8 1.8 0 0 0 1.75-1.38l.9-3.6A1.8 1.8 0 0 0 17 12.8a1.8 1.8 0 0 0-1.75 1.24L14.6 16"/>'
-    + '<circle cx="10" cy="4.4" r="1.7"/>',
-  '养老保障': '<path d="M12 3.2 19 6v5.4c0 4.1-2.8 7.6-7 9.4-4.2-1.8-7-5.3-7-9.4V6l7-2.8Z"/>'
-    + '<path d="m8.9 12 2.3 2.3 4-4.4"/>',
-  '健康服务': '<path d="M3.2 12.4h4l2-4.6 3.4 9 2.2-6 1.6 1.6h4.4"/>'
-    + '<path d="M20.6 8.6a4 4 0 0 0-6.9-3.1L12 7.1 10.3 5.5a4 4 0 0 0-6.6 1.1"/>',
-  '医疗保障': '<circle cx="12" cy="12" r="8.6"/>'
-    + '<path d="M12 8.2v7.6"/><path d="M8.2 12h7.6"/>',
+  '养老服务': '<path fill="#d95a55" d="M12 19.9c-.3 0-3.4-2-5.2-4.1-1.2-1.4-1.9-2.9-1.9-4.3 0-2.4 1.9-4.3 4.2-4.3 1.1 0 2.2.5 2.9 1.3a3.9 3.9 0 0 1 2.9-1.3c2.3 0 4.2 1.9 4.2 4.3 0 1.4-.7 2.9-1.9 4.3-1.8 2.1-4.9 4.1-5.2 4.1Z"/>'
+    + '<circle cx="9.9" cy="10.4" r="1.05" fill="#fff" opacity=".85"/>',
+  '养老保障': '<path fill="#4a7fb5" d="M12 2.6 19.8 5.7v5.7c0 4.7-3.2 8.7-7.8 10-4.6-1.3-7.8-5.3-7.8-10V5.7L12 2.6Z"/>'
+    + '<circle cx="12" cy="9.4" r="2.1" fill="#fff"/>'
+    + '<path fill="#fff" d="M12 12.2c-2.6 0-4.5 1.5-4.5 3.4 0 .6.5 1.1 1.1 1.1h6.8c.6 0 1.1-.5 1.1-1.1 0-1.9-1.9-3.4-4.5-3.4Z"/>',
+  '健康服务': '<path fill="#2f8c7a" d="M12 20s-7.2-4.4-7.2-9.4a4.1 4.1 0 0 1 7.2-2.7 4.1 4.1 0 0 1 7.2 2.7c0 5-7.2 9.4-7.2 9.4Z"/>'
+    + '<path d="M6.6 11.4h2.7l1.3-2.4 2 4.6 1.4-2.2h3.4" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  '医疗保障': '<path fill="#f09a3e" d="M3.4 7.8h17.2a1.4 1.4 0 0 1 1.4 1.4v9.8a1.4 1.4 0 0 1-1.4 1.4H3.4a1.4 1.4 0 0 1-1.4-1.4V9.2a1.4 1.4 0 0 1 1.4-1.4Z"/>'
+    + '<path fill="#f09a3e" d="M9 3.6h6a1.5 1.5 0 0 1 1.5 1.5v2.7h-2V6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5v1.8h-2V5.1A1.5 1.5 0 0 1 9 3.6Z"/>'
+    + '<path d="M10.9 10.9h2.2v2.3h2.3v2.2h-2.3v2.3h-2.2v-2.3H8.6v-2.2h2.3v-2.3Z" fill="#fff"/>',
 };
 
 function catSvgIcon(cat) {
   const p = CAT_ICONS[cat];
   if (!p) return `<span class="rc-ic-fb">${escapeHtml(String(cat || '').slice(0, 1))}</span>`;
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"`
-    + ` stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${p}</svg>`;
 }
 
 /**
@@ -2029,7 +2268,7 @@ function renderTopbar(title, parentHref, sub) {
   let back = '';
   if (parentHref) {
     // href 保留：既是无 JS / 中键新窗口的兜底，也让父页面关系可被查看
-    back = `<a class="back-link" href="${escapeHtml(parentHref)}" data-back="1">← 返回</a>`;
+    back = `<a class="back-link" href="${escapeHtml(parentHref)}" data-back="1">${icon('arrow-left')}返回</a>`;
   }
   el.innerHTML = `
     <div class="brand-row">
@@ -2107,10 +2346,10 @@ function discoverRouteTarget() {
  */
 function renderBottomNav(active) {
   const icons = {
-    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg>',
-    discover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
-    consult: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 1 0-3.1 6.3L21 20z"/></svg>',
-    mine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>',
+    home: iconF('home'),
+    discover: iconF('compass'),
+    consult: iconF('headset'),
+    mine: iconF('user'),
   };
   const tabs = [
     { key: 'home', label: '首页' },
@@ -2144,8 +2383,11 @@ function mountBottomNav(active) {
     const btn = e.target.closest('.tab-item');
     if (!btn) return;
     const key = btn.dataset.tab;
+    // 当前标签组已经代表用户所在的业务上下文，重复点击不再整页重载。
+    // 「发现」同时覆盖家庭/本人两种结果页，因此 active 判断必须优先于动态路由。
+    if (key === active) return;
     if (key === 'consult') {
-      if (active !== 'consult') location.href = 'consult.html';
+      location.href = 'consult.html';
       return;
     }
     if (key === 'discover') {
@@ -2154,7 +2396,9 @@ function mountBottomNav(active) {
     }
     if (key === 'home') location.href = 'index.html';
     if (key === 'mine') {
-      openMineSheet(btn);
+      // 2026-10-29：我的 → 独立服务页（原 mine-sheet 弹层能力已迁入 services.html，
+      // 会话信息 / 重新评估家庭情况 / 为自己查找 / 重置本次查询 全部保留）
+      location.href = 'services.html';
       return;
     }
   });
@@ -2169,20 +2413,21 @@ function mountBottomNav(active) {
    ========================================================================== */
 function mineSessionLines() {
   const s = store.read();
+  const role = memberAvatarRole(s.beneficiary, s.selfProfile && s.selfProfile.mode === 'self' ? 'self' : null);
   if (s.beneficiary) {
     const age = (s.profile && typeof s.profile.age === 'number') ? s.profile.age + ' 岁' : '';
-    return { mode: '家庭协助', relation: (s.operator || '未选择') + ' → ' + s.beneficiary, extra: age };
+    return { mode: '家庭协助', relation: (s.operator || '未选择') + ' → ' + s.beneficiary, extra: age, role: role };
   }
   if (s.selfProfile && s.selfProfile.mode === 'self') {
     const age = (typeof s.selfProfile.age === 'number') ? s.selfProfile.age + ' 岁' : '';
-    return { mode: '本人模式', relation: '本人', extra: age };
+    return { mode: '本人模式', relation: '本人', extra: age, role: 'self' };
   }
-  return { mode: '尚未开始', relation: '尚未建立家庭画像', extra: '' };
+  return { mode: '尚未开始', relation: '尚未建立家庭画像', extra: '', role: 'neutral' };
 }
 
 function mineSheetHtml(d) {
   return '<div class="mine-sheet" role="dialog" aria-modal="true" aria-label="我的查询">'
-    + '<div class="ms-head"><span class="ms-title">我的查询</span>'
+    + '<div class="ms-head"><span class="ms-ava" aria-hidden="true">' + avatarSvg(d.role || 'neutral') + '</span><span class="ms-title">我的查询</span>'
     + '<button type="button" class="ms-close" aria-label="关闭">✕</button></div>'
     + '<div class="ms-rows">'
     + '<div class="ms-row"><span class="k">查询模式</span><span class="v">' + escapeHtml(d.mode) + '</span></div>'
@@ -2195,7 +2440,6 @@ function mineSheetHtml(d) {
     + '<button type="button" class="ms-btn danger" data-ms="reset">重置本次查询</button>'
     + '</div>'
     + '<p class="ms-note ms-reset-note">重置将清空本次会话数据：家庭画像、已填写的情况描述与最近一次匹配记录；不影响任何政策数据，也不影响其他页面。</p>'
-    + '<p class="ms-note">结果均为「可能相关」的初步匹配，不代表资格认定；最终是否适用由主管部门核定。</p>'
     + '</div>';
 }
 
@@ -2235,4 +2479,265 @@ function openMineSheet(trigger) {
     location.href = 'index.html';
   });
   overlay.querySelector('.ms-close').focus();
+}
+
+/* ==========================================================================
+   新增服务页面模块（2026-10-29）：我的服务 / 待核实清单 / 少跑腿计划 / 核实记录
+   追加式新增，不改动上方任何既有函数与既有存储键。
+   - 核实记录：sessionStorage 'pf_verify_records_v1'（数组，每项含 history 历史）
+   - 与 pf_fs_<pid> 反馈键并存：pf_fs 继续服务详情页「打算去核实」表态；
+     待核实清单 = pf_fs_*==='verify' 且记录未标记 listRemoved 的政策
+   - 受益人标识 benKey：会话有 beneficiary 用之，否则 'self'（本人模式），
+     避免不同查询对象的记录混在一起
+   - 读取失败 / JSON 损坏 / 隐私模式：一律降级为空数据，页面仍可渲染
+   - 不调用任何后端写接口；不触碰政策数据
+   ========================================================================== */
+var VSTORE_KEY = 'pf_verify_records_v1';
+var VPREP_KEY = 'pf_prep_v1';
+
+var VSTATUS = {
+  pending:  { label: '待核实', cls: 'is-pending' },
+  checking: { label: '核实中', cls: 'is-checking' },
+  needinfo: { label: '还需要补充信息', cls: 'is-needinfo' },
+  ready:    { label: '已核实，准备办理', cls: 'is-ready' },
+  done:     { label: '已核实，暂不办理或已处理', cls: 'is-done' },
+};
+var VORDER = ['pending', 'checking', 'needinfo', 'ready', 'done'];
+var VERIFIED_SET = { ready: true, done: true };
+var VHINT = {
+  pending: '先确认政策条件，再通过官方渠道咨询核实。',
+  checking: '已联系官方、等待答复期间无需重复咨询，有进展可随时更新。',
+  needinfo: '还有信息待补充，补齐后再向官方渠道确认一次。',
+  ready: '可按官方指引准备办理；出发前记得确认材料、时间与预约要求。',
+  done: '已处理或暂不办理，历史记录会保留，可随时调整。',
+};
+
+function vBenKey() {
+  const s = store.read();
+  return s.beneficiary ? String(s.beneficiary) : 'self';
+}
+function vBenLabel() {
+  const s = store.read();
+  if (s.beneficiary) return (s.operator ? s.operator + ' → ' + s.beneficiary : String(s.beneficiary));
+  return '本人';
+}
+function vLoadRecords() {
+  try {
+    const arr = JSON.parse(sessionStorage.getItem(VSTORE_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter((r) => r && r.pid && r.benKey) : [];
+  } catch (e) { return []; }
+}
+function vSaveRecords(arr) {
+  try { sessionStorage.setItem(VSTORE_KEY, JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+}
+function vFindRecord(arr, pid) {
+  const ben = vBenKey();
+  return arr.find((r) => r.pid === pid && r.benKey === ben) || null;
+}
+/* 读取当前待核实清单口径的条目：pf_fs_*==='verify' 且未标记 listRemoved。
+   尚无记录的政策以占位条目（status=pending）返回，pname/dept 由调用方用接口数据补齐。 */
+function vListRecords() {
+  const arr = vLoadRecords();
+  const out = [];
+  vSelectedIds().forEach((pid) => {
+    const rec = vFindRecord(arr, pid);
+    if (rec && rec.listRemoved) {
+      /* pf_fs 又变为 verify = 用户在详情页重新选择「打算去核实」，恢复进清单 */
+      rec.listRemoved = false;
+      rec.updatedAt = Date.now();
+      vSaveRecords(arr);
+    }
+    if (rec) out.push(rec);
+    else out.push({ pid: pid, benKey: vBenKey(), status: 'pending', note: '', next: '', noRecord: true });
+  });
+  return out;
+}
+function vSelectedIds() {
+  const ids = [];
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.indexOf('pf_fs_') === 0 && sessionStorage.getItem(k) === 'verify') {
+        ids.push(k.slice('pf_fs_'.length));
+      }
+    }
+  } catch (e) { /* 隐私模式忽略 */ }
+  return ids;
+}
+/* 确保记录存在（首次在清单/计划页查看时即建档，快照政策名/部门/来源链接） */
+function vEnsureRecord(pid, pname, dept, url) {
+  const arr = vLoadRecords();
+  let rec = vFindRecord(arr, pid);
+  if (!rec) {
+    rec = {
+      rid: pid + '|' + vBenKey(),
+      pid: pid, benKey: vBenKey(), ben: vBenLabel(),
+      pname: pname || '', dept: dept || '', url: url || '',
+      status: 'pending', note: '', next: '',
+      listRemoved: false,
+      createdAt: Date.now(), updatedAt: Date.now(),
+      history: [{ ts: Date.now(), status: 'pending', note: '', next: '' }],
+    };
+    arr.push(rec);
+    vSaveRecords(arr);
+  } else {
+    let changed = false;
+    if (!rec.pname && pname) { rec.pname = pname; changed = true; }
+    if (!rec.dept && dept) { rec.dept = dept; changed = true; }
+    if (!rec.url && url) { rec.url = url; changed = true; }
+    if (changed) { rec.updatedAt = Date.now(); vSaveRecords(arr); }
+  }
+  return rec;
+}
+/* 更新状态：写入当前值并追加历史（不覆盖历史信息） */
+function vUpdateRecord(pid, pname, dept, url, status, note, next) {
+  const arr = vLoadRecords();
+  let rec = vFindRecord(arr, pid);
+  if (!rec) {
+    rec = {
+      rid: pid + '|' + vBenKey(),
+      pid: pid, benKey: vBenKey(), ben: vBenLabel(),
+      pname: pname || '', dept: dept || '', url: url || '',
+      status: 'pending', note: '', next: '', listRemoved: false,
+      createdAt: Date.now(), updatedAt: Date.now(), history: [],
+    };
+    arr.push(rec);
+  }
+  rec.pname = rec.pname || pname || '';
+  rec.dept = rec.dept || dept || '';
+  rec.url = rec.url || url || '';
+  rec.status = VSTATUS[status] ? status : rec.status;
+  rec.note = String(note || '').slice(0, 300);
+  rec.next = String(next || '').slice(0, 120);
+  rec.updatedAt = Date.now();
+  rec.listRemoved = false; /* 重新更新状态视为回到关注，恢复进清单 */
+  rec.history.push({ ts: rec.updatedAt, status: rec.status, note: rec.note, next: rec.next });
+  vSaveRecords(arr);
+  return rec;
+}
+/* 仅从待核实清单移除：清 pf_fs 反馈键 + 记录打 listRemoved 标记（历史保留） */
+function vRemoveFromList(pid) {
+  try { sessionStorage.removeItem('pf_fs_' + pid); } catch (e) { /* ignore */ }
+  const arr = vLoadRecords();
+  const rec = vFindRecord(arr, pid);
+  if (rec) {
+    rec.listRemoved = true;
+    rec.updatedAt = Date.now();
+    vSaveRecords(arr);
+  }
+}
+/* 删除历史记录：仅核实记录页两步确认后显式调用 */
+function vDeleteRecord(pid) {
+  const ben = vBenKey();
+  vSaveRecords(vLoadRecords().filter((r) => !(r.pid === pid && r.benKey === ben)));
+}
+function vLoadPrep() {
+  try {
+    const o = JSON.parse(sessionStorage.getItem(VPREP_KEY) || '{}');
+    return { p1: !!o.p1, p2: !!o.p2, p3: !!o.p3, p4: !!o.p4 };
+  } catch (e) { return { p1: false, p2: false, p3: false, p4: false }; }
+}
+/* 是否已经开始少跑腿计划：只认本机真实的准备勾选、状态或记录，
+   不用「已选政策」本身虚构计划进度。 */
+function vHasPlanProgress() {
+  const prep = vLoadPrep();
+  if (prep.p1 || prep.p2 || prep.p3 || prep.p4) return true;
+  const arr = vLoadRecords();
+  const ben = vBenKey();
+  return vSelectedIds().some((pid) => {
+    const rec = arr.find((r) => r.pid === pid && r.benKey === ben);
+    return !!rec && (
+      rec.status !== 'pending'
+      || !!rec.note
+      || !!rec.next
+      || (Array.isArray(rec.history) && rec.history.length > 1)
+    );
+  });
+}
+function vSavePrep(p) {
+  try { sessionStorage.setItem(VPREP_KEY, JSON.stringify(p)); } catch (e) { /* ignore */ }
+}
+function vStatusPill(status) {
+  const m = VSTATUS[status] || VSTATUS.pending;
+  return '<span class="vf-pill ' + m.cls + '">' + escapeHtml(m.label) + '</span>';
+}
+/* 并发拉取选中政策的详情（与 consult 页同一接口），失败的政策跳过 */
+async function vFetchDetails(pids) {
+  const map = {};
+  await Promise.all((pids || []).map(async (pid) => {
+    try {
+      const d = await API.policy(pid);
+      if (d && !d.error && d.policy_id) map[pid] = d;
+    } catch (e) { /* 单条失败不影响其他 */ }
+  }));
+  return map;
+}
+
+/* ---------- 统一状态更新弹层（清单 / 计划 / 记录三页共用） ---------- */
+function mountVerifySheet() {
+  if (document.getElementById('vfSheet')) return;
+  const mask = document.createElement('div');
+  mask.id = 'vfMask'; mask.className = 'vf-mask';
+  const sheet = document.createElement('section');
+  sheet.id = 'vfSheet'; sheet.className = 'vf-sheet';
+  sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true');
+  sheet.setAttribute('aria-labelledby', 'vfTitle'); sheet.tabIndex = -1;
+  sheet.innerHTML = '<div class="vf-sheet-head"><h2 id="vfTitle">更新核实状态</h2>'
+    + '<button type="button" class="vf-x" data-vf="close" aria-label="关闭">✕</button></div>'
+    + '<div class="vf-sheet-body">'
+    + '<p class="vf-sheet-policy" id="vfPolicy"></p>'
+    + '<div class="vf-flabel" id="vfStatusLb">当前状态</div>'
+    + '<div class="vf-opts" id="vfOpts" role="radiogroup" aria-labelledby="vfStatusLb"></div>'
+    + '<label class="vf-flabel" for="vfNote">官方答复或核实备注 <span class="vf-opt-tag">（选填）</span></label>'
+    + '<textarea id="vfNote" rows="3" placeholder="例如：通过官方渠道了解到的情况，方便以后查看"></textarea>'
+    + '<label class="vf-flabel" for="vfNext">接下来要做什么 <span class="vf-opt-tag">（选填）</span></label>'
+    + '<input type="text" id="vfNext" placeholder="例如：先确认需要带哪些材料">'
+    + '<p class="vf-sheet-note">您的记录只保存在本设备，不提交给任何部门；记录不构成官方确认。</p>'
+    + '</div>'
+    + '<div class="vf-sheet-foot"><button type="button" class="vf-save" data-vf="save">保存</button></div>';
+  document.body.appendChild(mask);
+  document.body.appendChild(sheet);
+  mask.addEventListener('click', closeVerifySheet);
+  sheet.querySelector('[data-vf="close"]').addEventListener('click', closeVerifySheet);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sheet.classList.contains('is-open')) closeVerifySheet();
+  });
+  sheet.querySelector('[data-vf="save"]').addEventListener('click', () => {
+    const ctx = sheet._vfCtx;
+    if (!ctx) return;
+    const sel = sheet.querySelector('input[name="vf-status"]:checked');
+    const status = sel ? sel.value : ctx.status;
+    vUpdateRecord(ctx.pid, ctx.pname, ctx.dept, ctx.url, status,
+      document.getElementById('vfNote').value, document.getElementById('vfNext').value);
+    closeVerifySheet();
+    showToast('已保存，相关页面已同步');
+    if (typeof sheet._vfOnSaved === 'function') sheet._vfOnSaved();
+  });
+}
+function openVerifySheet(item, onSaved) {
+  mountVerifySheet();
+  const sheet = document.getElementById('vfSheet');
+  sheet._vfCtx = item;
+  sheet._vfOnSaved = onSaved || null;
+  const pEl = document.getElementById('vfPolicy');
+  pEl.innerHTML = '正在更新：<b></b>';
+  pEl.querySelector('b').textContent = item.pname || item.pid;
+  document.getElementById('vfOpts').innerHTML = VORDER.map((k) => {
+    const cur = item.status === k;
+    return '<label class="vf-opt"><input type="radio" name="vf-status" value="' + k + '"' + (cur ? ' checked' : '') + '>'
+      + '<span class="vf-dot" aria-hidden="true"></span><span class="vf-o">' + escapeHtml(VSTATUS[k].label) + '</span></label>';
+  }).join('');
+  document.getElementById('vfNote').value = item.note || '';
+  document.getElementById('vfNext').value = item.next || '';
+  document.getElementById('vfMask').classList.add('is-open');
+  sheet.classList.add('is-open');
+  document.body.classList.add('no-scroll');
+  sheet.focus();
+}
+function closeVerifySheet() {
+  const mask = document.getElementById('vfMask');
+  const sheet = document.getElementById('vfSheet');
+  if (mask) mask.classList.remove('is-open');
+  if (sheet) sheet.classList.remove('is-open');
+  document.body.classList.remove('no-scroll');
 }

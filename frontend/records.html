@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="查看历史核实记录：核实时间、状态、备注与下一步计划；记录只保存在本设备。">
+  <title>核实记录 · 政策找人</title>
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <section class="section">
+    <p class="vf-ov-line" id="rcSum" style="color:var(--muted);margin:0 0 10px;">这里保留每次状态更新的历史，不会因为从清单移除而消失。</p>
+    <div id="rcList" aria-live="polite"></div>
+  </section>
+
+  <div class="footnote">
+    <span>记录只保存在本设备浏览器中，不提交给任何部门；记录内容不构成官方确认。</span><br>
+    <span>删除记录为显式操作，需要两次确认。</span>
+  </div>
+</div>
+
+<script src="assets/app.js?v=20261030b"></script>
+<script>
+  renderTopbar('核实记录', 'services.html', '我的服务');
+  mountBottomNav('mine');
+  mountVerifySheet();
+
+  let rcItems = [];   /* 当前受益人的全部记录（含 listRemoved），按 updatedAt 倒序 */
+
+  function fmtTime(ts) {
+    try {
+      const d = new Date(ts);
+      return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function render() {
+    const box = document.getElementById('rcList');
+    document.getElementById('rcSum').textContent =
+      '查询对象：' + vBenLabel() + ' · 这里保留每次状态更新的历史，不会因为从清单移除而消失。';
+    if (rcItems.length === 0) {
+      box.innerHTML = '<div class="card vf-empty">'
+        + '<div class="t">还没有核实记录</div>'
+        + '<div class="d">在「待核实清单」或「少跑腿计划」里更新政策状态、'
+        + '填写备注后，记录会保留在这里。</div>'
+        + '<button type="button" class="vf-btn" data-act="goList">去待核实清单</button>'
+        + '</div>';
+      return;
+    }
+    box.innerHTML = rcItems.map((r) => {
+      const last = (r.history && r.history.length) ? r.history[r.history.length - 1] : null;
+      const prev = (r.history && r.history.length > 1) ? r.history[r.history.length - 2] : null;
+      let hist = '';
+      if (prev) {
+        hist = '<div class="vf-hist-item">上一状态：'
+          + escapeHtml((VSTATUS[prev.status] || VSTATUS.pending).label)
+          + ' · ' + fmtTime(prev.ts) + ' · 共 ' + r.history.length + ' 次记录</div>';
+      }
+      const removedTag = r.listRemoved
+        ? '<span class="vf-wait-tag" style="margin-left:6px;">已从清单移除</span>' : '';
+      let ex = '';
+      if (r.note) ex += '<div class="vf-extra"><span class="k">官方答复或备注：</span>' + escapeHtml(r.note) + '</div>';
+      if (r.next) ex += '<div class="vf-extra"><span class="k">下一步计划：</span>' + escapeHtml(r.next) + '</div>';
+      return '<article class="card" data-pid="' + escapeHtml(r.pid) + '">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+        + '<div style="flex:1;min-width:0;font-weight:600;font-size:15px;line-height:1.5;">'
+        + escapeHtml(r.pname || r.pid) + removedTag + '</div>'
+        + vStatusPill(r.status)
+        + '</div>'
+        + '<div class="vf-meta">查询对象：' + escapeHtml(r.ben || vBenLabel())
+        + ' · 更新于 ' + escapeHtml(fmtTime(r.updatedAt))
+        + (r.dept ? ' · ' + escapeHtml(r.dept) : '') + '</div>'
+        + ex
+        + (hist ? '<div class="vf-hist">' + hist + '</div>' : '')
+        + '<div class="vf-actions">'
+        + '<button type="button" class="vf-btn is-primary" data-act="edit" data-pid="' + escapeHtml(r.pid) + '">更新状态</button>'
+        + '<button type="button" class="vf-btn" data-act="detail" data-pid="' + escapeHtml(r.pid) + '">查看详情</button>'
+        + '<button type="button" class="vf-btn is-danger-text' + (r._armDel ? ' is-armed' : '')
+        + '" data-act="del" data-pid="' + escapeHtml(r.pid) + '">'
+        + (r._armDel ? '确认删除？' : '删除记录') + '</button>'
+        + '</div>'
+        + '</article>';
+    }).join('');
+  }
+
+  document.getElementById('rcList').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const pid = btn.dataset.pid;
+    const it = rcItems.find((x) => x.pid === pid);
+    if (!it) return;
+    const act = btn.dataset.act;
+    if (act === 'edit') {
+      openVerifySheet(it, () => { refresh(); });
+    } else if (act === 'detail') {
+      location.href = 'policy.html?id=' + encodeURIComponent(pid);
+    } else if (act === 'goList') {
+      location.href = 'verify-list.html';
+    } else if (act === 'del') {
+      if (!it._armDel) {
+        it._armDel = true;
+        render();
+        showToast('删除后不可恢复，再点一次确认');
+      } else {
+        vDeleteRecord(pid);
+        refresh();
+        showToast('已删除该记录');
+      }
+    }
+  });
+
+  function refresh() {
+    rcItems = vLoadRecords()
+      .filter((r) => r.benKey === vBenKey())
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    render();
+  }
+
+  refresh();
+</script>
+</body>
+</html>

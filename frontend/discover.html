@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="用一句话描述家人的生活变化，核对 AI 的理解，发现可能遗漏的公共服务权益。">
   <title>政策找人 · 确认情况</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
   <link rel="stylesheet" href="assets/skins.css">
 </head>
 <body>
@@ -51,9 +51,10 @@
   </div>
 </div>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=20261030b"></script>
 <script>
-  renderTopbar('确认情况', 'family.html', '第 1 步');
+  // 进度由下方主流程条（mountFlow）承担，顶部不再重复「第 N 步」
+  renderTopbar('确认情况', 'family.html');
   mountDemoBanner();
   mountDemoProgress(1);
   mountFlow(1);
@@ -201,7 +202,8 @@
       if (isRefresh) {
         showToast('更新失败：生活变化已保留，请稍后重试', 2800);
       } else {
-        area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+        // 本地启动方式见 docs/README.md；不对用户暴露启动命令
+        area.innerHTML = '<div class="notice warn">暂时无法连接服务，请稍后重试。</div>';
       }
       return;
     }

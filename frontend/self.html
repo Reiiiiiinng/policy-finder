@@ -6,17 +6,14 @@
   <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="您为自己查找可能相关的公共服务权益，核对 AI 的理解并查看政策依据。">
   <title>政策找人 · 本人权益发现</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261030b">
   <link rel="stylesheet" href="assets/skins.css">
 </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
 
-  <div class="notice">
-    本人模式：您正在为自己查找可能相关的公共服务权益。
-    信息由您本人提供，结果仍需向主管部门核实。
-  </div>
+  <!-- 模式标识由 topbar 右侧「本人模式」承担；资格边界见页脚 footnote，不再重复 -->
 
   <!-- 第 1 步：描述发生了什么 -->
   <div class="section">
@@ -57,7 +54,7 @@
   </div>
 </div>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=20261030b"></script>
 <script>
   renderTopbar('本人权益发现', 'index.html', '本人模式');
   mountDemoBanner();
@@ -184,7 +181,8 @@
       if (isRefresh) {
         showToast('更新失败：生活变化已保留，请稍后重试', 2800);
       } else {
-        area.innerHTML = '<div class="notice warn">无法连接服务，请确认后端已启动（python backend/server.py）。</div>';
+        // 本地启动方式见 docs/README.md；不对用户暴露启动命令
+        area.innerHTML = '<div class="notice warn">暂时无法连接服务，请稍后重试。</div>';
       }
       return;
     }
