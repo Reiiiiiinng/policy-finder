@@ -234,8 +234,12 @@
         return '<a class="sv-cell is-add" href="family.html" style="text-decoration:none;">'
           + '<span class="f">＋</span><strong>添加家人</strong><small>重新选对象</small></a>';
       }
+      // 2026-10-30：统一走 tcb-ui.js 的 avatarSvg（9 个角色 + WebP/PNG 双格式）；
+      // 该函数缺失时退回 pf-services.js 的老映射，保证任何情况下不空白。
       const face = c.role
-        ? '<img src="' + (PF_AVATAR_SRC[c.role] || PF_AVATAR_SRC.neutral) + '" alt="" aria-hidden="true">'
+        ? (typeof avatarSvg === 'function'
+          ? avatarSvg(c.role)
+          : '<img src="' + (PF_AVATAR_SRC[c.role] || PF_AVATAR_SRC.neutral) + '" alt="" aria-hidden="true">')
         : escapeHtml(c.face || '家');
       return '<div class="sv-cell"><span class="f">' + face + '</span>'
         + '<strong>' + escapeHtml(c.name) + '</strong>'

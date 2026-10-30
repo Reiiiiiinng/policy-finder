@@ -155,17 +155,31 @@ const AVATARS = {
     + '<path d="M17.9 14.4v5.2M15.3 17h5.2" stroke="#2e7d4f" stroke-width="1.8" stroke-linecap="round"/>',
 };
 
+/* 2026-10-30：9 个角色全部接回 theme-cb 的原始人像素材（同一批线描画风，
+   形象与角色对应保持不变，未重绘未换人）。这里只写路径基名，扩展名由
+   avatarSvg 拼：支持 WebP 的浏览器取 .webp（约 PNG 的 1/6），其余浏览器
+   取 192px PNG（按 44px 展示、3× 屏上限生成，圆容器 cover 裁切不拉伸）。 */
 const AVATAR_IMG = {
-  'elder-male': 'assets/avatars/elder-male.png',
-  'elder-female': 'assets/avatars/elder-female.png',
-  'couple': 'assets/avatars/couple.png',
-  'self': 'assets/avatars/self.png',
-  'neutral': 'assets/avatars/neutral.png',
+  'elder-male': 'assets/avatars/elder-male',
+  'elder-female': 'assets/avatars/elder-female',
+  'adult-male': 'assets/avatars/adult-male',
+  'adult-female': 'assets/avatars/adult-female',
+  'couple': 'assets/avatars/couple',
+  'self': 'assets/avatars/self',
+  'worker': 'assets/avatars/worker',
+  'other': 'assets/avatars/other',
+  'neutral': 'assets/avatars/neutral',
 };
+
+/* 取成员头像：有位图时返回 <picture>（WebP 优先 + PNG 兜底，装饰性
+   aria-hidden）；角色没有位图时回退内联 SVG 线描，映射不到则用中性头像，
+   保证任何情况都不会渲染成空白。 */
 function avatarSvg(role) {
-  const img = AVATAR_IMG[role];
-  if (img) {
-    return '<img class="ava-img" src="' + img + '" alt="" aria-hidden="true">';
+  const base = AVATAR_IMG[role];
+  if (base) {
+    return '<picture class="ava-pic"><source type="image/webp" srcset="' + base + '.webp">'
+      + '<img class="ava-img" src="' + base + '.png" alt="" aria-hidden="true" decoding="async">'
+      + '</picture>';
   }
   return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'
     + (AVATARS[role] || AVATARS.neutral) + '</svg>';

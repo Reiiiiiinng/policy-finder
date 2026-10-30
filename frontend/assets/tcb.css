@@ -5863,7 +5863,13 @@ body.skin-b .result-card:not(.is-lead) .ev-toggle {
   height: 100%;
 }
 
-/* 卡通位图头像（2026-10-28 接入）：填满圆形容器，等比裁切不拉伸，面部居中 */
+/* 卡通位图头像（2026-10-28 接入）：填满圆形容器，等比裁切不拉伸，面部居中。
+   2026-10-30 起由 <picture>（WebP 优先 + PNG 兜底）包着 img 输出：
+   .ava-pic 用 display:contents 让 img 直接作为容器的布局子项，
+   沿用各容器既有的 100% 尺寸与圆角裁切，不新增一层盒子。 */
+.ava-pic {
+  display: contents;
+}
 .ava-img {
   display: block;
   width: 100%;
