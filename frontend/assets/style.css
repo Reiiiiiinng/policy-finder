@@ -6679,11 +6679,13 @@ body.has-tabbar .app.has-dock {
 
   /* ---- 底部导航改为宽屏顶部导航 ----
      导航由 app.js 插在 .app 里、页头（品牌条／页面标题）之后，DOM 顺序本身就是
-     「页头 → 导航 → 正文」。这里只把它从 fixed 改回随页面走的静态条：
-     不再用 body 的 flex + order 把 body 末尾的导航拽到最前面——那种做法会让
-     导航压到品牌条上方，滚动时也会挡住标题。 */
+     「页头 → 导航 → 正文」。这里把它从 fixed 改成 sticky：仍在文档流里占位
+     （不会压住品牌条），但滚动时贴住视口顶部常驻，不必滚回页首才能切页。
+     注意 .app 没有 overflow 裁剪、也没有 transform，sticky 能正常生效。 */
   .tabbar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 60;
     bottom: auto;
     left: auto;
     right: auto;

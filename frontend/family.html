@@ -120,6 +120,10 @@
   mountFlow(1);
   mountRelationStrip();
   mountChoiceAvatars();   // 选择卡字徽章 → 卡通角色头像（幂等；仅换展示层）
+  // 2026-10-30：本页原来没有主导航，进入后只能靠顶部返回键退回。
+  // 补上与其余页面同一套底部导航（当前页 = 首页流程），
+  // has-tabbar 会自动给 .app 加上等于导航高度的底部预留，内容不被遮挡。
+  mountBottomNav('home');
 
   const session = store.read();
   // 「本人」已从操作者列表移除。老会话里可能存着 operator='本人'，

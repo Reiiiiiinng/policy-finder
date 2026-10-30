@@ -38,6 +38,10 @@
   mountDemoBanner();
   mountFlow(3);
   mountRelationStrip();
+  // 2026-10-30：本页原来没有主导航。详情页属于「发现 → 结果」这条线，
+  // 因此高亮「发现」；has-tabbar 的底部预留保证页尾确认区与操作按钮
+  // 不被固定导航压住。
+  mountBottomNav('discover');
 
   const id = query('id');
   const content = document.getElementById('content');
