@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="集中查看您挑选的待核实政策、核实进度与核实记录；记录只保存在本设备。">
+  <title>我的服务 · 政策找人</title>
+  <link rel="stylesheet" href="assets/tcb.css">
+<link rel="stylesheet" href="assets/pf-services-tcb.css">
+<style>
+  .sv-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 10px 0; border-bottom: 1px dashed var(--line-soft); }
+  .sv-row:last-child { border-bottom: 0; }
+  .sv-row .n { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; line-height: 1.5; }
+  .sv-row .n small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
+  .sv-row a { flex: 0 0 auto; font-size: 13px; color: var(--brand-dark); text-decoration: none; border-bottom: 1px solid var(--brand-line); }
+  .sv-row button { flex: 0 0 auto; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font: inherit; font-size: 13px; color: var(--muted); }
+  .sv-row button.is-armed { border-color: #E8C6AE; background: #FBEFE7; color: #A9552A; font-weight: 600; }
+  .sv-fam { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sv-cell { flex: 0 0 auto; min-width: 96px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); text-align: center; background: #fff; }
+  .sv-cell .f { width: 40px; height: 40px; margin: 0 auto 8px; border-radius: 50%; background: var(--brand-soft); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--brand-dark); overflow: hidden; }
+  .sv-cell .f img { width: 100%; height: 100%; object-fit: cover; }
+  .sv-cell strong { display: block; font-size: 14px; }
+  .sv-cell small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+  .sv-cell.is-add { border-style: dashed; background: transparent; }
+  .about-rows .k { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .about-rows .v { display: block; font-size: 13.5px; line-height: 1.7; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+
+  <section class="section">
+    <div class="card">
+      <div class="ov-title" style="font-size:14px;font-weight:600;margin-bottom:8px;">核实进度概览</div>
+      <p class="vf-ov-line" id="vfOvLine"></p>
+      <p class="vf-ov-line" id="vfOvEmpty" style="color:var(--muted);" hidden>还没有加入待核实的政策。挑选政策后会集中显示在这里。</p>
+      <div class="vf-bar" id="vfOvBarWrap" hidden><i id="vfOvBar" style="width:0%"></i></div>
+      <p class="vf-bar-cap" id="vfOvCap" hidden></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">接下来做什么</h2>
+    <div class="vf-entries">
+      <button type="button" class="vf-entry" id="entList">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5v1"/><path d="M9 10h6M9 14h6M9 18h3.5"/></svg></span>
+        <span class="e-t">待核实清单</span>
+        <span class="e-d" id="entListD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entPlan">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 5h11.5l-2.4 3.5 2.4 3.5H6"/></svg></span>
+        <span class="e-t">少跑腿计划</span>
+        <span class="e-d" id="entPlanD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entRecords">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+        <span class="e-t">核实记录</span>
+        <span class="e-d" id="entRecD">—</span>
+      </button>
+      <button type="button" class="vf-entry" id="entFamily">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.7-3 2.9-4.8 5.5-4.8s4.8 1.8 5.5 4.8"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M16.5 14.6c2.2.2 3.7 1.8 4.2 4.2"/></svg></span>
+        <span class="e-t">家庭画像</span>
+        <span class="e-d">查看或重新评估家庭情况</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">我的家庭</h2>
+    <div class="card">
+      <div class="sv-fam" id="famCells"></div>
+      <p class="vf-bar-cap" id="famNote" style="margin-top:10px;"></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">我的收藏</h2>
+    <div class="card">
+      <div id="favList"></div>
+      <p class="vf-bar-cap" id="favEmpty" style="margin-top:2px;">还没有收藏政策。在政策详情页点「收藏」即可加入。</p>
+    </div>
+  </section>
+  <section class="section">
+    <h2 class="section-title">本次查询会话</h2>
+    <div class="card">
+      <div class="vf-ov-line" id="sessLine">—</div>
+      <p class="vf-bar-cap" id="sessExtra"></p>
+      <div class="vf-actions" style="margin-top:8px;">
+        <button type="button" class="vf-btn" id="sessDiscover">重新进入发现页</button>
+      </div>
+      <div class="vf-actions">
+        <button type="button" class="vf-btn" id="sessFamily">重新评估家庭情况</button>
+        <button type="button" class="vf-btn" id="sessSelf">为自己查找</button>
+      </div>
+      <div class="vf-actions" style="margin-top:8px;">
+        <button type="button" class="vf-btn is-danger-text" id="sessReset" style="min-height:40px;">重置本次查询</button>
+      </div>
+      <p class="vf-bar-cap" id="sessResetNote" style="margin-top:6px;" hidden>重置将清空本次会话数据：家庭画像、情况描述与最近一次匹配记录；核实记录会保留在本设备上，不影响政策数据。</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">关于我们</h2>
+    <div class="card about-rows">
+      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+        <span class="k">数据来源</span>
+        <span class="v">各主管部门官方公开文件；每条政策标注责任部门、文号与原文链接</span>
+      </div>
+      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+        <span class="k">数据范围</span>
+        <span class="v" id="aboutScope">读取中……</span>
+      </div>
+      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+        <span class="k">本地存储</span>
+        <span class="v">收藏、本次查询、待核实清单与核实记录只保存在本机浏览器，不上传；清空浏览器数据会一并清除</span>
+      </div>
+      <div style="padding:8px 0;">
+        <span class="k">功能边界</span>
+        <span class="v">只做「可能相关」的初步提示，不做资格认定、不代办；最终以主管部门核定为准</span>
+      </div>
+    </div>
+  </section>
+  <div class="footnote">
+    <span>加入待核实清单不代表符合政策申请条件；资格认定以主管部门审核为准。</span><br>
+    <span>本页与核实相关记录只保存在本设备浏览器中，不会提交给任何部门。</span>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/tcb-ui.js"></script>
+<script src="assets/pf-ns.js"></script>
+<script src="assets/pf-services.js"></script>
+<script>
+  renderTopbar('我的服务', 'index.html', '我的');
+  mountBottomNav('mine');
+
+  function renderServices() {
+    const items = vListRecords();
+    const total = items.length;
+    const verified = items.filter((it) => VERIFIED_SET[it.status]).length;
+    const pending = total - verified;
+
+    if (total > 0) {
+      document.getElementById('vfOvLine').hidden = false;
+      document.getElementById('vfOvLine').innerHTML =
+        '共 <b>' + total + '</b> 项 · 待处理 <b>' + pending + '</b> 项 · 已核实 <b>' + verified + '</b> 项';
+      document.getElementById('vfOvEmpty').hidden = true;
+      document.getElementById('vfOvBarWrap').hidden = false;
+      document.getElementById('vfOvCap').hidden = false;
+      const pct = Math.round(verified / total * 100);
+      document.getElementById('vfOvBar').style.width = pct + '%';
+      document.getElementById('vfOvCap').textContent = '整体核实进度 ' + pct + '%';
+    } else {
+      document.getElementById('vfOvLine').hidden = true;
+      document.getElementById('vfOvEmpty').hidden = false;
+      document.getElementById('vfOvBarWrap').hidden = true;
+      document.getElementById('vfOvCap').hidden = true;
+    }
+    document.getElementById('entListD').textContent = pending > 0 ? (pending + ' 项待处理') : '暂无待处理';
+    document.getElementById('entPlanD').textContent = total > 0
+      ? (vHasPlanProgress() ? '继续查看核实安排' : '制定少跑腿计划')
+      : '挑选政策后可安排';
+    const recCount = vLoadRecords().filter((r) => r.benKey === vBenKey()).length;
+    document.getElementById('entRecD').textContent = recCount > 0 ? (recCount + ' 条记录') : '暂无记录';
+  }
+
+  function renderSession() {
+    const d = mineSessionLines();
+    document.getElementById('sessLine').innerHTML =
+      '<b>' + escapeHtml(d.mode) + '</b> · ' + escapeHtml(d.relation) + (d.extra ? ' · ' + escapeHtml(d.extra) : '');
+    document.getElementById('sessExtra').textContent = '';
+  }
+
+  document.getElementById('entList').addEventListener('click', () => { location.href = 'verify-list.html'; });
+  document.getElementById('entPlan').addEventListener('click', () => { location.href = 'plan.html'; });
+  document.getElementById('entRecords').addEventListener('click', () => { location.href = 'records.html'; });
+  document.getElementById('entFamily').addEventListener('click', () => { location.href = 'family.html'; });
+  document.getElementById('sessFamily').addEventListener('click', () => {
+    const prev = store.read().target;
+    store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
+    location.href = 'family.html';
+  });
+  document.getElementById('sessSelf').addEventListener('click', () => {
+    store.write({ target: 'self', demo: false, demoBanner: false });
+    location.href = 'self.html';
+  });
+  const resetBtn = document.getElementById('sessReset');
+  resetBtn.addEventListener('click', () => {
+    if (resetBtn.dataset.armed !== '1') {
+      resetBtn.dataset.armed = '1';
+      resetBtn.textContent = '确认重置？再次点击执行';
+      resetBtn.classList.add('is-armed');
+      document.getElementById('sessResetNote').hidden = false;
+      return;
+    }
+    store.clear();
+    location.href = 'index.html';
+  });
+
+
+  /* ---- 我的家庭：只显示本次查询真实涉及的家人，不预置没发生过的成员 ---- */
+  function readFav() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('pf_saved') || '[]');
+      return Array.isArray(arr) ? arr.filter((x) => x && x.id) : [];
+    } catch (e) { return []; }
+  }
+  function writeFav(arr) {
+    try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+  function paintFamily() {
+    const box = document.getElementById('famCells');
+    const note = document.getElementById('famNote');
+    const s = (typeof store !== 'undefined' && store.read) ? store.read() : {};
+    const mode = (typeof activeQueryMode === 'function') ? activeQueryMode() : 'family';
+    const demo = !!s.demo;
+    const cells = [];
+    if (demo && mode !== 'self') {
+      cells.push({ face: '演', name: '演示案例', sub: '预置样例' });
+    } else if (mode === 'self') {
+      if (s.selfText) {
+        const role = (typeof memberAvatarRole === 'function') ? memberAvatarRole('', 'self') : 'self';
+        cells.push({ role, name: '本人', sub: '本人模式' });
+      }
+    } else if (s.beneficiary) {
+      const role = (typeof memberAvatarRole === 'function') ? memberAvatarRole(s.beneficiary, 'family') : 'neutral';
+      cells.push({ role, name: s.beneficiary, sub: '家庭成员' });
+    }
+    cells.push({ add: true, name: '添加家人', sub: '' });
+    box.innerHTML = cells.map((c) => {
+      if (c.add) {
+        return '<a class="sv-cell is-add" href="family.html" style="text-decoration:none;">'
+          + '<span class="f">＋</span><strong>添加家人</strong><small>重新选对象</small></a>';
+      }
+      const face = c.role
+        ? '<img src="' + (PF_AVATAR_SRC[c.role] || PF_AVATAR_SRC.neutral) + '" alt="" aria-hidden="true">'
+        : escapeHtml(c.face || '家');
+      return '<div class="sv-cell"><span class="f">' + face + '</span>'
+        + '<strong>' + escapeHtml(c.name) + '</strong>'
+        + '<small>' + escapeHtml(c.sub || '') + '</small></div>';
+    }).join('');
+    note.textContent = cells.length > 1
+      ? '当前查询涉及的家庭成员会显示在这里；更换查询对象请进入家庭协助重新选择。'
+      : '还没有建立家庭画像。选择帮谁查、确认查询关系后，这里会显示家庭成员。';
+  }
+
+  /* ---- 我的收藏 ---- */
+  function paintFav() {
+    const arr = readFav();
+    const box = document.getElementById('favList');
+    const empty = document.getElementById('favEmpty');
+    if (empty) empty.hidden = arr.length > 0;
+    box.innerHTML = arr.map((f) => '<div class="sv-row" data-id="' + escapeHtml(f.id) + '">'
+      + '<span class="n">' + escapeHtml(f.name || f.id)
+      + '<small>' + escapeHtml(f.dept || '责任部门未标注') + '</small></span>'
+      + '<a href="policy.html?id=' + encodeURIComponent(f.id) + '">详情</a>'
+      + '<button type="button" data-act="unfav" data-id="' + escapeHtml(f.id) + '">取消收藏</button>'
+      + '</div>').join('');
+  }
+
+  /* ---- 本次查询：当前对象 / 模式 / 匹配状态 ---- */
+  function paintSessionState() {
+    const s = (typeof store !== 'undefined' && store.read) ? store.read() : {};
+    const has = (typeof validLastMatch === 'function') ? validLastMatch(s) : !!(s.text || s.selfText);
+    const extra = document.getElementById('sessExtra');
+    if (extra) {
+      extra.textContent = has
+        ? '最近一次匹配结果已保存在本次会话中，可回到发现页查看。'
+        : '本次会话还没有匹配结果，可进入发现页描述情况。';
+    }
+    const scope = document.getElementById('aboutScope');
+    if (scope) {
+      loadSiteContext().then((ctx) => {
+        const site = (typeof SITE !== 'undefined') ? SITE : ctx || {};
+        scope.textContent = site && site.region
+          ? ('数据范围：' + site.region + ' · ' + site.policyCount + ' 条政策，逐条标注责任部门与文号')
+          : '数据范围：以政策库当前收录为准';
+      }).catch(() => { scope.textContent = '数据范围：以政策库当前收录为准'; });
+    }
+  }
+
+  document.getElementById('sessDiscover').addEventListener('click', () => {
+    location.href = (typeof discoverRouteTarget === 'function') ? discoverRouteTarget() : 'discover.html';
+  });
+  document.getElementById('favList').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="unfav"]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    writeFav(readFav().filter((x) => x.id !== id));
+    paintFav();
+    showToast('已取消收藏');
+  });
+
+  paintFamily();
+  paintFav();
+  paintSessionState();
+  renderSession();
+  renderServices();
+</script>
+</body>
+</html>

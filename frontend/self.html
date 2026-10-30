@@ -3,19 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#FCFAF5">
+  <meta name="theme-color" content="#f7f5ee">
   <meta name="description" content="您为自己查找可能相关的公共服务权益，核对 AI 的理解并查看政策依据。">
   <title>政策找人 · 本人权益发现</title>
-  <link rel="stylesheet" href="assets/style.css">
-</head>
+  <link rel="stylesheet" href="assets/tcb.css">
+<link rel="stylesheet" href="assets/pf-services-tcb.css">
+  </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
 
-  <div class="notice">
-    本人模式：您正在为自己查找可能相关的公共服务权益。
-    信息由您本人提供，结果仍需向主管部门核实。
-  </div>
+  <!-- 模式标识由 topbar 右侧「本人模式」承担；资格边界见页脚 footnote，不再重复 -->
 
   <!-- 第 1 步：描述发生了什么 -->
   <div class="section">
@@ -57,22 +55,44 @@
 </div>
 
 <script src="assets/app.js"></script>
+<script src="assets/tcb-ui.js"></script>
+<script src="assets/pf-ns.js"></script>
+<script src="assets/pf-services.js"></script>
 <script>
   renderTopbar('本人权益发现', 'index.html', '本人模式');
   mountDemoBanner();
-  // 本人模式也是带底部一级导航的二级页，和发现页一样：
-  // 漏掉这一步用户进到本人模式后就点不回发现页或我的页了。
-  // 底部导航没有「本人」这一栏，本人发现同属发现权益，所以高亮「发现」。
-  mountTabbar('discover');
   mountFlow(1);
   mountRelationStrip();
+  mountBottomNav('discover');
 
   const session = store.read();
-  // 从详情页「返回调整」带回来的政策 id（读完即从地址栏移除）
+  // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
   const RETURN_PID = consumeReturnParam();
 
   const input = document.getElementById('situation');
   const area = document.getElementById('resultArea');
+
+  /**
+   * A4：记录「被点击的生活事件 chip」——重匹配后用它当滚动恢复的锚点。
+   * 监听挂在 #resultArea 上（该元素本身不随 innerHTML 重建，所以监听不会失效），
+   * capture 阶段先于 bindSceneChips 的 click 回调执行，拿到的是点击瞬间的状态。
+   */
+  let sceneTap = null;
+  area.addEventListener('click', (e) => {
+    const chip = e.target && e.target.closest ? e.target.closest('.scene-chip') : null;
+    sceneTap = chip ? {
+      scene: chip.dataset.scene,
+      wasOn: chip.dataset.on,
+      viewportY: chip.getBoundingClientRect().top,
+      scrollY: window.scrollY,
+    } : null;
+  }, true);
+
+  // 「还有一些情况」的展示状态（纯展示层，不参与任何匹配）：
+  // 预览名单在一次分析内保持稳定，不因点击某个情况而重新洗牌。
+  const OPTIONAL_PREVIEW_COUNT = 6;
+  let optionalPreview = null;
+  let optionalExpanded = false;
 
   // 本人模式：称谓用「我」，与被查询对象无关；案例内容随政策库覆盖城市变化
   const selfText = () => demoProfile().selfText;
@@ -124,9 +144,7 @@
    */
   async function runMatch(opts) {
     opts = opts || {};
-    // 每次发起匹配先领序号，且必须在任何 await 之前——
-    // 两次点击在同一轮事件里连着触发时，晚到的旧结果要靠它认出自己已过期。
-    const mySeq = beginMatchRequest();
+    const requestId = beginMatchRequest();
     // 注意：这里**不** await loadSiteContext()。
     // 站点上下文在页面加载时就已开始请求，等两次匹配请求回来时必然已就绪；
     // 若在此 await，会额外推迟渲染，导致详情页返回后的滚动位置恢复错过重试窗口。
@@ -136,7 +154,6 @@
       return;
     }
     const isRefresh = !!opts.keepHeight;
-
 
     // 局部刷新：结果区仍显示上一次内容，用固定窄条说明「已收到输入、正在更新」
     // 首次匹配：走 AI 流程（renderAiFlow），每一步都对应一次真实请求
@@ -149,39 +166,43 @@
       if (!isRefresh) {
         // 第 1 步：真实调用画像接口，返回后才打勾前两步
         await API.post('/api/profile', { text: text, mode: 'self' });
-        // 画像返回先认领：过期请求到此退出——不推进新请求的进度，
-        // 也不拿着过期输入继续发起匹配请求。
-        if (!isLatestMatchRequest(mySeq)) return;
+        if (!isLatestMatchRequest(requestId)) return;
         updateAiFlow(2);
       }
+      if (!isLatestMatchRequest(requestId)) return;
       data = await API.match({
         text: text,
         mode: 'self',
         profile: saved.selfProfile || {},
       });
+      if (!isLatestMatchRequest(requestId)) return;
+      if (!isRefresh) updateAiFlow(4);
     } catch (e) {
-      if (!isLatestMatchRequest(mySeq)) return;
+      if (!isLatestMatchRequest(requestId)) return;
       area.style.minHeight = '';
       hideRefreshBar();
-      area.innerHTML = '<div class="notice warn">'
-        + (e && typeof e.status === 'number'
-            ? '这次匹配没有成功：服务端处理出错（' + e.status + '）。请稍后重试。'
-            : '连不上服务，请确认后端已启动（python backend/server.py）。')
-        + '</div>';
+      if (isRefresh) {
+        showToast('更新失败：生活变化已保留，请稍后重试', 2800);
+      } else {
+        // 本地启动方式见 docs/README.md；不对用户暴露启动命令
+        area.innerHTML = '<div class="notice warn">暂时无法连接服务，请稍后重试。</div>';
+      }
       return;
     }
 
-    // 慢请求后到会把新结果盖掉，见 app.js 里 beginMatchRequest 的说明。
-    // 在写任何状态之前先认领，晚到的请求直接放弃；进度推进也一样：
-    // 旧请求的匹配响应若先于新请求返回，会把新请求还在等待的进度条
-    // 直接标成完成，必须先认领再打勾。
-    if (!isLatestMatchRequest(mySeq)) return;
-    if (!isRefresh) updateAiFlow(4);
-
-    store.write({ selfText: text, selfProfile: data.profile, lastQuery: 'self', demo: false, demoBanner: false });
-    if (typeof mountDemoBanner === 'function') mountDemoBanner();
+    store.write({ selfText: text, selfProfile: data.profile });
     mountFlow(2);
     mountRelationStrip();
+
+    // 新一轮分析才重置预览与展开状态；点击某个情况触发的局部刷新沿用原状态。
+    if (!isRefresh) {
+      optionalPreview = null;
+      optionalExpanded = false;
+    }
+    const optionalNames = optionalScenesOf(data.profile, data.scene_library).map((x) => x.name);
+    optionalPreview = optionalPreview
+      ? optionalPreview.filter((n) => optionalNames.indexOf(n) >= 0)
+      : optionalNames.slice(0, OPTIONAL_PREVIEW_COUNT);
 
     // 局部刷新时锁定容器高度，保证替换前后文档总高度不变，避免跳顶
     if (isRefresh) area.style.minHeight = area.offsetHeight + 'px';
@@ -189,12 +210,18 @@
     area.innerHTML =
       renderSituationBoard(data.profile, data.scene_library, {
         title: '第二步：确认 AI 的理解对不对',
+        optionalPreview: optionalPreview,
+        optionalExpanded: optionalExpanded,
       }) +
       renderResultCards(data, {
         heading: '第三步：AI 发现 ' + (data.results || []).length + ' 项可能相关的公共服务权益',
       });
 
     bindAll(data);
+
+    // 首页「发现动态」数据源：仅在匹配成功且结果正常渲染后写入（覆盖写=最近一次真实结果；
+    // 上方任何请求失败都会提前 return，不会覆盖旧记录）
+    store.write({ pf_last_match: { count: (data.results || []).length, mode: 'self', ts: Date.now() } });
 
     // 从政策详情返回时，恢复进入详情前的滚动位置并高亮刚看过的政策。
     // 只在有有效记录时执行，不影响正常的补充信息局部刷新。
@@ -229,12 +256,49 @@
     }
   }
 
+  /**
+   * 局部刷新后把页面放回点击前的位置，避免跳顶。
+   * chip 会在「已识别 / 可选」两组之间移动，因此不以它为绝对锚点；
+   * 关键条件按钮位置不动，仍锚定它自己的视口位置。
+   * A4：在 scrollY 基准之上，若能确认本次点击的 chip 就是重渲染后的同一个元素、
+   * 状态确实变了且仍可见，再按它自身的视口位移做相对补偿。
+   */
+  function sceneChipAnchor(restore) {
+    const sel = '.scene-chip[data-scene="' + CSS.escape(String(restore.scene)) + '"]';
+    const all = document.querySelectorAll(sel);
+    if (all.length !== 1) return null;                      // 1) 身份不唯一 → 不猜
+    const chip = all[0];
+    if (chip.dataset.on === restore.wasOn) return null;     // 2) 状态没翻转 → 不是本次重渲染的结果
+    if (chip.getBoundingClientRect().height <= 0) return null; // 3) 不可见
+    const extra = chip.closest('[data-scene-extra]');
+    if (extra && (extra.hasAttribute('hidden') || extra.getBoundingClientRect().height <= 0)) {
+      return null;                                          // 3) 落在收起的折叠区里
+    }
+    // 4) 点击时的视口纵坐标要真的在视口内（底部留出 tabbar 高度）
+    if (!(restore.viewportY >= 0 && restore.viewportY <= window.innerHeight - 56)) return null;
+    return chip;
+  }
+
   function restorePosition(restore) {
-    const sel = restore.key
-      ? '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]'
-      : '[data-scene="' + restore.scene + '"]';
+    if (restore && typeof restore.scrollY === 'number') {
+      // A4：相对补偿。用当前滚动量做基准而不是设绝对位置——本函数会被调用两次
+      //（runMatch 里同步一次、rAF 里再清掉 minHeight 后一次），
+      // 第二次算出的 delta 约为 0，天然幂等，不会把第一次的补偿抵消掉。
+      if (restore.scene && typeof restore.viewportY === 'number') {
+        const chip = sceneChipAnchor(restore);
+        if (chip) {
+          const delta = chip.getBoundingClientRect().top - restore.viewportY;
+          window.scrollTo(0, Math.max(0, window.scrollY + delta));
+          return;
+        }
+      }
+      window.scrollTo(0, restore.scrollY);
+      return;
+    }
+    if (!restore || !restore.key) return;
+    const sel = '[data-confirm="' + restore.key + '"][data-value="' + restore.value + '"]';
     const el = document.querySelector(sel);
-    if (!el) return;
+    if (!el || el.getBoundingClientRect().height === 0) return;
     const top = el.getBoundingClientRect().top + window.scrollY - restore.viewportY;
     window.scrollTo(0, Math.max(0, top));
   }
@@ -246,12 +310,9 @@
         saveListPosition(card.dataset.id);
         location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
       };
-      // 卡内有真实控件（折叠 summary / 理由展开 / 证据链按钮 / 详情链接）：
-      // 点它们时事件会冒泡到整卡，这里必须让位，否则折叠区在结果页打不开。
-      // 键盘导航由卡尾 <a class="result-foot"> 原生承担，整卡不再监听 keydown。
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('button, a, summary, details, input, textarea, select')) return;
-        go();
+      card.addEventListener('click', go);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
       });
     });
   }
@@ -265,11 +326,7 @@
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
         const viewportY = btn.getBoundingClientRect().top;
         btn.disabled = true;
-        // 合并基线取 store 最新画像（与家庭页 bindConfirm 同一规则）：
-        // 上一次确认的重匹配还在飞行中时再确认另一项，快照合并会丢前一次作答。
-        const stored = store.read().selfProfile;
-        const base = (stored && Object.keys(stored).length) ? stored : current.profile;
-        const profile = Object.assign({}, base, { [key]: value });
+        const profile = Object.assign({}, current.profile, { [key]: value });
         store.write({ selfProfile: profile });
         // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
         // 去掉问句前缀（「您是否具有…」→「…」），避免状态条被撑长。
@@ -287,26 +344,27 @@
   }
 
   function bindScenes(current) {
-    // 本人页的资料存在 selfProfile，明确告诉公共逻辑从哪儿取最新值，
-    // 否则连点两个生活事件时前一次会被吃掉（家庭页是 profile，默认即对）。
-    bindSceneChips(Object.assign({}, current, { __profileKey: 'selfProfile' }), function (scenes) {
-      const btn = document.querySelector('[data-scene="' + CSS.escape(
-        (current.profile.scenes || []).find((s) => !scenes.includes(s)) || '') + '"]');
-      const viewportY = btn ? btn.getBoundingClientRect().top : 0;
-      // 同 bindConfirm：合并基线取 store 最新画像，快速连续操作不互相覆盖
-      const stored = store.read().selfProfile;
-      const base = (stored && Object.keys(stored).length) ? stored : current.profile;
+    bindSceneChips(current, function (scenes) {
+      // 点击瞬间记下滚动位置：chip 会在两组之间移动，锚定它本身会把页面拽走。
+      const tap = sceneTap;
+      const scrollY = tap ? tap.scrollY : window.scrollY;
       // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
-      const profile = Object.assign({}, base, {
+      const profile = Object.assign({}, current.profile, {
+        scenes: scenes,
         confirmed_scenes: scenes,
         scenes_edited: true,
       });
       store.write({ selfProfile: profile });
       runMatch({
-        restore: { scene: (scenes[scenes.length - 1] || ''), viewportY: viewportY },
+        // A4：带上被点 chip 的身份 / 点击前状态 / 点击时视口位置，
+        // 由 restorePosition 逐条校验后再决定是否补偿；没有记录时只带 scrollY。
+        restore: tap
+          ? { scrollY: scrollY, scene: tap.scene, wasOn: tap.wasOn, viewportY: tap.viewportY }
+          : { scrollY: scrollY },
         keepHeight: true,
         busyTitle: '已按您调整的生活变化重新匹配',
       });
+      sceneTap = null;   // 一次点击只消费一次，避免残留记录影响后续恢复
     });
   }
 
@@ -324,12 +382,11 @@
     bindConfirm(data);
     bindScenes(data);
     bindEvidence(data);
-    bindReasonToggles();
     bindResultGroups();
-    bindSegments();
+    bindSceneMoreToggle(function (open) { optionalExpanded = open; });
   }
 
-  // 从详情页「返回调整」带 focus 参数回来时的定位
+  // 从详情页「回去调整」带 focus 参数回来时的定位
   function applyFocus() {
     const f = query('focus');
     if (!f) return;
@@ -345,7 +402,7 @@
 
   // 已有输入则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
-  // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
+  // 带 focus 参数时（从详情页「回去调整」过来）优先按区块定位。
   if (session.selfText) {
     runMatch({ restorePosition: !query('focus') }).then(applyFocus);
   }

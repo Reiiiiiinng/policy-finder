@@ -1,0 +1,854 @@
+/* ============================================================
+   首页主题（theme-cb）× 产品逻辑（partner-v1.1）—— 样式隔离层
+   ------------------------------------------------------------
+   作用域：所有规则都挂在 body.home-theme-cb 下，只有首页生效。
+   - 不修改 frontend/assets/style.css，其它六页不受影响；
+   - 变量采用「同名覆盖」：theme-cb 与 partner-v1.1 的令牌同名同义
+     （--brand / --brand-soft / --ink / --radius / --sp …），
+     因此在作用域内重新赋值即可让 partner 组件（数据可信度、
+     我的收藏、页脚）自动跟随 theme-cb 的配色与圆角；
+   - 只搬运首页真正用到的 theme-cb 规则，服务页/结果页/咨询页的
+     规则（.result-* / .consult-* / .tc-* / .badge .st-ico 等）一律不入库。
+   ============================================================ */
+
+body.home-theme-cb {
+  /* ---------- 颜色令牌：取自 theme-cb :root ---------- */
+  --brand: #2e7d4f;
+  --brand-mid: #3a8b5c;
+  --brand-dark: #1b5e3b;
+  --brand-deep: #154b2e;
+  --brand-soft: #e3f1e7;
+  --brand-wash: #eef5ef;
+  --brand-line: #cde2d3;
+  --cream: #f7f5ee;
+  --cream-2: #f0eee3;
+  --card: #ffffff;
+  --line: #efeddf;
+  --line-soft: #f4f2e9;
+  --ink: #1f2b24;
+  --ink-2: #3e4a42;
+  --muted: #5a685e;
+  --muted-2: #8a948c;
+  --warn: #b05a1a;
+  --warn-soft: #fbefe2;
+  --warn-line: #f2d9bd;
+  --warn-accent: #e8833a;
+
+  /* ---------- 形状与节奏令牌 ---------- */
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --sp: 16px;
+  --sp-lg: 22px;
+  --ring: 0 0 0 3px rgba(46, 125, 79, 0.16);
+}
+
+/* ============================================================
+   A. 品牌条（沿用 style.css 的 .topbar 骨架，仅换观感）
+   ============================================================ */
+body.home-theme-cb .mark-logo {
+  display: block;
+  width: 38px;
+  height: 38px;
+}
+
+body.home-theme-cb .mark-logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+body.home-theme-cb .topbar .brand-name {
+  color: var(--brand-dark);
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   B. 欢迎区
+   ============================================================ */
+body.home-theme-cb .home-welcome {
+  padding: 14px 16px 2px;
+}
+
+body.home-theme-cb .home-hello {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+body.home-theme-cb .home-hello-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ============================================================
+   C. 家庭画像卡
+   ============================================================ */
+body.home-theme-cb .home-profile {
+  margin: 14px 16px 0;
+  background: var(--brand-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+body.home-theme-cb .hp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+body.home-theme-cb .hp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-dark);
+}
+
+body.home-theme-cb .hp-badge svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--brand-dark);
+}
+
+body.home-theme-cb .hp-count {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+
+body.home-theme-cb .hp-title {
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+body.home-theme-cb .hp-members {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+body.home-theme-cb .hp-member {
+  width: 86px;
+  background: var(--card);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 12px 6px 10px;
+  text-align: center;
+}
+
+body.home-theme-cb .hp-member.is-active {
+  border-color: var(--brand);
+}
+
+body.home-theme-cb .hp-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+/* 位图头像：铺满圆形容器 */
+body.home-theme-cb .hp-ava-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 内联图标头像（「更多成员」「建立家庭画像」）：居中 24px */
+body.home-theme-cb .hp-avatar svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--brand);
+}
+
+body.home-theme-cb .hp-member .nm {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+body.home-theme-cb .hp-member .ag {
+  display: block;
+  margin-top: 2px;
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+body.home-theme-cb .hp-member.is-more {
+  border-style: dashed;
+  border-color: var(--brand-line);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  padding-top: 12px;
+}
+
+body.home-theme-cb .hp-member.is-more .hp-avatar {
+  background: var(--line-soft);
+}
+
+body.home-theme-cb .hp-member.is-more .hp-avatar svg {
+  stroke: var(--muted-2);
+}
+
+body.home-theme-cb .hp-empty {
+  width: 100%;
+  background: var(--card);
+  border: 1.5px dashed var(--brand-line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+body.home-theme-cb .hp-empty:hover {
+  border-color: var(--brand);
+}
+
+body.home-theme-cb .hp-empty:active {
+  background: var(--brand-soft);
+  transform: scale(0.985);
+}
+
+body.home-theme-cb .hp-empty .hp-avatar {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  flex: 0 0 36px;
+  background: var(--line-soft);
+}
+
+body.home-theme-cb .hp-empty .hp-avatar svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--muted-2);
+}
+
+body.home-theme-cb .hp-empty .nm {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+body.home-theme-cb .hp-empty .ag {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+body.home-theme-cb .hp-enter {
+  margin-top: 14px;
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.home-theme-cb .hp-enter:active {
+  transform: scale(0.985);
+}
+
+body.home-theme-cb .hp-self-link {
+  margin-top: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 8px;
+  min-height: 44px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--brand-dark);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+body.home-theme-cb .hp-self-link b {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 未选对象就点「发现相关政策」时的就地提示 */
+body.home-theme-cb .entry-prompt {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--brand-wash);
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--brand-dark);
+}
+
+/* ============================================================
+   D. 发现动态卡
+   ============================================================ */
+body.home-theme-cb .home-discover {
+  margin: 12px 16px 0;
+  width: calc(100% - 32px);
+  background: var(--card);
+  border: 1.5px solid var(--brand);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+body.home-theme-cb .home-discover.is-empty {
+  border-color: var(--line);
+}
+
+body.home-theme-cb .dc-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+}
+
+body.home-theme-cb .dc-ico svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--brand);
+}
+
+body.home-theme-cb .home-discover.is-empty .dc-ico {
+  background: var(--line-soft);
+  color: var(--muted-2);
+}
+
+body.home-theme-cb .home-discover.is-empty .dc-ico svg {
+  stroke: var(--muted-2);
+}
+
+body.home-theme-cb .dc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+body.home-theme-cb .dc-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--brand);
+}
+
+body.home-theme-cb .home-discover.is-empty .dc-tag {
+  color: var(--muted);
+}
+
+body.home-theme-cb .dc-txt {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+body.home-theme-cb .dc-txt b {
+  color: var(--brand-dark);
+}
+
+body.home-theme-cb .home-discover.is-empty .dc-txt {
+  color: var(--muted);
+}
+
+body.home-theme-cb .dc-arrow {
+  flex: 0 0 auto;
+  font-size: 18px;
+  color: var(--brand);
+}
+
+/* ============================================================
+   E. 继续处理区（partner-v1.1 无待办存储，长期保持 hidden）
+   ============================================================ */
+body.home-theme-cb .home-continue {
+  margin: 12px 16px 0;
+  padding: 16px;
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  background: var(--brand-wash);
+}
+
+body.home-theme-cb .hc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.home-theme-cb .hc-kicker {
+  color: var(--brand-dark);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+body.home-theme-cb .hc-count {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--brand-dark);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+body.home-theme-cb .home-continue h2 {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+body.home-theme-cb .hc-desc {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+body.home-theme-cb .hc-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+body.home-theme-cb .hc-btn {
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid var(--brand-line);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--brand-dark);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+body.home-theme-cb .hc-btn.is-primary {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
+body.home-theme-cb .hc-btn:active {
+  transform: scale(0.985);
+}
+
+@media (max-width: 340px) {
+  body.home-theme-cb .hc-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   F. 服务入口 2×2 宫格
+   ============================================================ */
+body.home-theme-cb .home-grid-sec {
+  margin: 18px 16px 0;
+}
+
+body.home-theme-cb .hg-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+body.home-theme-cb .home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+body.home-theme-cb .hg-tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+body.home-theme-cb .hg-tile .t-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.home-theme-cb .hg-tile .t-ico svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--brand);
+}
+
+body.home-theme-cb .t-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+body.home-theme-cb .t-soon {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+}
+
+body.home-theme-cb .t-sub {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted-2);
+}
+
+body.home-theme-cb .hg-tile.is-todo .t-ico {
+  background: var(--line-soft);
+}
+
+body.home-theme-cb .hg-tile.is-todo .t-ico svg {
+  stroke: var(--muted-2);
+}
+
+body.home-theme-cb .hg-tile.is-primary {
+  border-color: var(--brand-line);
+  background: var(--brand-wash);
+}
+
+body.home-theme-cb .hg-tile.is-primary .t-name {
+  color: var(--brand-dark);
+}
+
+/* ============================================================
+   G. 演示入口
+   ============================================================ */
+body.home-theme-cb .demo-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 32px);
+  margin: 12px 16px 0;
+  padding: 13px 14px;
+  min-height: 56px;
+  background: var(--brand-wash);
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--radius);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+body.home-theme-cb .demo-entry:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+body.home-theme-cb .demo-entry-body {
+  flex: 1;
+  min-width: 0;
+}
+
+body.home-theme-cb .demo-entry-title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--brand-dark);
+  line-height: 1.5;
+}
+
+body.home-theme-cb .demo-entry-title .dico {
+  display: inline-flex;
+  flex: 0 0 auto;
+  vertical-align: -2.5px;
+  margin-right: 5px;
+}
+
+body.home-theme-cb .demo-entry-title .dico svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.home-theme-cb .demo-entry-desc {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.65;
+}
+
+body.home-theme-cb .demo-entry-arrow {
+  flex: none;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--brand);
+}
+
+/* 演示确认弹层 */
+body.home-theme-cb .demo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(31, 43, 36, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+body.home-theme-cb .demo-confirm-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--card);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  box-shadow: 0 18px 40px rgba(20, 40, 30, 0.18);
+}
+
+body.home-theme-cb .demo-confirm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+body.home-theme-cb .demo-confirm-badge {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--brand);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+}
+
+body.home-theme-cb .demo-confirm-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+body.home-theme-cb .demo-confirm-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 12px;
+}
+
+body.home-theme-cb .dc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line-soft);
+  font-size: 14px;
+}
+
+body.home-theme-cb .dc-row:last-child {
+  border-bottom: none;
+}
+
+body.home-theme-cb .dc-row .k {
+  flex: none;
+  width: 72px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+body.home-theme-cb .dc-row .v {
+  flex: 1;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+body.home-theme-cb .demo-confirm-note {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+body.home-theme-cb .demo-confirm-desc {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+
+body.home-theme-cb .demo-confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body.home-theme-cb .demo-confirm-actions .btn {
+  margin: 0;
+}
+
+/* ============================================================
+   H. partner-v1.1 业务区块（数据可信度 / 我的收藏 / 说明 / 页脚）
+      这些组件沿用 style.css 的类名与结构，只做「贴合 theme-cb」的
+      间距与描边校正，不改变数据来源与可见性逻辑。
+   ============================================================ */
+body.home-theme-cb .trust-strip {
+  margin: 18px 16px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+body.home-theme-cb .stat-panel {
+  margin: 10px 16px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+body.home-theme-cb .trust-note {
+  margin: 10px 16px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted-2);
+  text-align: center;
+}
+
+body.home-theme-cb .saved-sec {
+  padding: 0;
+  margin: 18px 16px 0;
+}
+
+body.home-theme-cb .notice {
+  margin: var(--sp) var(--sp) 0;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.85;
+}
+
+body.home-theme-cb .footnote {
+  margin: var(--sp-lg) var(--sp) 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.9;
+}
+
+body.home-theme-cb .theme-foot {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  letter-spacing: 0.3px;
+}
+
+/* ============================================================
+   I. 宽屏：首页保持单列版心，内容不拉满
+   ============================================================ */
+@media (min-width: 720px) {
+  body.home-theme-cb .home-profile,
+  body.home-theme-cb .home-discover,
+  body.home-theme-cb .home-grid-sec,
+  body.home-theme-cb .home-continue,
+  body.home-theme-cb .trust-strip,
+  body.home-theme-cb .stat-panel,
+  body.home-theme-cb .saved-sec {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+
+  body.home-theme-cb .demo-entry {
+    width: calc(100% - 48px);
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+
+  body.home-theme-cb .home-welcome {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* 桌面版心：theme-cb 首页是单列移动版式，基础样式在 ≥1024 会把版心放到
+   1120/1200，卡片被拉成一条长线。这里只把首页版心收回到平板宽度，
+   其它页面继续用 style.css 的宽屏版心（不改公共样式）。 */
+@media (min-width: 1024px) {
+  body.home-theme-cb .app {
+    max-width: 720px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.home-theme-cb .hp-enter,
+  body.home-theme-cb .hp-empty {
+    transition: none;
+  }
+}

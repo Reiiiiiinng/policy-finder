@@ -31,7 +31,7 @@ DB_PATH = os.path.join(ROOT, "data", "guangzhou_elderly_policy_v1.1.json")
 
 PAGES = [
     "index.html", "discover.html", "self.html", "policy.html",
-    "consult.html", "mine.html", "family.html",
+    "consult.html", "mine.html", "family.html", "records.html", "plan.html", "verify-list.html", "services.html",
 ]
 
 
