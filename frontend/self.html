@@ -66,7 +66,7 @@
   mountBottomNav('discover');
 
   const session = store.read();
-  // 从详情页「回去调整」带回来的政策 id（读完即从地址栏移除）
+  // 从详情页「返回调整」带回来的政策 id（读完即从地址栏移除）
   const RETURN_PID = consumeReturnParam();
 
   const input = document.getElementById('situation');
@@ -190,7 +190,15 @@
       return;
     }
 
-    store.write({ selfText: text, selfProfile: data.profile });
+    // lastQuery 与家庭模式（discover.html:219）同一契约：匹配成功即写入当前模式。
+    // 缺了它，activeQueryMode()/benKey() 会被残留的 family 覆盖，本人查询的
+    // 记录归属与“我的”页面显示都会串回家庭成员（P1-2）。
+    // 演示标记随真实查询成功一并清除（demo/demoBanner）：此前只清家庭路径
+    // （discover.html:219），本人路径直达 self.html 查询后演示横幅仍显示（E046）。
+    store.write({ selfText: text, selfProfile: data.profile, lastQuery: 'self', demo: false, demoBanner: false });
+    // 横幅是页面加载时挂上去的，清掉标记后要重新对一次 DOM，
+    // 否则它会一直留在页面上，把真实结果说成虚拟案例（与 discover.html:222 对称）。
+    if (typeof mountDemoBanner === 'function') mountDemoBanner();
     mountFlow(2);
     mountRelationStrip();
 
@@ -308,7 +316,8 @@
       const go = () => {
         // 进入详情前记住当前滚动位置与这条政策 id，返回时恢复
         saveListPosition(card.dataset.id);
-        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
+        // svc 参数来自首页「政策解读 / 办理指引」intent，详情页据此定位区块
+        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id) + (_svcParam ? '&svc=' + _svcParam : '');
       };
       card.addEventListener('click', go);
       card.addEventListener('keydown', (e) => {
@@ -326,7 +335,13 @@
         const value = raw === 'true' ? true : (raw === 'false' ? false : null);
         const viewportY = btn.getBoundingClientRect().top;
         btn.disabled = true;
-        const profile = Object.assign({}, current.profile, { [key]: value });
+        // 合并基线必须取 store 里的最新本人画像，不能用渲染时的 data 快照：
+        // 上一次确认的重匹配还在飞行中时再确认另一项，快照里没有前一项，
+        // 直接按快照合并会把前一次作答静默丢掉（E045；与家庭确认台
+        // discover.html 的动态读取范式同一原则，键为 selfProfile）。
+        const stored = (store.read() || {}).selfProfile;
+        const base = (stored && Object.keys(stored).length) ? stored : current.profile;
+        const profile = Object.assign({}, base, { [key]: value });
         store.write({ selfProfile: profile });
         // 进行中提示带上刚确认的是哪一项，让用户知道系统收到了什么。
         // 去掉问句前缀（「您是否具有…」→「…」），避免状态条被撑长。
@@ -344,12 +359,21 @@
   }
 
   function bindScenes(current) {
-    bindSceneChips(current, function (scenes) {
+    // 本人页必须把自己的存储键传给公共逻辑（__profileKey）：
+    // bindSceneChips 内部回落读 'profile'（家庭键），家庭残留的场景集合
+    // 会混入本人画像并以污染后的集合重跑匹配（E039）。家庭页不传即读 profile，行为不变。
+    bindSceneChips(Object.assign({ __profileKey: 'selfProfile' }, current), function (scenes) {
       // 点击瞬间记下滚动位置：chip 会在两组之间移动，锚定它本身会把页面拽走。
       const tap = sceneTap;
       const scrollY = tap ? tap.scrollY : window.scrollY;
+      // 合并基线必须取 store 里的最新本人画像，不能用渲染时的 current 快照：
+      // 上一次 chip 点击的重匹配还在飞行中时再点另一个 chip，快照里没有
+      // 前一次的选择，直接按快照合并会把前一次选择静默丢掉（bindScenes
+      // 与 bindConfirm 同族竞态；家庭页 discover.html 已有同一范式）。
+      const stored = (store.read() || {}).selfProfile;
+      const base = (stored && Object.keys(stored).length) ? stored : current.profile;
       // scenes_edited 标记用户的纠正，重匹配时不被后端丢弃
-      const profile = Object.assign({}, current.profile, {
+      const profile = Object.assign({}, base, {
         scenes: scenes,
         confirmed_scenes: scenes,
         scenes_edited: true,
@@ -386,7 +410,7 @@
     bindSceneMoreToggle(function (open) { optionalExpanded = open; });
   }
 
-  // 从详情页「回去调整」带 focus 参数回来时的定位
+  // 从详情页「返回调整」带 focus 参数回来时的定位
   function applyFocus() {
     const f = query('focus');
     if (!f) return;
@@ -402,9 +426,39 @@
 
   // 已有输入则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
-  // 带 focus 参数时（从详情页「回去调整」过来）优先按区块定位。
+  // 带 focus 参数时（从详情页「返回调整」过来）优先按区块定位。
   if (session.selfText) {
-    runMatch({ restorePosition: !query('focus') }).then(applyFocus);
+    runMatch({ restorePosition: !query('focus') }).then(() => { applyFocus(); applyServiceIntent(); });
+  }
+
+  // 首页「政策解读 / 办理指引」带来的 intent（E031）：本人模式结果页同样承接。
+  // 读后即清；有 intent 时在结果区顶部放常驻提示条，卡片进入详情页时带上
+  // &svc= 参数，详情页会滚动并高亮对应区块（解读→q1/q2，办理→q4/q5）。
+  var _svcParam = '';
+  (function () {
+    try {
+      const v = sessionStorage.getItem('pf_svc_intent');
+      sessionStorage.removeItem('pf_svc_intent');
+      _svcParam = (v === 'detail' || v === 'guide') ? v : '';
+    } catch (e) { _svcParam = ''; }
+  })();
+  const SVC_HINT = {
+    detail: { label: '政策解读', tip: '挑一条权益点进去，先看「这是什么？」与「为什么推荐给您？」两节。' },
+    guide: { label: '办理指引', tip: '挑一条权益点进去，先看「去哪里核实？」与「怎么办理？」两节。' },
+  };
+  function applyServiceIntent() {
+    if (!_svcParam) return;
+    const h = SVC_HINT[_svcParam];
+    const areaEl = document.getElementById('resultArea');
+    if (areaEl && !document.getElementById('svcHintBar')) {
+      const bar = document.createElement('div');
+      bar.className = 'hint';
+      bar.id = 'svcHintBar';
+      bar.setAttribute('role', 'note');
+      bar.innerHTML = '<strong>' + h.label + '：</strong>' + h.tip;
+      areaEl.prepend(bar);
+    }
+    showToast('已按「' + h.label + '」进入，选一条权益查看');
   }
 </script>
 </body>

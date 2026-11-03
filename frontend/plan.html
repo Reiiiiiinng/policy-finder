@@ -38,6 +38,9 @@
       <div id="plOnline" aria-live="polite"></div>
 
       <h2 class="section-title">出门之前</h2>
+      <p class="vf-prep-tip" id="plPrepLegacy" hidden style="margin:0 0 8px">
+        检测到一份未归属的旧准备清单（旧版数据未记录属于哪位家庭成员），已原样保留、不会显示为任何人的勾选状态；如还需要，请为当前对象重新勾选。
+      </p>
       <div class="vf-prep-card">
         <button type="button" class="vf-prep-head" id="plPrepHead" aria-expanded="false" aria-controls="plPrepBody">
           <span class="t">出发前准备</span>
@@ -253,12 +256,24 @@
     box.addEventListener('change', () => {
       const prep = vLoadPrep();
       prep[box.dataset.key] = box.checked;
-      vSavePrep(prep);
-      let done = 0;
-      ['p1', 'p2', 'p3', 'p4'].forEach((k) => { if (prep[k]) done++; });
-      document.getElementById('plPrepCount').textContent = done + '/4';
+      if (vSavePrep(prep)) {
+        let done = 0;
+        ['p1', 'p2', 'p3', 'p4'].forEach((k) => { if (prep[k]) done++; });
+        document.getElementById('plPrepCount').textContent = done + '/4';
+      } else {
+        // 写失败（隐私模式/存储不可用）时如实提示，并把勾选框回滚到真实存储状态
+        box.checked = !box.checked;
+        showToast('保存失败：浏览器存储不可用或已满，请稍后重试');
+      }
     });
   });
+
+  // 旧版准备清单（pf_prep_v1_b）没有受益人归属，无法判断属于谁：
+  // 只提示存在，绝不迁移、绝不显示为任何人的勾选状态（P1-4 旧数据保护）。
+  if (window.PFServices && PFServices.hasLegacyPrep && PFServices.hasLegacyPrep()) {
+    const tip = document.getElementById('plPrepLegacy');
+    if (tip) tip.hidden = false;
+  }
 
   document.getElementById('plEmpty').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');

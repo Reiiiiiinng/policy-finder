@@ -85,7 +85,7 @@
     if (!Array.isArray(arr)) return [];
     return arr.filter(function (r) { return r && r.pid && r.benKey; });
   }
-  function saveRecords(arr) { writeJSON(K.records, arr); }
+  function saveRecords(arr) { return writeJSON(K.records, arr); }
   function findRecord(arr, pid) {
     var ben = benKey();
     for (var i = 0; i < arr.length; i++) {
@@ -198,10 +198,16 @@
     var rec = findRecord(arr, pid);
     if (rec) { rec.listRemoved = true; rec.updatedAt = Date.now(); saveRecords(arr); }
   }
-  /* 删除记录：仅「核实记录」页两次确认后调用 */
+  /* 删除记录：仅「核实记录」页两次确认后调用。
+     同时清除该政策在该受益人名下的表态标记（pf_fs_b_<pid>@<受益人>）——
+     标记不清，listRecords() 会依残留标记重建 noRecord 占位，
+     verify-list/plan 刷新时 ensureRecord 立即复活一条已删除记录（P1-1）。
+     返回 true/false：标记清除与记录写入都成功才算成功，调用方据此如实反馈。 */
   function deleteRecord(pid) {
     var ben = benKey();
-    saveRecords(loadRecords().filter(function (r) { return !(r.pid === pid && r.benKey === ben); }));
+    var markOk = setSelected(pid, false);
+    var saveOk = saveRecords(loadRecords().filter(function (r) { return !(r.pid === pid && r.benKey === ben); }));
+    return !!(markOk && saveOk);
   }
   /* 当前受益人的全部记录（含已移出清单的），按更新时间倒序 */
   function recordsOf(ben) {
@@ -211,17 +217,37 @@
       .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
   }
 
-  /* ---------------- 出发前准备 ---------------- */
+  /* ---------------- 出发前准备（按受益人隔离） ----------------
+     新键：K.prep + '_' + benKey()，即 pf_prep_v1_b_self / pf_prep_v1_b_父亲 …，
+     受益人身份与核实记录同一套（benKey：本人 self，家庭成员为关系称谓）。
+     旧键 pf_prep_v1_b 没有受益人归属，无法判断属于谁：
+     只保留原样——不读取、不迁移、不删除、不显示为任何人的进度（P1-4）。
+     plan 页检测到旧键有效数据时会给出未归属提示，由用户自行决定是否重新勾选。 */
+  function prepKey() {
+    return K.prep + '_' + benKey();
+  }
+  /* 旧键是否残留有效勾选（仅供界面提示，不参与任何进度统计） */
+  function hasLegacyPrep() {
+    try {
+      var raw = sessionStorage.getItem(K.prep);
+      if (!raw) return false;
+      var v = JSON.parse(raw);
+      return !!(v && typeof v === 'object' && !Array.isArray(v)
+        && (v.p1 === true || v.p2 === true || v.p3 === true || v.p4 === true));
+    } catch (e) { return false; }
+  }
   function loadPrep() {
-    var o = readJSON(K.prep, {});
-    if (!o || typeof o !== 'object') o = {};
-    return { p1: !!o.p1, p2: !!o.p2, p3: !!o.p3, p4: !!o.p4 };
+    var o = readJSON(prepKey(), {});
+    if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
+    /* 只认布尔真值：非法字段值一律按未勾选处理，不崩页、不错误归属 */
+    return { p1: o.p1 === true, p2: o.p2 === true, p3: o.p3 === true, p4: o.p4 === true };
   }
   function savePrep(p) {
-    var cur = loadPrep();
-    var next = { p1: !!p.p1, p2: !!p.p2, p3: !!p.p3, p4: !!p.p4 };
-    writeJSON(K.prep, next);
-    return next;
+    var next = {
+      p1: !!(p && p.p1 === true), p2: !!(p && p.p2 === true),
+      p3: !!(p && p.p3 === true), p4: !!(p && p.p4 === true)
+    };
+    return writeJSON(prepKey(), next);   /* true/false：调用方据此如实反馈 */
   }
   function prepCount(p) {
     var o = p || loadPrep();
@@ -244,8 +270,65 @@
     });
   }
 
-  /* ---------------- 统计（我的服务 / 主页面共用口径） ---------------- */
-  function serviceStats(ben) {
+  /* ---------------- 收藏（B 版专属键 pf_saved_b，与 A 版 pf_saved 完全隔离） ----------------
+     - 键复用上方 K.savedNs（由 pf-ns.js 的 PF_NS 决定，B 版恒为 'pf_saved_b'）；
+     - 存 localStorage（收藏跨会话保留），与核实记录的 sessionStorage 分开；
+     - 结构保持 Array<{id, name?, dept?}>，只存这三样，不存任何个人信息；
+     - 读取函数绝不写存储；写入失败必须返回 false，由调用方如实提示，不伪装成功；
+     - 不回退读取 A 版的 'pf_saved'，也不同时读写两个键。 */
+  function readFavorites() {
+    var arr = [];
+    try {
+      var raw = localStorage.getItem(K.savedNs);
+      if (!raw) return [];
+      var v = JSON.parse(raw);
+      arr = Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+    /* 过滤无效/缺 ID 条目并按 ID 去重，避免列表重复显示 */
+    var seen = {};
+    var out = [];
+    arr.forEach(function (x) {
+      if (!x || typeof x !== 'object') return;
+      var id = String(x.id || '').trim();
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ id: id, name: String(x.name || ''), dept: String(x.dept || '') });
+    });
+    return out;
+  }
+  function writeFavorites(items) {
+    var seen = {};
+    var out = [];
+    (Array.isArray(items) ? items : []).forEach(function (x) {
+      if (!x || typeof x !== 'object') return;
+      var id = String(x.id || '').trim();
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ id: id, name: String(x.name || ''), dept: String(x.dept || '') });
+    });
+    try { localStorage.setItem(K.savedNs, JSON.stringify(out)); return true; }
+    catch (e) { return false; }   /* 隐私模式/配额不足：如实报失败 */
+  }
+  function isFavorite(pid) {
+    var id = String(pid || '').trim();
+    if (!id) return false;
+    return readFavorites().some(function (x) { return x.id === id; });
+  }
+  /* 收藏 / 取消收藏：按政策 ID 判断，不会重复添加；只增删目标 ID 这一条。
+     返回 { on: 操作后的收藏状态, ok: 写入是否成功 }——写入失败时 on 保持原状态。 */
+  function toggleFavorite(policy) {
+    var id = String((policy && policy.id) || '').trim();
+    if (!id) return { on: false, ok: false };
+    var arr = readFavorites();
+    var on = arr.some(function (x) { return x.id === id; });
+    var next = on
+      ? arr.filter(function (x) { return x.id !== id; })
+      : arr.concat([{ id: id, name: String((policy && policy.name) || ''), dept: String((policy && policy.dept) || '') }]);
+    var ok = writeFavorites(next);
+    return { on: ok ? !on : on, ok: ok };
+  }
+
+  /* ---------------- 统计（我的服务 / 主页面共用口径） ---------------- */  function serviceStats(ben) {
     var items = listRecords();
     var total = items.length;
     var verified = items.filter(function (it) { return VERIFIED[it.status]; }).length;
@@ -458,6 +541,9 @@
     ensureRecord: ensureRecord, updateRecord: updateRecord,
     removeFromList: removeFromList, deleteRecord: deleteRecord,
     loadPrep: loadPrep, savePrep: savePrep, prepCount: prepCount, hasPlanProgress: hasPlanProgress,
+    prepKey: prepKey, hasLegacyPrep: hasLegacyPrep,
+    readFavorites: readFavorites, writeFavorites: writeFavorites,
+    isFavorite: isFavorite, toggleFavorite: toggleFavorite,
     serviceStats: serviceStats, planGroups: planGroups, deptOf: deptOf, primaryDept: primaryDept,
     fetchDetails: fetchDetails, mergeDetail: mergeDetail,
     fmtTime: fmtTime,
@@ -486,6 +572,7 @@
   global.vLoadPrep = loadPrep;
   global.vSavePrep = savePrep;
   global.vHasPlanProgress = hasPlanProgress;
+  global.vHasLegacyPrep = hasLegacyPrep;
   global.vStatusPill = statusPill;
   global.vFetchDetails = fetchDetails;
   global.mergeDetail = mergeDetail;

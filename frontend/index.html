@@ -171,8 +171,10 @@
     const countEl = document.getElementById('hpCount');
     const enterEl = document.getElementById('hpEnter');
 
-    const isSelf = !!(s.selfProfile && s.selfProfile.mode === 'self');
-    const ben = s.beneficiary;
+    // 模式判定与全站同口径（activeQueryMode：lastQuery 优先）。
+    // 此前 beneficiary 优先，本人查询后家庭受益人残留会让首页继续显示家庭卡（E044）。
+    const isSelf = activeQueryMode() === 'self';
+    const ben = isSelf ? '' : s.beneficiary;
     // 年龄只在真实画像给出数字时展示；没有就不显示，绝不编造
     const famAge = (s.profile && typeof s.profile.age === 'number') ? s.profile.age + ' 岁' : '';
     const selfAge = (s.selfProfile && typeof s.selfProfile.age === 'number') ? s.selfProfile.age + ' 岁' : '';
@@ -240,13 +242,22 @@
   document.getElementById('tileMatch').addEventListener('click', () => {
     location.href = discoverRouteTarget();
   });
-  // 暂无对应功能的入口：明确提示 + 指引到现有详情页能力，不跳转、不伪装
-  const TODO_MSG = {
-    '解读': '政策解读建设中：每条权益的「这是什么 / 为什么推荐 / 还需确认什么」已在详情页内，可先完成一次匹配后查看',
-    '办理': '办理指引建设中：每条权益的「怎么办理 / 去哪里核实」与官方渠道已在详情页内',
-  };
+  // 政策解读 / 办理指引：详情页已承载对应内容（这是什么 / 为什么推荐 / 还需确认什么 /
+  // 怎么办理 / 去哪里核实）。点击后写入服务意图并进入发现页挑一条权益，
+  // 落地后由发现页的 applyServiceIntent 点明该做什么（原为“建设中”toast 死入口，E031）。
+  const SVC_INTENT = { '解读': 'detail', '办理': 'guide' };
   document.querySelectorAll('.hg-tile.is-todo').forEach((btn) => {
-    btn.addEventListener('click', () => showToast(TODO_MSG[btn.dataset.todo] || '功能建设中'));
+    btn.addEventListener('click', () => {
+      // 本人模式的权益结果页是 self.html，家庭模式是 discover.html——
+      // 按统一路由分流，intent 由目标结果页消费。原先写死 discover.html，
+      // 本人模式下必然落在空态、intent 被静默清除，入口形同虚设（E031 收尾）。
+      // 无任何会话时没有可承接的结果页，不写 intent，直接去起始页。
+      const target = discoverRouteTarget();
+      if (target === 'self.html' || target === 'discover.html') {
+        try { sessionStorage.setItem('pf_svc_intent', SVC_INTENT[btn.dataset.todo] || 'detail'); } catch (err) { /* 隐私模式忽略 */ }
+      }
+      location.href = target;
+    });
   });
 
   // 我的权益 → 服务页（2026-10-29 接入：待核实清单 / 少跑腿计划 / 核实记录）

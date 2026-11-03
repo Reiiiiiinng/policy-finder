@@ -3,276 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#FCFAF5">
-  <meta name="description" content="我的家庭、我的收藏与本次查询。收藏只保存在本机，不上传。">
+  <meta name="theme-color" content="#f7f5ee">
+  <meta name="description" content="「我的」页面已并入「我的服务」中心，点击进入。">
   <title>我的 · 政策找人</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/tcb.css">
 </head>
 <body>
 <div class="app">
   <div class="topbar"></div>
 
-  <!-- 头部账号区：本产品没有账号体系，如实说明「不用登录」，
-       不做「立即登录」按钮 —— 点下去没东西可登，就是假功能。 -->
-  <section class="mine-id">
-    <div class="mine-face" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.6" r="3.6"/><path d="M5 19.8a7 7 0 0 1 14 0"/></svg></div>
-    <div class="mine-id-body">
-      <strong>本地使用，无需登录</strong>
-      <small>收藏与查询只存在这台设备的浏览器里</small>
+  <!-- 兼容中转页：原「我的」页功能已并入 services.html。
+       纯静态、无脚本、无数据读写；不自动跳转，避免浏览器返回键在两页间循环。 -->
+  <section class="section">
+    <div class="card" style="text-align:center;padding:28px 16px;">
+      <h2 style="margin:0 0 8px;font-size:17px;">「我的」页面已升级并入「我的服务」</h2>
+      <p class="hint" style="margin:0 0 16px;">原「我的」页的收藏、本次查询、家庭与服务入口已全部迁移到新的「我的服务」中心。旧链接仍然有效，点击下方按钮即可进入。</p>
+      <a class="btn" href="services.html" style="display:inline-flex;align-items:center;justify-content:center;min-height:44px;">进入我的服务</a>
     </div>
   </section>
 
-  <!-- 我的家庭：从本次查询里读真实对象，没有就不编 -->
-  <section class="card mine-fam">
-    <h2 class="section-title in-card">我的家庭 <span class="muted" id="famManage">管理 ›</span></h2>
-    <div class="fam-grid" id="famGrid"></div>
-  </section>
-
-  <h2 class="section-title">我的服务</h2>
-  <section class="card mine-svc">
-    <a class="mine-svc-item" href="#savedSec">
-      <span class="mine-svc-ic" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>
-      </span>
-      <span class="mine-svc-t">我的收藏</span>
-    </a>
-    <a class="mine-svc-item" href="#querySec">
-      <span class="mine-svc-ic" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      </span>
-      <span class="mine-svc-t">本次查询</span>
-    </a>
-    <a class="mine-svc-item" href="consult.html">
-      <span class="mine-svc-ic" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3 2v-5a7.5 7.5 0 1 1 16-4.5Z"/><path d="M8 10h8M8 13h5"/></svg>
-      </span>
-      <span class="mine-svc-t">咨询与核实</span>
-    </a>
-    <a class="mine-svc-item" href="discover.html">
-      <span class="mine-svc-ic" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 20 7v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
-      </span>
-      <span class="mine-svc-t">权益评估</span>
-    </a>
-  </section>
-
-  <h2 class="section-title" id="savedSec">我的收藏</h2>
-  <div id="savedList"></div>
-
-  <h2 class="section-title" id="querySec">本次查询</h2>
-  <div id="queryBox"></div>
-
-  <!-- 关于：三条必须说清的事 -->
-  <button type="button" class="card mine-row" id="aboutToggle" aria-expanded="false" aria-controls="aboutBox">
-    <span class="mine-row-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg></span>
-    <span class="mine-row-body">
-      <strong>关于我们</strong>
-      <small>数据范围 · 存储位置 · 产品定位</small>
-    </span>
-    <b class="mine-row-arrow" aria-hidden="true">›</b>
-  </button>
-  <div class="card about-box" id="aboutBox" hidden>
-    <div class="src-rows about-rows">
-      <div class="src-row"><span class="k">数据范围</span><span class="v" id="aboutScope">读取中……</span></div>
-      <div class="src-row"><span class="k">存储位置</span><span class="v">收藏与查询只存在本机浏览器，不上传</span></div>
-      <div class="src-row"><span class="k">定位</span><span class="v">只做「可能相关」的初步提示，不做资格认定、不代办</span></div>
+  <section class="section">
+    <div class="card">
+      <div class="where-list">
+        <div class="where-row"><span class="wr-k">咨询与核实</span><span class="wr-v"><a class="tc-link" href="consult.html">按主管部门查看与提问</a></span></div>
+        <div class="where-row"><span class="wr-k">发现权益</span><span class="wr-v"><a class="tc-link" href="discover.html">描述情况，发现可能相关的权益</a></span></div>
+        <div class="where-row"><span class="wr-k">家庭协助</span><span class="wr-v"><a class="tc-link" href="family.html">为家人查询</a></span></div>
+        <div class="where-row"><span class="wr-k">为自己查找</span><span class="wr-v"><a class="tc-link" href="self.html">本人权益发现</a></span></div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="notice mine-note">
-    <strong>政策找人，助力家庭不错过每一份权益</strong>
-    <p>政策信息以政府发布为准，本平台仅提供信息参考。清空浏览器数据会同时清掉收藏与查询记录。</p>
+  <div class="footnote">
+    本页仅作旧链接兼容跳转使用；收藏、查询与核实记录仍只保存在本设备浏览器中，不上传。
   </div>
 </div>
-
-<script src="assets/app.js"></script>
-<script>
-  renderTopbar('我的', null);
-  mountTabbar('mine');
-  mountDemoBanner();
-
-  function readSaved() {
-    try {
-      const arr = JSON.parse(localStorage.getItem('pf_saved') || '[]');
-      return Array.isArray(arr) ? arr.filter((x) => x && x.id) : [];
-    } catch (e) { return []; }
-  }
-
-  function writeSaved(arr) {
-    try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
-  }
-
-  /**
-   * 我的家庭：只显示本次查询真实涉及的家人。
-   * 没查过就是「还没选」，不预置父亲/母亲这类没发生过的成员。
-   * 展示哪一格由 activeQueryMode 决定，且只读当前模式自己的字段：
-   * lastQuery 已标记本人模式时，家庭模式的旧受益人绝不出现；
-   * 当前模式没有对应查询内容时，这里就只剩「添加家人」这一格。
-   */
-  function paintFamily() {
-    const grid = document.getElementById('famGrid');
-    const s = readQuerySession();
-    const mode = s ? activeQueryMode() : 'family';
-    const cells = [];
-    if (s && s.demo && mode !== 'self') {
-      cells.push({ face: '演', name: '演示案例', sub: '预置样例' });
-    } else if (mode === 'self') {
-      if (s && s.selfText) cells.push({ face: '我', name: '本人', sub: '本人模式' });
-    } else if (s && s.beneficiary) {
-      cells.push({ face: s.beneficiary.slice(-2, -1) || '家', name: s.beneficiary, sub: '家庭成员' });
-    }
-    cells.push({ face: '＋', name: '添加家人', sub: '', add: true });
-    grid.innerHTML = cells.map((c) => `
-      <div class="fam-cell${c.add ? ' is-add' : ''}">
-        <div class="fam-avatar">${escapeHtml(c.face)}</div>
-        <strong>${escapeHtml(c.name)}</strong>
-        ${c.sub ? `<div class="fam-sub">${escapeHtml(c.sub)}</div>` : ''}
-      </div>`).join('');
-    // 添加家人：本产品没有账号体系，新增成员的做法是回到发现页重新描述一次
-    const add = grid.querySelector('.is-add');
-    if (add) {
-      add.setAttribute('role', 'button');
-      add.setAttribute('tabindex', '0');
-      const go = () => { location.href = 'family.html'; };
-      add.addEventListener('click', go);
-      add.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-    }
-  }
-
-  /**
-   * 收藏列表。没有收藏时整块显示空态而不是留白——
-   * 用户要能分清「一条都没收藏」和「还没加载出来」。
-   */
-  function paintSaved() {
-    const box = document.getElementById('savedList');
-    const items = readSaved();
-    if (!items.length) {
-      box.innerHTML = `
-        <div class="card empty-mini">
-          <p class="em-t">还没有收藏</p>
-          <p class="em-d">在政策详情页点右上角的星标就能收藏，方便之后回来对照。</p>
-          <button type="button" class="btn ghost" id="emGo">去看可能相关的权益</button>
-        </div>`;
-      document.getElementById('emGo').addEventListener('click', () => {
-        location.href = 'discover.html';
-      });
-      return;
-    }
-    // 每一行是「链接 + 按钮」两个并列的可点区，链接不再包住按钮。
-    // 把按钮放进 <a> 里是无效嵌套（HTML 不允许交互内容嵌在链接内），
-    // 读屏会把「取消收藏」也念成链接的一部分，键盘操作也会互相干扰。
-    box.innerHTML = items.map((it) => `
-      <div class="saved-row">
-        <a class="sr-link" href="policy.html?id=${encodeURIComponent(it.id)}">
-          <span class="sr-main">
-            <span class="sr-name">${escapeHtml(it.name || '这条政策')}</span>
-            ${it.dept ? `<span class="sr-dept">${escapeHtml(it.dept)}</span>` : ''}
-          </span>
-        </a>
-        <button type="button" class="sr-del" data-del="${escapeHtml(it.id)}"
-                aria-label="取消收藏 ${escapeHtml(it.name || '')}">取消收藏</button>
-      </div>`).join('');
-    box.querySelectorAll('[data-del]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        // 取消收藏只删这一条，不等于「去看这条政策」
-        e.stopPropagation();
-        const id = btn.dataset.del;
-        writeSaved(readSaved().filter((x) => x.id !== id));
-        paintSaved();
-        showToast('已取消收藏');
-      });
-    });
-  }
-
-  /**
-   * 本次查询。这里如实只显示「这一次」，不伪造历史列表——
-   * 产品没有存查询历史，编一份出来就是假信息。
-   * 当前生效的查询由 activeQueryMode 决定，且只读当前模式自己的字段：
-   * lastQuery 已标记本人模式时，家庭模式的旧文本/受益人绝不充当本次查询；
-   * 当前模式没有查询内容（另一模式留有旧数据，或数据不完整）时，
-   * 显示空状态并引导重新查询，不静默换用另一模式的内容。
-   */
-  function paintQuery() {
-    const box = document.getElementById('queryBox');
-    const s = readQuerySession();
-    const mode = s ? activeQueryMode() : 'family';
-    const selfActive = mode === 'self';
-    const hasCurrent = s && (selfActive ? !!s.selfText : !!s.text);
-    if (!s || !hasCurrent) {
-      const goHref = selfActive ? 'self.html' : 'discover.html';
-      box.innerHTML = `
-        <div class="card empty-mini">
-          <p class="em-t">还没有查询过</p>
-          <p class="em-d">在「发现」里用一句话描述情况，就能看到可能相关的权益。</p>
-          <button type="button" class="btn ghost" id="qGo">去发现</button>
-        </div>`;
-      document.getElementById('qGo').addEventListener('click', () => {
-        location.href = goHref;
-      });
-      return;
-    }
-    const who = selfActive
-      ? '本人模式'
-      : (s.demo ? '演示案例' : (s.beneficiary ? '帮' + s.beneficiary : '家庭协助'));
-    const qtext = selfActive ? s.selfText : s.text;
-    // 本人查询的「回到发现结果」应回到本人页：家庭页此刻只会重新跑家庭匹配
-    const backHref = selfActive ? 'self.html' : 'discover.html';
-    box.innerHTML = `
-      <div class="card">
-        <div class="q-who">${escapeHtml(who)}</div>
-        <p class="q-text">${escapeHtml(qtext || '')}</p>
-        <div class="q-acts">
-          <a class="btn" href="${backHref}">回到发现结果</a>
-          <button type="button" class="btn ghost" id="qClear">清空本次查询</button>
-        </div>
-      </div>`;
-    document.getElementById('qClear').addEventListener('click', () => {
-      // 只清当前生效的那种查询；另一种还留有记录时，lastQuery 跟着切过去
-      if (selfActive) {
-        store.write({ selfProfile: {}, selfText: '' });
-        if (s.text) store.write({ lastQuery: 'family' });
-      } else {
-        store.write({ profile: {}, text: '' });
-        if (s.selfText) store.write({ lastQuery: 'self' });
-      }
-      paintQuery();
-      paintFamily();
-      showToast('已清空本次查询');
-    });
-  }
-
-  // 关于：折叠说明，默认收起
-  const aboutToggle = document.getElementById('aboutToggle');
-  const aboutBox = document.getElementById('aboutBox');
-  aboutToggle.addEventListener('click', () => {
-    const open = aboutToggle.getAttribute('aria-expanded') === 'true';
-    aboutBox.hidden = open;
-    aboutToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-    aboutToggle.classList.toggle('is-open', !open);
-  });
-
-  // 「管理 ›」是固定元素，不随 famGrid 重绘重建——绑定必须放在初始化做一次。
-  // 之前写在 paintFamily 里，每重绘一次家庭区就多挂一个监听器，
-  // 清空查询等触发重绘后，一次点击会触发多次处理。
-  const famManage = document.getElementById('famManage');
-  if (famManage && !famManage.__bound) {
-    famManage.__bound = true;
-    famManage.addEventListener('click', () => { location.href = 'family.html'; });
-  }
-
-  paintFamily();
-  paintSaved();
-  paintQuery();
-
-  loadSiteContext().then(() => {
-    document.getElementById('aboutScope').textContent =
-      SITE.region + ' · ' + SITE.policyCount + ' 条政策，逐条标注责任部门与文号';
-  }).catch(() => {
-    document.getElementById('aboutScope').textContent = '暂时读不到政策库信息';
-  });
-
-  // 从详情页取消收藏后按返回回到这里时，列表要是新的
-  window.addEventListener('pageshow', () => { paintSaved(); });
-</script>
 </body>
 </html>

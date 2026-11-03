@@ -256,7 +256,7 @@ await goto('verify-list.html');
 await evalJs(`(() => { PFServices.removeFromList('gz_elderly_009'); return 1; })()`);
 await goto('verify-list.html');
 const vl3 = await evalJs(`(() => ({ list: PFServices.listRecords().map(r=>r.pid), recs: PFServices.recordsOf().map(r=>r.pid), hist: (PFServices.recordsOf().find(r=>r.pid==='gz_elderly_009')||{}).history?.length }))()`);
-check('新增：从清单移除只影响被移除的那一条', !vl3.list.includes('gz_elderly_009') && vl3.list.includes('gz_elderly_002'), vl3.list);
+check('新增：从清单移除只影响被移除的那一条（前面已删除的 002 不再复活）', !vl3.list.includes('gz_elderly_009') && !vl3.list.includes('gz_elderly_002'), vl3.list);
 check('新增：从清单移除后核实记录仍在', vl3.recs.includes('gz_elderly_009') && vl3.hist >= 2, vl3);
 
 /* ---------------- 4. 少跑腿计划：同部门合并 / 部门缺失不推断 ---------------- */
@@ -318,13 +318,16 @@ check('我的：五个区块齐全（我的家庭/我的收藏/本次查询/我�
   mine.found.length === 5, { found: mine.found });
 check('我的：只有一个底部导航', mine.tabs === 1, mine.tabs);
 
-/* ---------------- 7. 收藏往返 ---------------- */
+/* ---------------- 7. 收藏往返（B 版键 pf_saved_b，A/B 隔离） ---------------- */
 await goto('policy.html?id=gz_elderly_003');
-await evalJs(`(() => { localStorage.setItem('pf_saved', JSON.stringify([{id:'gz_elderly_003',name:'社区养老服务',dept:'广州市民政局'}])); return 1; })()`);
+await evalJs(`(() => { localStorage.setItem('pf_saved_b', JSON.stringify([{id:'gz_elderly_003',name:'社区养老服务',dept:'广州市民政局'}])); return 1; })()`);
 await goto(MINE);
-const fav = await evalJs(`(() => ({ saved: JSON.parse(localStorage.getItem('pf_saved')||'[]').length,
+const fav = await evalJs(`(() => ({ saved: JSON.parse(localStorage.getItem('pf_saved_b')||'[]').length,
+  pfA: localStorage.getItem('pf_saved'),
   shown: /社区养老服务/.test(document.body.innerText) }))()`);
 check('原有：收藏写入后在「我的收藏」显示', fav.saved === 1 && fav.shown, fav);
+check('隔离：B 版列表读 pf_saved_b，pf_saved（A 版键）未被写入本次收藏',
+  fav.saved === 1 && (fav.pfA === null || !String(fav.pfA).includes('gz_elderly_003')), fav);
 
 /* ---------------- 8. 双版业务结果一致性快照 ---------------- */
 await seed(SESS_FATHER);

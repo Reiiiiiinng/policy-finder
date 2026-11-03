@@ -288,7 +288,9 @@
       const go = () => {
         // 进入详情前记住当前滚动位置与这条政策 id，返回时恢复
         saveListPosition(card.dataset.id);
-        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id);
+        // svc 参数来自首页「政策解读 / 办理指引」intent，详情页据此定位区块；
+        // 整卡导航与卡尾 <a> 必须行为一致，不能一个带一个丢
+        location.href = 'policy.html?id=' + encodeURIComponent(card.dataset.id) + (_svcParam ? '&svc=' + _svcParam : '');
       };
       // 卡内有真实控件（折叠 summary / 理由展开 / 证据链按钮 / 详情链接）：
       // 点它们时事件会冒泡到整卡，这里必须让位，否则折叠区在结果页打不开。
@@ -392,17 +394,41 @@
 
   /**
    * 消费首页「政策解读 / 办理指引」带过来的 intent。
-   * 只弹一句指路提示，不改任何匹配结果，也不预置任何选中项。
-   * 读完即清，避免下次进发现页又弹一次。
+   * 脚本初始化时读后即清（防下次进入重复执行）；有 intent 时做三件事，而不是只弹一条 Toast：
+   *  1. 结果区顶部放一条常驻提示条，说明本次该看什么；
+   *  2. 结果卡进入详情页时带上 &svc= 参数（bindCards 的整卡导航与卡尾 <a> 都带），
+   *     详情页会滚动并高亮对应区块（解读 → q1/q2，办理 → q4/q5）；
+   *  3. Toast 只作辅助反馈，不作为唯一结果。
+   * 不改匹配结果、不预置任何选中项。
    */
-  function applyServiceIntent() {
-    let intent = null;
+  var _svcParam = '';
+  (function () {
     try {
-      intent = sessionStorage.getItem('pf_svc_intent');
+      const v = sessionStorage.getItem('pf_svc_intent');
       sessionStorage.removeItem('pf_svc_intent');
-    } catch (e) { /* 隐私模式忽略 */ }
-    if (intent === 'detail') showToast('选一条权益，进去看「这是什么」与「为什么推荐」');
-    if (intent === 'guide') showToast('选一条权益，进去看「去哪里核实」与「怎么办理」');
+      _svcParam = (v === 'detail' || v === 'guide') ? v : '';
+    } catch (e) { _svcParam = ''; }
+  })();
+  const SVC_HINT = {
+    detail: { label: '政策解读', tip: '挑一条权益点进去，先看「这是什么？」与「为什么推荐给您？」两节。' },
+    guide: { label: '办理指引', tip: '挑一条权益点进去，先看「去哪里核实？」与「怎么办理？」两节。' },
+  };
+  function applyServiceIntent() {
+    if (!_svcParam) return;
+    const h = SVC_HINT[_svcParam];
+    if (!document.getElementById('svcHintBar')) {
+      const bar = document.createElement('div');
+      bar.className = 'hint';
+      bar.id = 'svcHintBar';
+      bar.setAttribute('role', 'note');
+      bar.innerHTML = '<strong>' + h.label + '：</strong>' + h.tip;
+      area.prepend(bar);
+    }
+    area.querySelectorAll('a[href*="policy.html?id="]').forEach((a) => {
+      const raw = a.getAttribute('href') || '';
+      if (raw && raw.indexOf('svc=') === -1) a.setAttribute('href', raw + '&svc=' + _svcParam);
+    });
+    showToast('已按「' + h.label + '」进入，选一条权益查看');
   }
   // 已输入过则自动跑一次，方便从详情页返回。
   // restorePosition 只在真的有返回记录时才恢复滚动；
@@ -417,9 +443,9 @@
       applyServiceIntent();
     });
   } else {
-    // 没查过也从首页入口过来时，intent 同样要消费掉，否则它会一直挂在
-    // sessionStorage 里，下次进来莫名其妙弹提示。
-    applyServiceIntent();
+    // 没查过也从首页入口过来时，intent 已在脚本初始化时读后即清（见上方 _svcParam），
+    // 不会挂在 sessionStorage 里反复弹。空态下没有可挑的权益，不提示——
+    // 空态自身的 CTA 已指明下一步，不叠加「选一条」的噪声。
     // 还没查过：这是一级页，不能只留一张空白输入框。
     // 空状态如实说明「还没有结果」，给一个能立刻走的下一步，不预置任何假结果。
     document.getElementById('stepDescribe').hidden = true;

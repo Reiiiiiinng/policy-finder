@@ -24,8 +24,10 @@ function stripTags(html) {
 
 console.log('== 内联脚本语法 ==');
 const scripts = {};
+const pageSrcs = {};
 PAGES.forEach((page) => {
   const html = fs.readFileSync(path.join(ROOT, 'frontend', page), 'utf8');
+  pageSrcs[page] = [...html.matchAll(/<script[^>]*\bsrc="(assets\/[^"]+)"/g)].map((x) => x[1]);
   const m = html.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/i);
   if (!m) { check(page + ' 有内联脚本', false); return; }
   scripts[page] = m[1];
@@ -45,6 +47,59 @@ const defined = new Set();
   let m;
   while ((m = re.exec(src))) defined.add(m[1] || m[2] || m[3]);
 })(appSrc);
+
+// 公共脚本函数按“页面实际加载关系”收集（E001–E004）：
+// tcb-ui.js / pf-services.js 仅 index/family/self/policy 四页加载，
+// discover.html 只加载 app.js——不能并入全局 defined，否则会把
+// discover 对这些函数的真实未定义调用也一并掩盖掉。
+// - tcb-ui.js：顶层 function 声明即全局（无 global. 导出）。
+// - pf-services.js：IIFE 内定义，页面可见的名字只有 `global.XXX =` 的导出名。
+const COMMON_SCRIPT_FNS = {
+  'assets/tcb-ui.js': (function () {
+    const s = new Set();
+    const re = /^\s*function\s+([A-Za-z_$][\w$]*)/gm;
+    const src = fs.readFileSync(path.join(ROOT, 'frontend/assets/tcb-ui.js'), 'utf8');
+    let m;
+    while ((m = re.exec(src))) s.add(m[1]);
+    return s;
+  })(),
+  'assets/pf-services.js': (function () {
+    const s = new Set();
+    const re = /global\.([A-Za-z_$][\w$]*)\s*=/g;
+    const src = fs.readFileSync(path.join(ROOT, 'frontend/assets/pf-services.js'), 'utf8');
+    let m;
+    while ((m = re.exec(src))) s.add(m[1]);
+    return s;
+  })(),
+};
+
+// 注释里的 `xxx(` 不是调用（如 self.html 注释中的「benKey() 会被覆盖」）：
+// 调用扫描前剥离单行/块注释；字符串与模板串用状态机保护，避免误伤内容。
+function stripJsComments(src) {
+  let out = '', i = 0;
+  const n = src.length;
+  let quote = null; // 当前所处字符串的引号；null 表示不在字符串里
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (quote) {
+      out += c;
+      if (c === '\\') { out += d || ''; i += 2; continue; }
+      if (c === quote) quote = null;
+      i += 1;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') { quote = c; out += c; i += 1; continue; }
+    if (c === '/' && d === '/') { while (i < n && src[i] !== '\n') i += 1; continue; }
+    if (c === '/' && d === '*') {
+      i += 2;
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i += 1;
+      i += 2;
+      continue;
+    }
+    out += c; i += 1;
+  }
+  return out;
+}
 
 const required = {
   // showDemoConfirm 是 index.html 自己定义的内部函数，不来自 app.js
@@ -87,7 +142,13 @@ const BUILTIN = new Set([
   'Boolean', 'Error', 'RegExp', 'Map', 'Set', 'Symbol', 'Proxy', 'Reflect',
 ]);
 Object.keys(scripts).forEach((page) => {
-  const src = scripts[page];
+  // 扫描前剥离注释：注释里的 `xxx(` 不是调用（self.html 的 benKey 即此类误报）
+  const src = stripJsComments(scripts[page]);
+  // 该页实际加载的公共脚本可见函数（discover 只加载 app.js，不在此列）
+  const visible = new Set();
+  (pageSrcs[page] || []).forEach((a) => {
+    (COMMON_SCRIPT_FNS[a] || []).forEach((n2) => visible.add(n2));
+  });
   // 本页定义的函数名 + 箭头函数形参 + 解构出来的变量名，都视为已知
   const local = new Set();
   let m;
@@ -120,7 +181,7 @@ Object.keys(scripts).forEach((page) => {
   while ((m = re.exec(src))) {
     const name = m[1];
     if (KEYWORD.has(name) || BUILTIN.has(name)) continue;
-    if (defined.has(name) || local.has(name)) continue;
+    if (defined.has(name) || visible.has(name) || local.has(name)) continue;
     calls.add(name);
   }
   check(page + ' 无未定义函数调用', calls.size === 0, [...calls].join(', '));
@@ -185,42 +246,49 @@ check('发现页处理 focus 参数', /applyFocus/.test(disc));
 const pol = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
 check('详情页有第4步进一步确认', /进一步确认|renderFinalStep/.test(pol));
 check('详情页有去哪里核实', /去哪里核实/.test(pol));
-// P2-2：分段编号改为「每个标签页内独立、连续」（原 1-6 跨页跳变）
-check('详情页分段编号每页独立连续',
-  /qBlock\(1, '这是什么/.test(pol) && /qBlock\(1, '为什么推荐/.test(pol)
-  && /qBlock\(2, '还需要确认/.test(pol) && /qBlock\(1, '去哪里核实/.test(pol)
-  && /qBlock\(2, '怎么办理/.test(pol));
+// B 版详情为单页连续五问（q1-q5 id 锚点供收藏/定位使用），不再拆标签页
+check('详情页五问单页连续编号 1-5',
+  /qBlock\(1, '这是什么？'/.test(pol) && /qBlock\(2, '为什么推荐给您？'/.test(pol)
+  && /qBlock\(3, '还需要确认什么？'/.test(pol) && /qBlock\(4, '去哪里核实？'/.test(pol)
+  && /qBlock\(5, '怎么办理？'/.test(pol));
 check('详情页保留来源信任卡', /trust-card/.test(pol));
-// P1：出门前清单。低碳落点是「减少无效往返」，不是「电子化更环保」；
-// 材料只能从申请条件推导，不能凭空编造证件名目。
-check('出门前清单分材料与问题两栏',
-  /出门前要带的材料/.test(pol) && /要问清的问题/.test(pol));
-check('清单从申请条件推导材料',
-  /cond\.hukou_required/.test(pol) && /cond\.insurance_required/.test(pol)
-  && /cond\.disability_required/.test(pol));
-check('清单声明以受理单位告知为准', /以受理单位告知为准/.test(pol));
-check('低碳表述落在减少往返上',
-  /少跑一趟/.test(pol) && !/电子化|无纸化|更环保|减少碳排放/.test(pol));
-check('清单结尾给官方渠道且不代办',
-  /不代办/.test(pol) && /不代为提交材料/.test(pol) && /不做资格认定/.test(pol));
+// P1：出门前清单的 B 版承载：consult 页「咨询时建议问清这四件事」，
+// 每条都要给到可执行的问询内容，而不是只剩标题。
+const consTop = fs.readFileSync(path.join(ROOT, 'frontend/consult.html'), 'utf8');
+check('咨询页四件事结构完整（覆盖范围/申请入口/所需材料/适用标准）',
+  /咨询时建议问清这四件事/.test(consTop)
+  && (consTop.match(/class="where-row"/g) || []).length === 4
+  && /① 覆盖范围/.test(consTop) && /② 申请入口/.test(consTop)
+  && /③ 所需材料/.test(consTop) && /④ 适用标准/.test(consTop));
+check('咨询四件事每条给出可执行的问询内容',
+  (consTop.match(/wr-v">[^<]{12,}</g) || []).length === 4);
+check('清单声明以主管部门答复为准', /以主管部门答复为准/.test(consTop));
+check('低碳语义落在减少往返（少跑腿）上',
+  /少跑腿/.test(fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8'))
+  && !/电子化|无纸化|更环保|减少碳排放/.test(consTop));
+check('咨询页声明不代办且给官方渠道',
+  /不代办/.test(consTop) && /不代填/.test(consTop)
+  && /不构成政策解释或资格认定/.test(consTop)
+  && /consult-official-link/.test(appSrc));
 check('详情页保留 to_verify 提示', /来源待核验/.test(pol));
 
-// P2：一句话产品定义（≤30 字）+ 三个亮点的因果链必须落在界面上，不能只写进文档。
+// P2：B 版首屏为欢迎区（home-hello 一句话 + 副标题），替代 partner 的 hero-def。
 {
   const idx = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
-  const def = (idx.match(/<p class="hero-def">([\s\S]*?)<\/p>/) || [])[1] || '';
-  const defText = stripTags(def).trim();
-  check('首屏有一句话产品定义', defText.length > 0);
-  check('产品定义不超过 30 字', defText.length <= 30, 'len=' + defText.length + ' "' + defText + '"');
-  check('产品定义讲机制而非功能罗列',
-    /依据|核对/.test(defText) && /发现/.test(defText));
-  check('三个亮点串成因果链',
-    /chain-card/.test(idx) && /主动发现/.test(idx) && /可解释推荐/.test(idx) && /家庭代查/.test(idx));
-  check('因果链写明「因为…所以必须…」',
-    (idx.match(/chain-because/g) || []).length >= 3,
-    'n=' + (idx.match(/chain-because/g) || []).length);
-  check('因果链在说明区而非入口之前',
-    idx.indexOf('chain-card') > idx.indexOf('id="entry"'));
+  const helloSub = (idx.match(/<p class="home-hello-sub">([\s\S]*?)<\/p>/) || [])[1] || '';
+  check('首屏有一句话产品说明', stripTags(helloSub).trim().length > 0);
+  check('产品说明讲机制而非功能罗列',
+    /发现/.test(helloSub) && /政策/.test(helloSub) && /可能相关/.test(idx));
+  check('首页四个服务入口各有真实说明',
+    /发现相关政策/.test(idx) && /政策解读/.test(idx)
+    && /办理指引/.test(idx) && /我的权益/.test(idx)
+    && (idx.match(/t-sub">[^<]+</g) || []).length >= 4);
+  check('宫格副标题说明各入口用途',
+    /描述生活变化，开始初步匹配/.test(idx)
+    && /依据与解读详见每条权益的详情页/.test(idx)
+    && /办理流程与官方渠道详见详情页/.test(idx));
+  check('欢迎说明区在服务入口之前',
+    idx.indexOf('home-hello') >= 0 && idx.indexOf('home-hello') < idx.indexOf('hg-tile'));
 }
 
 // P5：原创视觉母题「一线」——必须有可复用的实现，且真的用在 ≥3 个界面位置上。
@@ -232,9 +300,12 @@ check('详情页保留 to_verify 提示', /来源待核验/.test(pol));
     /\.th-path/.test(css0) && /border-top:\s*1\.5px dashed/.test(css0) && !/\.thread[^{]*\{[^}]*url\(/.test(css0));
   // ≥3 个界面：首页首屏、详情页首块、证据链顶部
   check('母题用在证据链顶部', /renderThread\(clueText/.test(app) && /thread-head/.test(app));
-  check('母题用在首页首屏',
-    /renderThread\('独居 · 行动不便'/.test(fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8')));
-  check('母题用在详情页首块', /renderThread\(sceneClues\[0\]/.test(fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8')));
+  // B 版 theme-cb 有自己的视觉骨架：首页 hello+宫格、详情页标题行+星标。
+  check('首页使用 theme-cb 视觉骨架（hello+宫格）',
+    /home-hello/.test(fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8'))
+    && /hg-tile/.test(fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8')));
+  check('详情页首块使用 tc-title-row 标题行',
+    /tc-title-row/.test(fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8')));
   check('母题至少出现在 3 个渲染点',
     (app.match(/renderThread\(/g) || []).length
       + (fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8').match(/renderThread\(/g) || []).length
@@ -289,9 +360,11 @@ console.log('== 两个判断维度分离（P7-A）==');
     /axis-k">匹配/.test(appSrc) && /axis-k">来源/.test(appSrc));
   check('app.js 用 renderAxes', /function renderAxes/.test(appSrc));
   const polSrc = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
-  check('详情页顶部用 renderAxes', /renderAxes\(matchRow/.test(polSrc));
-  check('详情页来源核验不再用 badge 药丸',
-    !/<span class="badge (pending|verified)">(✓\s*)?(来源待核验|已核验)</.test(polSrc));
+  // B 版详情状态走 tc-status 体系，核验状态有意保留统一 badge 徽标
+  check('详情页顶部有 tc-status 状态区', /tc-status/.test(polSrc));
+  check('详情页核验状态使用统一 badge 徽标',
+    /badge pending">待核实/.test(polSrc)
+    && /badge verified">✓ 来源已核验/.test(polSrc));
   check('证据链来源核验不再用 badge 药丸',
     !/badge verified">✓ 已核验/.test(appSrc) && /cite-state is-verified/.test(appSrc));
   [
@@ -376,10 +449,13 @@ console.log('== UI 重构（按设计参考图） ==');
   // 卡面：推荐给谁 + 符合度，理由摘要一句
   check('卡面标出推荐给谁与符合度', /rc-whofit/.test(app) && /rc-fit/.test(app) && /rc-brief/.test(app));
   check('符合度只展示可计算的百分比，不算出来就不显示',
-    /符合度/.test(app) && /scorePct/.test(pol));
+    /符合度/.test(app) && /rc-fit/.test(app) && /rc-fit-v/.test(app)
+    && /\$\{pct\}%/.test(app)
+    && /title="同批结果内的相对参考分，不是资格概率"/.test(app));
 
-  // 详情页：标题是 h1.dhead-title，右侧附注用左侧竖线而不是完整边框
-  check('详情页标题用 dhead-title', /class="dhead-title"/.test(pol));
+  // 详情页标题行为 tc-title-row（h2 + 收藏星标），右侧附注语义由 tc 体系承载
+  check('详情页标题行含收藏星标（tc-title-row）',
+    /tc-title-row/.test(pol) && /dhead-save/.test(pol));
   check('详情页附注用竖线语言', /\.dhead-side \{[\s\S]{0,320}?border-left:\s*3px/.test(css));
 
   // 母题连线：线索让位给权益名，不在中间截断
@@ -388,22 +464,36 @@ console.log('== UI 重构（按设计参考图） ==');
     && /\.detail-thread \.th-right \{[\s\S]{0,200}?flex:\s*1 1 auto/.test(css));
   // 首页：服务入口指向已有能力，收藏区没有条目不出现
   const idx = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
-  check('首页有服务入口四项', /class="svc-grid"/.test(idx)
-    && /政策匹配/.test(idx) && /政策解读/.test(idx)
-    && /办理指引/.test(idx) && /我的收藏/.test(idx));
-  check('服务入口都是指向已有能力，不新开页面',
-    (idx.match(/class="svc"[^>]*href="#[a-zA-Z]+"/g) || []).length === 4);
-  check('我的收藏为空时整块隐藏', /id="savedSec"[^>]*hidden/.test(idx)
-    && /\$\{\(?items\.length/.test(idx.replace(/\s+/g, '')) === false
-    && /if \(!Array\.isArray\(items\) \|\| !items\.length\) return;/.test(idx));
+  // B 版首页为 hg-tile 四宫格（发现相关政策 / 政策解读 / 办理指引 / 我的权益），
+  // E031 后四个入口全部有真实点击行为。
+  check('首页有服务入口四项', (idx.match(/class="hg-tile[ "]/g) || []).length === 4
+    && /发现相关政策/.test(idx) && /政策解读/.test(idx)
+    && /办理指引/.test(idx) && /我的权益/.test(idx));
+  check('服务入口都有真实点击行为',
+    /getElementById\('tileMatch'\)\.addEventListener/.test(idx)
+    && /querySelectorAll\('\.hg-tile\.is-todo'\)\.forEach/.test(idx)
+    && /getElementById\('tileMine'\)\.addEventListener/.test(idx));
+  check('首页不再承载收藏（收藏已并入我的服务）',
+    !/pf_saved/.test(idx) && /tileMine/.test(idx));
 
   // 详情页：收藏星标 + 底部动作条
   check('详情页标题行有收藏星标', /class="dhead-save"/.test(pol) && /aria-pressed="false"/.test(pol));
+  // 收藏读写统一走 PFServices 公共接口；页面不得直接读写裸键 pf_saved
+  const svcSrc = fs.readFileSync(path.join(ROOT, 'frontend/assets/pf-services.js'), 'utf8');
+  const tcbCss = fs.readFileSync(path.join(ROOT, 'frontend/assets/tcb.css'), 'utf8');
   check('收藏只存 id/名称/部门，不存个人信息',
-    /localStorage\.setItem\('pf_saved'/.test(pol)
-    && /id: pid/.test(pol) && /name: p\.policy_name/.test(pol)
+    /PFServices\.toggleFavorite\(/.test(pol)
+    && /id: pid/.test(pol) && /name: pol\.policy_name/.test(pol)
     && !/age:|beneficiary:|idcard/i.test((pol.split('function bindSave')[1] || '').slice(0, 4000)));
-  check('星标命中区 48px', /\.dhead-save \{[\s\S]{0,120}?width:\s*48px/.test(css));
+  check('B 版收藏读写走命名空间键 pf_saved_b（公共层统一实现，A/B 隔离）',
+    /localStorage\.setItem\(K\.savedNs/.test(svcSrc)
+    && /savedNs:\s*'pf_saved_' \+ NS/.test(svcSrc)
+    && !/setItem\('pf_saved'/.test(svcSrc)
+    && !/getItem\('pf_saved'/.test(svcSrc)
+    && !/localStorage\.[gs]etItem\('pf_saved'/.test(pol));
+  check('B 版星标触控区 44px（tcb.css，含 is-on 选中态）',
+    /\.dhead-save \{[\s\S]{0,200}?width:\s*44px/.test(tcbCss)
+    && /\.dhead-save\.is-on/.test(tcbCss));
 
   // 结果页：首卡「推荐度高」书签只标一张
   check('首张卡片有推荐度高书签',
@@ -427,25 +517,29 @@ console.log('== 底部一级导航与新增一级页 ==');
 {
   const app = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
   const pol = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
+  // 「我的」服务中心已统一为 services.html；mine.html 降级为无脚本兼容中转页
   const mine = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  const svc = fs.readFileSync(path.join(ROOT, 'frontend/services.html'), 'utf8');
   const cons = fs.readFileSync(path.join(ROOT, 'frontend/consult.html'), 'utf8');
   const idx2 = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
   const disc2 = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
 
-  // 四个一级页都要挂同一个导航，且各自高亮自己
-  check('四个一级页都挂了底部导航',
-    /mountTabbar\('home'\)/.test(idx2) && /mountTabbar\('discover'\)/.test(disc2)
-    && /mountTabbar\('consult'\)/.test(cons) && /mountTabbar\('mine'\)/.test(mine));
+  // 一级页导航挂载：theme-cb 各页走 mountBottomNav，discover（partner 皮肤）走 mountTabbar，
+  // mine.html 已降级为无脚本兼容中转页，不再挂导航
+  check('一级页导航挂载方式与整合后结构一致',
+    /mountBottomNav\('home'\)/.test(idx2) && /mountTabbar\('discover'\)/.test(disc2)
+    && /mountBottomNav\('consult'\)/.test(cons)
+    && !/mountTabbar\(|mountBottomNav\(/.test(mine));
   // 本人页是带导航的二级页：漏掉这一步，用户进到本人模式后就点不回发现页或我的页。
   // 底部导航没有「本人」这一栏，本人发现同属发现权益，因此高亮「发现」。
   const selfSrc3 = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
   check('本人页也挂了底部导航（高亮发现）',
-    /mountTabbar\('discover'\)/.test(selfSrc3));
+    /mountBottomNav\('discover'\)/.test(selfSrc3));
   check('导航项与页面一一对应',
     /key: 'home',[\s\S]{0,80}href: 'index\.html'/.test(app)
     && /key: 'discover',[\s\S]{0,80}href: 'discover\.html'/.test(app)
     && /key: 'consult',[\s\S]{0,80}href: 'consult\.html'/.test(app)
-    && /key: 'mine',[\s\S]{0,80}href: 'mine\.html'/.test(app));
+    && /key: 'mine',[\s\S]{0,80}href: 'services\.html'/.test(app));
   check('当前页用 aria-current 标注',
     /aria-current="page"/.test(app) && /is-on/.test(app));
 
@@ -464,27 +558,31 @@ console.log('== 底部一级导航与新增一级页 ==');
 
   // 空状态：没查过就说没查过，不预置任何结果
   check('发现页有未查询空状态', /还没有发现结果/.test(disc2) && /esStart/.test(disc2));
-  check('我的页空收藏与空查询都如实说明',
-    /还没有收藏/.test(mine) && /还没有查询过/.test(mine));
-  check('我的页读的是同一份收藏，不另存一套',
-    /localStorage\.getItem\('pf_saved'\)/.test(mine) && /pf_saved/.test(pol));
+  check('我的服务页空收藏与空查询都如实说明',
+    /还没有收藏/.test(svc) && /还没有查询过/.test(svc));
+  check('我的服务页读的是同一份收藏（PFServices 公共接口，pf_saved_b，与详情页同源）',
+    /PFServices\.readFavorites\(\)/.test(svc) && /PFServices\.(readFavorites|isFavorite|toggleFavorite)/.test(pol)
+    && /function readFavorites/.test(fs.readFileSync(path.join(ROOT, 'frontend/assets/pf-services.js'), 'utf8')));
+  check('旧 mine.html 是无脚本兼容中转页（链接到我的服务，不再读写数据）',
+    /href="services\.html"/.test(mine) && /进入我的服务/.test(mine)
+    && !/pf_saved/.test(mine) && !/<script/.test(mine));
   check('咨询页不编造热线号码',
-    /未接入在线咨询/.test(cons) && !/0\d{2,3}-\d{7,8}/.test(cons));
+    /不提供在线咨询、不代办、不代填/.test(cons) && !/0\d{2,3}-\d{7,8}/.test(cons));
   // /api/policies 列表不含 source，直接用它会全部落到兜底文案「主管部门」，
   // 看起来像 10 条政策只有 1 个部门。部门必须从详情接口取。
   // 服务入口四格必须真的把用户送到那个功能上。
   // 三格曾经只是 scrollIntoView 回入口区（等于点了没反应），
   // 「我的收藏」更是在没收藏时整块隐藏，锚点滚不到任何东西。
-  check('服务入口四格各有落点标识',
-    /data-svc="match"/.test(idx2) && /data-svc="detail"/.test(idx2)
-    && /data-svc="guide"/.test(idx2) && /data-svc="saved"/.test(idx2));
-  check('收藏区隐藏时改去我的页', /sec && !sec\.hidden/.test(idx2)
-    && /location\.href = 'mine\.html'/.test(idx2));
+  check('服务入口四格各有真实落点',
+    /discoverRouteTarget\(\)/.test(idx2) && /pf_svc_intent/.test(idx2)
+    && /location\.href = 'services\.html'/.test(idx2));
+  check('「我的权益」直达我的服务页', /id="tileMine"/.test(idx2)
+    && /services\.html/.test(idx2));
   check('解读与指引送到发现页并消费 intent',
     /pf_svc_intent/.test(idx2) && /function applyServiceIntent/.test(disc2)
     && /sessionStorage\.removeItem\('pf_svc_intent'\)/.test(disc2));
   check('部门取自详情接口而非列表接口',
-    /API\.policy\(p\.policy_id\)/.test(cons) && /pd\.source/.test(cons)
+    /API\.policy\(id\)/.test(cons) && /detail\.source/.test(app)
     && !/\(p\.source \|\| \{\}\)/.test(cons));
 
   // ---- 整体检查（第二轮实测发现并修掉的缺陷，逐条防回归）----
@@ -492,16 +590,18 @@ console.log('== 底部一级导航与新增一级页 ==');
   // 1) 核验状态在 verification.status，source 里没有 pending 字段。
   //    读不存在的字段得到 undefined，会让整库都被算成「已核验」（实测 10/0，真值 8/2）。
   check('咨询页核验计数读 verification.status',
-    /verification \|\| \{\}\)\.status === 'verified'/.test(cons)
+    /function consultVerification\(/.test(app)
+    && /detail\.verification && detail\.verification\.status/.test(app)
+    && /consultVerification\(detail\)/.test(app)
     && !/src\.pending/.test(cons));
   // 2) 分段点击后高亮必须跟随。停在「全部」会让用户以为筛选没生效。
   check('分段高亮跟随点击', /function bindSegments/.test(app)
     && /classList\.toggle\('is-on'/.test(app));
-  check('发现页与本人页都绑定分段', /bindSegments\(\)/.test(disc2) && /bindSegments\(\)/.test(selfSrc2));
+  check('发现页与本人页都绑定结果分组', /bindResultGroups\(\)/.test(disc2) && /bindResultGroups\(\)/.test(selfSrc2));
   // 3) 收藏行的「取消收藏」不能嵌在 <a> 里：HTML 不允许交互内容嵌在链接内。
-  check('收藏行链接与按钮并列不嵌套',
-    /<div class="saved-row">/.test(mine) && /class="sr-link"/.test(mine)
-    && !/<a class="saved-row"/.test(mine) && !/<\/a>`\)\.join/.test(mine));
+  check('收藏行链接与按钮并列不嵌套（services sv-row）',
+    /<div class="sv-row"/.test(svc) && /'<a href="policy\.html\?id='/.test(svc)
+    && /data-act="unfav"/.test(svc));
   // 4) 底部动作条不能用负外边距向外撑：父容器内边距为 0 时会顶出 16px 横向滚动。
   const dockCss = (css.match(/\.dock \{[\s\S]*?\n\}/) || [''])[0];
   check('底部动作条不靠负外边距铺满',
@@ -514,44 +614,45 @@ console.log('== 底部一级导航与新增一级页 ==');
   // ---- 04 咨询与核实 / 05 我的（按 v14 原型这���屏重做）----
   // 「您可能想了解」曾经是三行纯文字，点了没有任何反应。
   // 现在三条各自就地展开答案：用户在这一页问的，答案要落回这一页。
-  check('咨询页三条疑问可就地展开',
-    (cons.match(/data-ask="/g) || []).length === 3
-    && /aria-expanded/.test(cons) && /csl-answer/.test(cons));
-  check('咨询页三条答案都写了真实内容',
-    /ansWhy/.test(cons) && /ansQualify/.test(cons) && /ansChannel/.test(cons)
-    && /「可能相关」/.test(cons) && /「待确认」/.test(cons));
+  check('咨询页开头给出诚实能力边界',
+    /不提供在线咨询、不代办、不代填/.test(cons) && /不补造信息/.test(cons));
+  check('咨询目录给出真实统计口径',
+    /consult-summary/.test(app) && /consult-failure/.test(app)
+    && /分属 <b>/.test(app));
   // 出门前准备三项是产品主张（少跑一趟）的落点，不能只剩一句口号。
-  check('咨询页有出门前的准备清单',
-    (cons.match(/class="prep-row"/g) || []).length === 3
-    && /政策名称或文件名称/.test(cons) && /需要确认的条件/.test(cons));
+  check('咨询页有按部门分组的政策目录',
+    /consult-dept/.test(app) && /consult-policy/.test(app)
+    && /consult-official-link/.test(app) && /consult-link-missing/.test(app)
+    && /renderConsultDirectory\(/.test(cons));
   // 通用四问必须与详情页「要问清的问题」同源，而不是另编一套。
   // 两页措辞略有出入（详情页是列表项、咨询页是问句），比对的是同一组要点。
-  check('咨询页通用四问与详情页同源',
-    /服务覆盖范围/.test(cons) && /申请入口/.test(cons)
-    && /需要准备哪些材料|需要哪些材料/.test(cons) && /发放方式/.test(cons)
-    && /服务覆盖范围/.test(pol) && /申请入口/.test(pol)
-    && /需要哪些材料/.test(pol) && /发放方式/.test(pol));
+  check('咨询页四件事与详情页核实/办理信息语义对应',
+    /① 覆盖范围/.test(cons) && /② 申请入口/.test(cons)
+    && /③ 所需材料/.test(cons) && /④ 适用标准/.test(cons)
+    && /去哪里核实/.test(pol) && /怎么办理/.test(pol));
 
   // 「我的家庭」只显示本次真实涉及的家人。预置父亲/母亲这类没发生过的成员
   // 会让用户以为自己填过，属于编造事实。
   check('我的家庭不预置没发生过的成员',
-    !/父亲（67岁）|母亲（64岁）/.test(mine)
-    && /readQuerySession\(\)/.test(mine) && /添加家人/.test(mine));
+    !/父亲（67岁）|母亲（64岁）/.test(svc)
+    && /store\.read\(\)/.test(svc) && /添加家人/.test(svc));
   // 产品没有账号体系，就不能摆一个点了没反应的「立即登录」。
   // 只看 HTML 里的按钮文字，不看注释——注释里提到这几个字是为了解释为什么不做。
-  check('我的页不摆假登录入口',
-    !/>\s*(立即登录|去登录|登录)\s*</.test(mine) && /无需登录/.test(mine));
-  // 我的服务四格必须都是真链接，不能是 <button> 占位。
-  check('我的服务四格都是可点的链接',
-    (mine.match(/class="mine-svc-item" href="/g) || []).length === 4);
+  check('我的服务页不摆假登录入口',
+    !/>\s*(立即登录|去登录|登录)\s*</.test(svc) && /无需登录/.test(svc));
+  // 服务入口必须都是真实可点的按钮（五个入口含咨询），不允许占位。
+  check('我的服务入口都是真实可点的按钮',
+    (svc.match(/class="vf-entry"/g) || []).length === 5
+    && /entConsult'\)\.addEventListener/.test(svc));
   check('关于我们默认收起且可展开',
-    /id="aboutToggle"[^>]*aria-expanded="false"/.test(mine)
-    && /id="aboutBox"[^>]*hidden/.test(mine) && /aria-controls="aboutBox"/.test(mine));
+    /id="svcAboutHead"[^>]*aria-expanded="false"/.test(svc)
+    && /id="svcAboutBody"[^>]*hidden/.test(svc) && /aria-controls="svcAboutBody"/.test(svc));
   // 收藏与本次查询都要能清空，且清空只清本机。
-  check('我的页能清空本次查询',
-    /id="qClear"/.test(mine) && /store\.write\(\{ profile: \{\}, text: '' \}\)/.test(mine));
-  check('取消收藏只删这一条不跳页', /e\.stopPropagation\(\)/.test(mine)
-    && /filter\(\(x\) => x\.id !== id\)/.test(mine));
+  check('我的服务页能清空本次查询（不动重置会话）',
+    /id="qNowClear"/.test(svc) && /store\.write\(\{ profile: \{\}, text: '' \}\)/.test(svc));
+  check('取消收藏只删这一条不跳页（services 委托处理）',
+    /x\.id !== id/.test(svc) && /data-act="unfav"/.test(svc)
+    && !/localStorage\.setItem\('pf_saved'/.test(svc));
 
   // ---- 连点两次的竞态（实测复现过，两处都要守住）----
   // 1) 场景 chip 的集合必须以 store 里最新的为准。连点两个 chip 时，
@@ -575,8 +676,9 @@ console.log('== 底部一级导航与新增一级页 ==');
     // 只看真正的 await 语句，函数题目注释里也出现了「await」字样，不能当锚点。
     const firstAwait = fn.search(/^\s*(const|let|data|await)\b[^\n]*\bawait\s+API/m);
     check(name + '的匹配请求有序号认领',
-      /const mySeq = beginMatchRequest\(\)/.test(fn)
-      && /if \(!isLatestMatchRequest\(mySeq\)\) return;/.test(fn)
+      /const (?:mySeq|requestId) = beginMatchRequest\(\)/.test(fn)
+      && /if \(!isLatestMatchRequest\((?:mySeq|requestId)\)\) return;/.test(fn)
+      && (fn.match(/isLatestMatchRequest\(/g) || []).length >= 3
       && firstAwait > 0
       && fn.indexOf('beginMatchRequest()') < firstAwait);
   }
@@ -656,7 +758,7 @@ console.log('== 底部一级导航与新增一级页 ==');
   const appM = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
   const discM = fs.readFileSync(path.join(ROOT, 'frontend/discover.html'), 'utf8');
   const selfM = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
-  const mineM = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  const mineM = fs.readFileSync(path.join(ROOT, 'frontend/services.html'), 'utf8');
   check('会话模式判定函数存在',
     /function activeQueryMode\(\)/.test(appM) && /function activeProfile\(\)/.test(appM));
   check('模式判定优先认 lastQuery', /s\.lastQuery === 'self' \|\| s\.lastQuery === 'family'/.test(appM));
@@ -668,17 +770,20 @@ console.log('== 底部一级导航与新增一级页 ==');
   // 「我的」页必须认得本人查询：readQuerySession 只认 text 时，
   // 本人查询后这里显示「还没有查询过」，与事实不符（实测复现）。
   check('会话读取同时认得本人查询', /!s\.text && !s\.selfText/.test(appM));
-  check('我的页本人模式查询显示本人',
-    /const mode = s \? activeQueryMode\(\) : 'family';/.test(mineM)
+  check('我的服务页本人模式查询显示本人',
+    /const mode = \(typeof activeQueryMode === 'function'\) \? activeQueryMode\(\) : 'family';/.test(mineM)
     && /const selfActive = mode === 'self';/.test(mineM));
-  check('我的页清空按当前模式清对应键', /selfProfile: \{\}, selfText: ''/.test(mineM));
+  check('我的服务页清空按当前模式清对应键', /selfProfile: \{\}, selfText: ''/.test(mineM));
+  check('我的服务页同时具备清空查询与会话重置（两者语义不合并）',
+    /清空本次查询/.test(mineM) && /store\.clear\(\)/.test(mineM)
+    && /确认重置？再次点击执行/.test(mineM));
 }
 
 /* ---- 双模式画像严格隔离：缺失即空状态，不跨模式兜底 ---- */
 {
   const appS = fs.readFileSync(path.join(ROOT, 'frontend/assets/app.js'), 'utf8');
   const polS = fs.readFileSync(path.join(ROOT, 'frontend/policy.html'), 'utf8');
-  const mineS = fs.readFileSync(path.join(ROOT, 'frontend/mine.html'), 'utf8');
+  const mineS = fs.readFileSync(path.join(ROOT, 'frontend/services.html'), 'utf8');
   const idxS = fs.readFileSync(path.join(ROOT, 'frontend/index.html'), 'utf8');
   check('activeProfile 只取当前模式自己的键',
     /const p = activeQueryMode\(\) === 'self' \? s\.selfProfile : s\.profile;/.test(appS),
@@ -691,25 +796,28 @@ console.log('== 底部一级导航与新增一级页 ==');
   check('关系条本人模式判定只看当前模式（不看画像在不在）',
     /if \(activeQueryMode\(\) === 'self'\) return '';/.test(appS));
   check('详情页取画像同样不跨模式兜底',
-    polS.indexOf('session.selfProfile || session.profile') < 0
-    && polS.indexOf('session.profile || session.selfProfile') < 0);
+    (() => { const code = stripJsComments(polS);
+      return code.indexOf('session.selfProfile || session.profile') < 0
+        && code.indexOf('session.profile || session.selfProfile') < 0; })());
   check('详情页模式判定不依赖画像存在',
-    /const selfMode = activeQueryMode\(\) === 'self';/.test(polS),
+    /const selfMode = activeQueryMode\(\) === 'self';/.test(polS)
+    || (/const curMode = activeQueryMode\(\);/.test(polS)
+        && /const selfMode = curMode === 'self';/.test(polS)),
     '画像缺失时仍要能按当前模式决定返回目标与称谓');
   check('详情页匹配上下文文本按模式取',
     /selfMode \? session\.selfText : session\.text/.test(polS),
     '不得用 session.text || session.selfText 这种跨模式链');
-  check('我的页家庭格/本人格按当前模式门控',
-    /if \(s && s\.demo && mode !== 'self'\)/.test(mineS)
+  check('我的服务页家庭格/本人格按当前模式门控',
+    /if \(demo && mode !== 'self'\)/.test(mineS)
     && /else if \(mode === 'self'\)/.test(mineS)
-    && /else if \(s && s\.beneficiary\)/.test(mineS));
-  check('我的页当前模式无内容时显示空状态',
-    /const hasCurrent = s && \(selfActive \? !!s\.selfText : !!s\.text\);/.test(mineS),
+    && /else if \(s\.beneficiary\)/.test(mineS));
+  check('我的服务页当前模式无内容时显示空状态',
+    /const hasCurrent = selfActive \? !!s\.selfText : !!s\.text;/.test(mineS),
     '不得把另一模式的旧文本当作本次查询');
-  check('「管理」绑定只在初始化发生一次',
-    (mineS.match(/famManage\.addEventListener/g) || []).length === 1
-    && mineS.indexOf('famManage.__bound') >= 0,
-    '写在 paintFamily 里会随每次重绘累加监听器');
+  check('我的服务页家庭入口绑定只在初始化发生一次',
+    (mineS.match(/entFamily'\)\.addEventListener/g) || []).length === 1
+    && mineS.indexOf('sessFamily') >= 0,
+    '重复绑定会导致一次点击多次跳转');
   check('首页服务入口用统一的模式判定',
     /const isSelf = activeQueryMode\(\) === 'self';/.test(idxS)
     && idxS.indexOf("s && s.target === 'self'") < 0,
@@ -720,7 +828,10 @@ console.log('== 底部一级导航与新增一级页 ==');
   const selfS = fs.readFileSync(path.join(ROOT, 'frontend/self.html'), 'utf8');
   const mergeOk = (src, key) => {
     const writes = src.split('store.write({ ' + key + ': profile })').length - 1;
-    const bases = (src.match(new RegExp('const stored = store\\.read\\(\\)\\.' + key + ';', 'g')) || []).length;
+    // 动态读取的两种等价写法都算：store.read().key 与 (store.read() || {}).key
+    const n1 = 'const stored = store.read().' + key + ';';
+    const n2 = 'const stored = (store.read() || {}).' + key + ';';
+    const bases = (src.split(n1).length - 1) + (src.split(n2).length - 1);
     return writes >= 2 && bases >= 2;
   };
   check('发现页确认/事件写入都取 store 最新画像', mergeOk(discS, 'profile'),

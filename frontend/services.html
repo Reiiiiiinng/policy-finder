@@ -64,6 +64,11 @@
         <span class="e-t">家庭画像</span>
         <span class="e-d">查看或重新评估家庭情况</span>
       </button>
+      <button type="button" class="vf-entry" id="entConsult">
+        <span class="e-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3 2v-5a7.5 7.5 0 1 1 16-4.5Z"/><path d="M8 10h8M8 13h5"/></svg></span>
+        <span class="e-t">咨询与办理指引</span>
+        <span class="e-d">按主管部门查看与提问</span>
+      </button>
     </div>
   </section>
 
@@ -87,6 +92,7 @@
     <div class="card">
       <div class="vf-ov-line" id="sessLine">—</div>
       <p class="vf-bar-cap" id="sessExtra"></p>
+      <div id="queryNowBox" style="margin-top:10px;"></div>
       <div class="vf-actions" style="margin-top:8px;">
         <button type="button" class="vf-btn" id="sessDiscover">重新进入发现页</button>
       </div>
@@ -102,23 +108,29 @@
   </section>
 
   <section class="section">
-    <h2 class="section-title">关于我们</h2>
-    <div class="card about-rows">
-      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
-        <span class="k">数据来源</span>
-        <span class="v">各主管部门官方公开文件；每条政策标注责任部门、文号与原文链接</span>
-      </div>
-      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
-        <span class="k">数据范围</span>
-        <span class="v" id="aboutScope">读取中……</span>
-      </div>
-      <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
-        <span class="k">本地存储</span>
-        <span class="v">收藏、本次查询、待核实清单与核实记录只保存在本机浏览器，不上传；清空浏览器数据会一并清除</span>
-      </div>
-      <div style="padding:8px 0;">
-        <span class="k">功能边界</span>
-        <span class="v">只做「可能相关」的初步提示，不做资格认定、不代办；最终以主管部门核定为准</span>
+    <div class="card">
+      <button type="button" class="vf-prep-head" id="svcAboutHead" aria-expanded="false" aria-controls="svcAboutBody">
+        <span class="t">关于我们</span>
+        <span class="n" style="font-weight:400;">数据范围 · 本地存储 · 功能边界</span>
+        <span class="arrow" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+      </button>
+      <div class="vf-prep-body about-rows" id="svcAboutBody" hidden style="padding:4px 2px 2px;">
+        <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+          <span class="k">使用方式</span>
+          <span class="v">本地使用，无需登录，不设账号体系；数据不上传</span>
+        </div>
+        <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+          <span class="k">数据来源</span>
+          <span class="v">各主管部门官方公开文件；每条政策标注责任部门、文号与原文链接</span>
+        </div>
+        <div style="padding:8px 0;border-bottom:1px dashed var(--line-soft);">
+          <span class="k">数据范围</span>
+          <span class="v" id="aboutScope">读取中……</span>
+        </div>
+        <div style="padding:8px 0;">
+          <span class="k">功能边界</span>
+          <span class="v">只做「可能相关」的初步提示，不做资格认定、不代办；最终以主管部门核定为准</span>
+        </div>
       </div>
     </div>
   </section>
@@ -173,10 +185,46 @@
     document.getElementById('sessExtra').textContent = '';
   }
 
+  /* ---- 本次查询卡（自 mine.html 迁入）：显示当前模式的查询内容，支持只清当前模式 ----
+     与「重置本次查询」（store.clear，上方按钮）语义不同：清空只影响当前模式的文本与画像，
+     不碰收藏、核实记录、准备清单，也不清另一模式留存的查询数据。 */
+  function paintQueryNow() {
+    const box = document.getElementById('queryNowBox');
+    const s = store.read();
+    const mode = (typeof activeQueryMode === 'function') ? activeQueryMode() : 'family';
+    const selfActive = mode === 'self';
+    const hasCurrent = selfActive ? !!s.selfText : !!s.text;
+    if (!hasCurrent) {
+      const goHref = selfActive ? 'self.html' : 'discover.html';
+      box.innerHTML = '<p class="vf-bar-cap">还没有查询过。在「发现」里用一句话描述情况，就能看到可能相关的权益。</p>'
+        + '<div class="vf-actions"><a class="vf-btn" href="' + goHref + '">去描述情况</a></div>';
+      return;
+    }
+    const who = selfActive ? '本人模式' : (s.demo ? '演示案例' : (s.beneficiary ? '帮' + s.beneficiary : '家庭协助'));
+    const qtext = selfActive ? s.selfText : s.text;
+    const backHref = selfActive ? 'self.html' : 'discover.html';
+    box.innerHTML = '<div class="vf-ov-line"><b>' + escapeHtml(who) + '</b></div>'
+      + '<p class="vf-bar-cap" style="margin:4px 0 8px;">' + escapeHtml(qtext || '') + '</p>'
+      + '<div class="vf-actions"><a class="vf-btn" href="' + backHref + '">回到发现结果</a>'
+      + '<button type="button" class="vf-btn is-danger-text" id="qNowClear">清空本次查询</button></div>';
+    document.getElementById('qNowClear').addEventListener('click', () => {
+      if (selfActive) {
+        store.write({ selfProfile: {}, selfText: '' });
+        if (s.text) store.write({ lastQuery: 'family' });
+      } else {
+        store.write({ profile: {}, text: '' });
+        if (s.selfText) store.write({ lastQuery: 'self' });
+      }
+      paintQueryNow();
+      showToast('已清空本次查询');
+    });
+  }
+
   document.getElementById('entList').addEventListener('click', () => { location.href = 'verify-list.html'; });
   document.getElementById('entPlan').addEventListener('click', () => { location.href = 'plan.html'; });
   document.getElementById('entRecords').addEventListener('click', () => { location.href = 'records.html'; });
   document.getElementById('entFamily').addEventListener('click', () => { location.href = 'family.html'; });
+  document.getElementById('entConsult').addEventListener('click', () => { location.href = 'consult.html'; });
   document.getElementById('sessFamily').addEventListener('click', () => {
     const prev = store.read().target;
     store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
@@ -200,15 +248,12 @@
   });
 
 
-  /* ---- 我的家庭：只显示本次查询真实涉及的家人，不预置没发生过的成员 ---- */
+  /* ---- 我的收藏：读写统一走 PFServices 公共接口（pf_saved_b，与 A 版 pf_saved 隔离） ---- */
   function readFav() {
-    try {
-      const arr = JSON.parse(localStorage.getItem('pf_saved') || '[]');
-      return Array.isArray(arr) ? arr.filter((x) => x && x.id) : [];
-    } catch (e) { return []; }
+    return (window.PFServices && PFServices.readFavorites) ? PFServices.readFavorites() : [];
   }
   function writeFav(arr) {
-    try { localStorage.setItem('pf_saved', JSON.stringify(arr)); } catch (e) { /* 隐私模式忽略 */ }
+    return !!(window.PFServices && PFServices.writeFavorites) && PFServices.writeFavorites(arr);
   }
   function paintFamily() {
     const box = document.getElementById('famCells');
@@ -292,16 +337,30 @@
     const btn = e.target.closest('[data-act="unfav"]');
     if (!btn) return;
     const id = btn.dataset.id;
-    writeFav(readFav().filter((x) => x.id !== id));
-    paintFav();
-    showToast('已取消收藏');
+    // 写失败（隐私模式/配额不足）时如实提示失败，不更新列表、不报成功
+    if (writeFav(readFav().filter((x) => x.id !== id))) {
+      paintFav();
+      showToast('已取消收藏');
+    } else {
+      showToast('取消收藏失败：浏览器存储不可用或已满，请稍后重试');
+    }
   });
 
   paintFamily();
   paintFav();
   paintSessionState();
+  paintQueryNow();
   renderSession();
   renderServices();
+
+  document.getElementById('svcAboutHead').addEventListener('click', () => {
+    const body = document.getElementById('svcAboutBody');
+    body.hidden = !body.hidden;
+    document.getElementById('svcAboutHead').setAttribute('aria-expanded', body.hidden ? 'false' : 'true');
+  });
+
+  // 从详情页等处按返回回到本页时（BFCache 命中），收藏与查询展示都要是新的
+  window.addEventListener('pageshow', () => { paintFav(); paintQueryNow(); });
 </script>
 </body>
 </html>

@@ -30,9 +30,8 @@
   // discover.html / self.html。实测复现：在接口返回前点顶部返回，会被带回首页，
   // 而不是回到发现权益（本人模式同理，会丢掉「我的发现结果」）。
   // selfMode 只依赖本地会话，可以同步读出，所以这里一次性给对。
-  const _navSession = store.read();
-  const _navProfile = _navSession.profile || _navSession.selfProfile || null;
-  const _navSelf = !!(_navProfile && _navProfile.mode === 'self');
+  // 顶部返回父页同样按统一模式判定（activeQueryMode），避免本人查询后仍回家庭发现页
+  const _navSelf = activeQueryMode() === 'self';
   // 进度由主流程条第 3 步高亮承担，顶部不再重复
   renderTopbar('政策依据', _navSelf ? 'self.html' : 'discover.html');
   mountDemoBanner();
@@ -60,6 +59,24 @@
     </div>`;
   }
 
+  // 首页「政策解读 / 办理指引」入口带来的聚焦意图（?svc=detail|guide）：
+  // 滚动到并高亮对应区块——解读看 ①这是什么 ②为什么推荐（q1/q2），
+  // 办理看 ④去哪里核实 ⑤怎么办理（q4/q5）。参数随 URL 保留，刷新后高亮仍在；
+  // 直接打开（无参数）或参数异常时什么都不做，行为与从前完全一致。
+  function applySvcFocus() {
+    const svc = query('svc');
+    const map = { detail: ['q1', 'q2'], guide: ['q4', 'q5'] };
+    const ids = map[svc];
+    if (!ids) return;
+    const blocks = ids.map((x) => document.getElementById(x)).filter(Boolean);
+    if (!blocks.length) return;
+    blocks.forEach((b) => b.classList.add('svc-focus'));
+    setTimeout(() => {
+      blocks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(svc === 'detail' ? '已定位到「政策解读」内容' : '已定位到「办理指引」内容');
+    }, 260);
+  }
+
   async function load() {
     if (!id) {
       content.innerHTML = '<div class="notice warn">缺少政策编号，请返回发现页重新选择。</div>';
@@ -79,17 +96,21 @@
       return;
     }
 
-    // 家庭协助模式存 profile，本人模式存 selfProfile
+    // 当前画像/模式必须来自统一状态管理：activeQueryMode() + activeProfile()
+    // 按 lastQuery 标记选择本人/家庭画像。此前用 session.profile || session.selfProfile
+    // 简单兜底，本人查询后仍会沿用旧家庭画像重跑匹配（P1-3）。
     const session = store.read();
-    const savedProfile = session.profile || session.selfProfile || null;
+    const curMode = activeQueryMode();
+    const savedProfile = activeProfile();
     const p = detail;
     // 记住当前查看的政策（唯一标识用 policy_id，不用标题）。
-    // 之后点「回去调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
+    // 之后点「返回调整…」时把这个 id 带回发现权益页，用于重新匹配后重新定位。
     saveReturnPolicy(id, p.policy_name);
 
     const ver = p.verification || {};
     const pending = ver.status === 'to_verify';
-    const selfMode = !!(savedProfile && savedProfile.mode === 'self');
+    // 模式判定统一以 curMode 为准（与 activeProfile 同源），不再依赖画像字段
+    const selfMode = curMode === 'self';
     // 本人模式下展示文案统一用「您」；家庭模式保持原称谓
     const say = (t) => personalize(t, savedProfile || {});
 
@@ -98,9 +119,8 @@
     let matchRow = null;
     try {
       if (savedProfile) {
-        const key = selfMode ? 'selfProfile' : 'profile';
         const m = await API.match({
-          text: savedProfile.raw_text || session.text || session.selfText || '',
+          text: savedProfile.raw_text || (selfMode ? session.selfText : session.text) || '',
           mode: savedProfile.mode || (selfMode ? 'self' : undefined),
           relation: selfMode ? undefined : session.beneficiary,
           operator: selfMode ? undefined : session.operator,
@@ -287,7 +307,16 @@
     content.innerHTML = `
       <div class="section">
         <div class="card">
-          <h2 style="margin:0 0 6px;font-size:17px">${escapeHtml(p.policy_name)}</h2>
+          <div class="tc-title-row">
+            <h2 style="margin:0;font-size:17px;min-width:0">${escapeHtml(p.policy_name)}</h2>
+            <button type="button" class="dhead-save" data-save="${escapeHtml(p.policy_id || '')}"
+                    aria-pressed="false" aria-label="收藏这条政策" title="收藏这条政策">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path>
+              </svg>
+            </button>
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <span class="chip">${escapeHtml(p.category)}</span>
             <span class="chip plain">${escapeHtml(p.service_type || '')}</span>
@@ -323,7 +352,49 @@
       </div>`;
 
     bindFinalStep(id, selfMode, backHref);
+    bindSave(p);
     mountRelationStrip();
+    applySvcFocus();
+  }
+
+  /**
+   * 收藏星标：只存「id + 名称 + 部门」三样，不存任何个人信息。
+   * 读写一律走 PFServices 收藏接口（B 版专属键 pf_saved_b，与 A 版 pf_saved 隔离）；
+   * localStorage 不可用时如实提示失败，状态保持原样，不伪装成功。
+   * 政策 ID 缺失时按钮置为禁用，不提供可操作的收藏入口。
+   */
+  function bindSave(pol) {
+    const btn = document.querySelector('[data-save]');
+    if (!btn) return;
+    const pid = String((pol && pol.policy_id) || '').trim();
+    if (!pid || !window.PFServices || !PFServices.toggleFavorite) {
+      btn.disabled = true;
+      btn.setAttribute('aria-label', '收藏功能暂不可用');
+      return;
+    }
+
+    const paint = (on) => {
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-label', on ? '取消收藏这条政策' : '收藏这条政策');
+    };
+
+    paint(PFServices.isFavorite(pid));   // 首次加载即显示当前真实收藏状态
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const res = PFServices.toggleFavorite({
+        id: pid,
+        name: pol.policy_name || '',
+        dept: clean((pol.source || {}).department),
+      });
+      if (!res.ok) {
+        showToast('收藏操作失败：浏览器存储不可用或已满，请稍后重试');
+        return;                          // 写失败不改变星标状态
+      }
+      paint(res.on);
+      showToast(res.on ? '已收藏，可在「我的服务」里找到' : '已取消收藏');
+    });
   }
 
   /**
@@ -365,8 +436,8 @@
         <div class="fs-again">
           <p class="fs-again-t">如果发现 AI 理解的情况和实际不符，可以补充或更正后重新匹配：</p>
           <div class="btn-row">
-            <button type="button" class="btn ghost" id="fsFixScene">回去调整生活变化</button>
-            <button type="button" class="btn ghost" id="fsFixInfo">回去补充关键条件</button>
+            <button type="button" class="btn ghost" id="fsFixScene">返回调整生活变化</button>
+            <button type="button" class="btn ghost" id="fsFixInfo">返回补充关键条件</button>
           </div>
         </div>
 
@@ -453,7 +524,7 @@
   }
 
   /**
-   * 「回去调整生活变化 / 回去补充关键条件」的跳转。
+   * 「返回调整生活变化 / 返回补充关键条件」的跳转。
    *
    * 语义是「退回发现权益这一层」，因此与顶部返回一致：明确跳到父页面，
    * 用 location.replace 替换当前页，历史栈深度不变——

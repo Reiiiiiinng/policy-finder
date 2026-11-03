@@ -174,6 +174,125 @@ function loadSiteContext() {
   return _sitePromise;
 }
 
+/* ==========================================================================
+   咨询页：主管部门视图
+   - 部门、政策名、核验状态和官方链接全部来自 /api/policy 详情；
+   - official_url 只接受 HTTP(S)，缺失或非法时不生成链接；
+   - 核验状态只读 verification.status，不根据链接是否存在反推“已核验”。
+   （恢复自提交 427d544 的实现：fd317ad 融合时该函数链被遗失，
+    consult.html 的调用一直存在，导致页面永远显示“暂时无法读取政策数据”。）
+   ========================================================================== */
+function consultOfficialUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function consultVerification(detail) {
+  const status = detail && detail.verification && detail.verification.status;
+  const hasUrl = !!(detail && detail.source && consultOfficialUrl(detail.source.official_url));
+  if (status === 'verified') {
+    return { key: 'verified', label: '来源已核验' };
+  }
+  if (status === 'to_verify' && hasUrl) {
+    return { key: 'pending', label: '国家依据已核验 · 本地待确认' };
+  }
+  if (status === 'to_verify') {
+    return { key: 'pending', label: '来源待核验' };
+  }
+  return { key: 'pending', label: '核验状态未提供' };
+}
+
+function buildConsultDirectory(details, failedCount) {
+  // 详情接口不应重复，但以 policy_id 去重可避免异常响应造成重复政策。
+  const unique = new Map();
+  (Array.isArray(details) ? details : []).forEach((detail) => {
+    if (!detail || detail.error || !detail.policy_id || !detail.policy_name) return;
+    unique.set(String(detail.policy_id), detail);
+  });
+
+  const groups = new Map();
+  unique.forEach((detail) => {
+    const source = detail.source || {};
+    const department = String(source.department || '').trim() || '责任部门未标注（待核验）';
+    if (!groups.has(department)) groups.set(department, []);
+    const verification = consultVerification(detail);
+    groups.get(department).push({
+      policyId: String(detail.policy_id),
+      policyName: String(detail.policy_name),
+      department,
+      verification,
+      officialUrl: consultOfficialUrl(source.official_url),
+    });
+  });
+
+  const rows = Array.from(groups, ([department, policies]) => ({
+    department,
+    policies: policies.sort((a, b) => a.policyName.localeCompare(b.policyName, 'zh-CN')),
+  })).sort((a, b) => {
+    const byCount = b.policies.length - a.policies.length;
+    return byCount || a.department.localeCompare(b.department, 'zh-CN');
+  });
+
+  return {
+    groups: rows,
+    total: rows.reduce((sum, group) => sum + group.policies.length, 0),
+    failedCount: Math.max(0, Math.floor(Number(failedCount) || 0)),
+  };
+}
+
+function renderConsultDirectory(details, failedCount) {
+  const model = buildConsultDirectory(details, failedCount);
+  const failure = model.failedCount
+    ? `<div class="notice warn consult-failure" role="status">另有 ${model.failedCount} 项政策详情暂时无法读取，未展示其部门或链接。</div>`
+    : '';
+
+  if (!model.total) {
+    const empty = model.failedCount
+      ? `政策详情暂时无法读取（${model.failedCount} 项失败），未展示任何部门或链接，请稍后重试。`
+      : '当前政策库暂无可展示的政策。';
+    return `<div class="notice warn consult-empty" role="${model.failedCount ? 'alert' : 'status'}">${escapeHtml(empty)}</div>`;
+  }
+
+  const summary = `<p class="consult-summary">已读取 <b>${model.total}</b> 项政策，分属 <b>${model.groups.length}</b> 个责任部门；来源状态逐条标注。</p>`;
+  const groups = model.groups.map((group) => {
+    const policies = group.policies.map((policy) => {
+      const link = policy.officialUrl
+        ? `<a class="consult-official-link"
+              href="${escapeHtml(policy.officialUrl)}"
+              target="_blank"
+              rel="noopener noreferrer">查看已提供官方依据 ↗</a>`
+        : '<span class="consult-link-missing">官方链接未提供</span>';
+      return `<li class="consult-policy"
+                  data-policy-id="${escapeHtml(policy.policyId)}"
+                  data-source-status="${escapeHtml(policy.verification.key)}">
+        <div class="consult-policy-head">
+          <strong class="consult-policy-name">${escapeHtml(policy.policyName)}</strong>
+          <span class="badge ${escapeHtml(policy.verification.key)}">${escapeHtml(policy.verification.label)}</span>
+        </div>
+        ${link}
+      </li>`;
+    }).join('');
+
+    return `<section class="card consult-dept"
+                     data-consult-dept="${escapeHtml(group.department)}">
+      <div class="consult-dept-head">
+        <h3 class="consult-dept-name">${escapeHtml(group.department)}</h3>
+        <span class="consult-dept-count">${group.policies.length} 项</span>
+      </div>
+      <p class="consult-dept-sub">以下是该责任部门在正式政策库中的当前记录。</p>
+      <ul class="consult-policy-list">${policies}</ul>
+    </section>`;
+  }).join('');
+
+  return summary + failure + `<div class="consult-depts">${groups}</div>`;
+}
+
 /**
  * 演示案例档案：按政策库覆盖城市取对应案例。
  * 广州条目与 v1.0 完全一致（不破坏现有 Demo）；其他城市缺失时用通用兜底。
@@ -1375,6 +1494,20 @@ function mountFlow(current) {
  * 铁律：chip 的选中态完全由 profile.scenes 决定；
  *      未识别的事件只显示「可能相关 N 项权益方向」，不暗示用户一定有该需求。
  */
+/**
+ * 「可能还有这些情况」的候选清单（纯展示层分组，不改任何匹配规则）。
+ * 规则与确认台原有写法一致：从场景库里剔除 AI 已识别、或用户已确认的事件；
+ * 顺序沿用后端 build_scene_library 的排序（其余项按关联权益数降序）。
+ * 抽成函数，是为了让页面在重渲染之间能沿用同一份候选名单，
+ * 避免「点掉一个又补上一个」的错位观感。
+ * （恢复自提交 f17bd4c 的实现：fd317ad 融合时被遗失，
+ *  self.html 一直调用它，导致本人模式匹配抛 ReferenceError。）
+ */
+function optionalScenesOf(profile, sceneLibrary) {
+  const scenes = (profile && profile.scenes) || [];
+  return (sceneLibrary || []).filter((x) => !(x.detected || scenes.indexOf(x.name) >= 0));
+}
+
 function renderSituationBoard(profile, sceneLibrary, opts) {
   opts = opts || {};
   profile = profile || {};
@@ -2154,6 +2287,30 @@ function bindSceneChips(currentData, onChange) {
 }
 
 /**
+ * 「还有一些情况」的展开 / 收起。
+ * 纯展示层交互：只切换 DOM 的 hidden 与按钮文案，不请求接口、不重渲染整个确认台，
+ * 所以展开动作本身不会打断滚动位置。展开状态由页面回传保存，
+ * 点击某个情况触发重渲染后会原样带回，不会被自动收起。
+ * （恢复自提交 f17bd4c 的实现：fd317ad 融合时被遗失，self.html 一直调用它；
+ *  当前确认台没有 data-scene-more 按钮时本函数静默不动作，不会报错。）
+ */
+function bindSceneMoreToggle(onToggle) {
+  const btn = document.querySelector('[data-scene-more]');
+  const box = document.querySelector('[data-scene-extra]');
+  if (!btn || !box) return;
+  btn.addEventListener('click', () => {
+    const next = btn.getAttribute('aria-expanded') !== 'true';
+    box.hidden = !next;
+    btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+    const label = btn.querySelector('.smb-label');
+    if (label) label.textContent = next ? '收起' : (btn.dataset.moreLabel || '查看全部情况');
+    const chev = btn.querySelector('.smb-chev');
+    if (chev) chev.textContent = next ? '▴' : '▾';
+    if (onToggle) onToggle(next);
+  });
+}
+
+/**
  * 绑定结果卡上的「看证据链」展开按钮。
  * 展开时按需渲染（懒渲染），避免一次性渲染 10 张卡的证据链拖慢首屏。
  */
@@ -2294,7 +2451,7 @@ const TAB_ITEMS = [
     d: 'M11 4.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6zM20 20l-3.9-3.9' },
   { key: 'consult', label: '咨询', href: 'consult.html',
     d: 'M4.4 5.4h15.2v10.2H12l-4.6 3.6v-3.6H4.4z' },
-  { key: 'mine', label: '我的', href: 'mine.html',
+  { key: 'mine', label: '我的', href: 'services.html',
     d: 'M12 4.4a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4zM4.8 20.2a7.2 7.2 0 0 1 14.4 0' },
 ];
 

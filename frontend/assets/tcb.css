@@ -6239,3 +6239,36 @@ body.no-scroll { overflow: hidden; }
   display: inline-block; margin-left: 10px; font-size: 12.5px;
   color: var(--brand-dark); text-decoration: underline; text-underline-offset: 2px;
 }
+
+/* ==========================================================================
+   详情页收藏星标（policy.html 标题行专用；B 版 theme-cb 皮肤）
+   - 触控目标 44px；未收藏 / 已收藏 / hover / focus / disabled 状态齐全
+   - 已收藏用暖琥珀色（与米色底对比 ≥4.5:1），不用 partner 的整套样式
+   ========================================================================== */
+.tc-title-row { display: flex; align-items: flex-start; gap: 10px; }
+.tc-title-row h2 { flex: 1 1 auto; min-width: 0; }
+.dhead-save {
+  flex: 0 0 auto;
+  width: 44px; height: 44px;
+  margin: -6px -8px 0 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: none; background: transparent;
+  border-radius: 12px; color: var(--muted);
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease;
+}
+.dhead-save svg { width: 22px; height: 22px; display: block; }
+.dhead-save:hover { background: var(--line-soft); color: var(--ink-2); }
+.dhead-save:focus-visible { outline: 2px solid var(--brand-mid); outline-offset: 2px; }
+.dhead-save.is-on { color: #b45309; }
+.dhead-save.is-on svg { fill: currentColor; }
+.dhead-save:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ==========================================================================
+   E031：从首页「政策解读 / 办理指引」进入详情页时，对应区块的聚焦高亮
+   ========================================================================== */
+.detail-block.svc-focus {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+}
+.detail-block.svc-focus .q-num { background: var(--brand-mid); color: #fff; }

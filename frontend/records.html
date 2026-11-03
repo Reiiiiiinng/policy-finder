@@ -121,10 +121,12 @@
         it._armDel = true;
         render();
         showToast('删除后不可恢复，再点一次确认');
-      } else {
-        vDeleteRecord(pid);
+      } else if (vDeleteRecord(pid)) {
         refresh();
         showToast('已删除该记录');
+      } else {
+        // 删除失败（隐私模式/存储不可用）时如实提示，不刷新列表、不报成功
+        showToast('删除失败：浏览器存储不可用，请稍后重试');
       }
     }
   });
