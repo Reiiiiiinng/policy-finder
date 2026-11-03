@@ -2488,6 +2488,9 @@ function tabbarHost() {
  */
 function mountTabbar(current) {
   if (typeof document === 'undefined' || !document.body) return null;
+  // 本页自带发现高亮（current='discover'），清掉可能残留的「发现」点击意图，
+  // 避免之后回到 mountBottomNav 页面时误高亮（与 tcb-ui.js PF_NAV_INTENT_KEY 对应）。
+  try { sessionStorage.removeItem('pf_nav_intent'); } catch (e) {}
   let nav = document.getElementById('tabbar');
   if (!nav) {
     nav = document.createElement('nav');

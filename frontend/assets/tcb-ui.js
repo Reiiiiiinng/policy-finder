@@ -257,11 +257,51 @@ function renderBottomNav(active) {
     + '</nav>';
 }
 
+/* --------------------------------------------------------------------------
+ * 「发现」高亮意图（一次性，消费即清除）
+ * 用户在底部导航点「发现」时写入，落地页挂导航时读取并立即删除。
+ * 高亮与路由分离：无会话时「发现」仍按原稳定版路由落在 family.html
+ * （首页分区），但导航上「发现」显示为选中。页面 HTML 结构、样式、
+ * 其他入口的路由行为完全不变。
+ * -------------------------------------------------------------------------- */
+const PF_NAV_INTENT_KEY = 'pf_nav_intent';
+
+function readNavIntent() {
+  try {
+    const v = sessionStorage.getItem(PF_NAV_INTENT_KEY);
+    if (v) sessionStorage.removeItem(PF_NAV_INTENT_KEY);
+    return v === 'discover' ? 'discover' : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeNavIntent(key) {
+  try {
+    if (key) sessionStorage.setItem(PF_NAV_INTENT_KEY, key);
+    else sessionStorage.removeItem(PF_NAV_INTENT_KEY);
+  } catch (e) { /* 存储不可用时静默降级，仅影响高亮不影响路由 */ }
+}
+
+function setBottomNavActive(root, key) {
+  if (!root) return;
+  root.querySelectorAll('.tab-item').forEach(function (btn) {
+    const on = btn.dataset.tab === key;
+    btn.classList.toggle('is-active', on);
+    if (on) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+}
+
 function mountBottomNav(active) {
   const app = document.querySelector('.app');
   if (!app || app.querySelector('.tabbar')) return;
   app.classList.add('has-tabbar');
-  app.insertAdjacentHTML('beforeend', renderBottomNav(active));
+  // 落地页若带有「发现」点击意图，只把「发现」项渲染为选中；
+  // 路由 active 仍用页面本来的分区，点击去重判断不受影响。
+  const intent = readNavIntent();
+  const visualActive = intent || active;
+  app.insertAdjacentHTML('beforeend', renderBottomNav(visualActive));
   const root = app.querySelector('.tabbar');
   if (!root) return;
   root.addEventListener('click', function (e) {
@@ -270,17 +310,28 @@ function mountBottomNav(active) {
     const key = btn.dataset.tab;
     // 当前标签组已经代表用户所在的业务上下文，重复点击不再整页重载。
     // 「发现」同时覆盖家庭/本人两种结果页，因此 active 判断必须优先于动态路由。
-    if (key === active) return;
+    if (key === active) {
+      // 视觉激活（来自「发现」意图）与真实分区不同时，点击本组 tab
+      // 先把高亮归位到真实分区（如 family.html 上点「首页」），页面不重载。
+      if (visualActive !== active) setBottomNavActive(root, active);
+      return;
+    }
     if (key === 'consult') {
+      writeNavIntent(null);
       location.href = 'consult.html';
       return;
     }
     if (key === 'discover') {
+      writeNavIntent('discover');
       location.href = discoverRouteTarget();
       return;
     }
-    if (key === 'home') location.href = 'index.html';
+    if (key === 'home') {
+      writeNavIntent(null);
+      location.href = 'index.html';
+    }
     if (key === 'mine') {
+      writeNavIntent(null);
       // 2026-10-29：我的 → 独立服务页（原 mine-sheet 弹层能力已迁入 services.html，
       // 会话信息 / 重新评估家庭情况 / 为自己查找 / 重置本次查询 全部保留）
       location.href = 'services.html';
