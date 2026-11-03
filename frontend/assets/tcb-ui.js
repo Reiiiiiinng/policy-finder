@@ -226,7 +226,11 @@ function discoverRouteTarget() {
   if (hasSelf && hasFam) return 'discover.html';
   if (hasSelf) return 'self.html';
   if (hasFam) return 'discover.html';
-  return 'family.html';
+  // 无任何会话时也回到发现页本体：用户点的是导航「发现」，
+  // 落到 family.html 会让底部导航高亮「首页」（family 属首页分区），
+  // 看起来像点了发现却停在首页（线上反馈缺陷）。发现页空态自带
+  // 「开始描述情况」CTA，同样能引导用户完成第一步。
+  return 'discover.html';
 }
 
 function renderBottomNav(active) {
