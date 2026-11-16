@@ -234,13 +234,18 @@
     </form>`;
   }
 
-  function actionLink(plan, task) {
+  function taskAction(task) {
     const target = {conditions:['补充必要条件','conditions'],materials:['准备材料','prepare'],
       submission:['查看办理方式','review'],result:['更新办理结果','task'],resume:['继续办理','task'],review:['查看办理记录','task']};
     const [label,next] = task.awaitingConsultation && ['pending','preparing'].includes(task.stage) ? ['查看待核实事项','review'] :
       task.stage==='pending' && hasPreparedMaterials(task) ? ['继续准备材料','prepare'] :
       task.stage==='pending' ? ['开始办理','conditions'] :
       target[task.nextAction?.type] || ['查看办理记录','task'];
+    return {label,next};
+  }
+
+  function actionLink(plan, task) {
+    const {label,next}=taskAction(task);
     return link(label,taskLink(plan,task,next),true);
   }
 
@@ -324,27 +329,64 @@
         open.some(other=>other.policyId===row.prerequisitePolicyId)));
     const suggested=open.slice().sort((a,b)=>rank(a)-rank(b))[0];
     const task=tasks.find(row=>row.policyId===new URLSearchParams(location.search).get('focus')) || suggested || tasks[0];
-    return header('家庭少跑腿计划',route('plans'),'‹ 我的计划')+
-      panel('办理对象',`<p>${esc(current.label)}${plan.region?' · '+esc(plan.region):''}</p><p>已选择 ${tasks.length} 项权益</p>`)+
-      (current.memberArchived?'<p>该家庭成员已归档，计划可查阅。</p>':
-        panel('计划状态',`<form id="planPauseForm">${plan.pausedAt?
-          `<p>已暂停${plan.pauseReason?' · '+esc(plan.pauseReason):''}</p>`:
-          '<label>暂停原因（选填）<input name="reason" maxlength="500"></label>'}
-          <button type="submit" class="fu-button">${plan.pausedAt?'恢复计划':'暂停计划'}</button></form>`))+
-      (task?`<section class="fu-panel fu-lead"><h2>${task===suggested?'建议先处理':'当前事项'}</h2>
-        <h3>${esc(task.name)}</h3>${badge(stageOf(task),task.stage)}
-        ${submissionDates(task)}
-        <p>${esc(task.awaitingConsultation && ['pending','preparing'].includes(task.stage) ? '已记录咨询，等待答复。' :
-          task.stage==='pending' && hasPreparedMaterials(task) ? '已记录材料准备情况，可继续整理。' : task.nextAction?.reason)}</p>
-        <div class="fu-row">${!canEdit(plan)?link('查看办理记录',taskLink(plan,task),true):actionLink(plan,task)}
-        ${link('查看办理渠道',taskLink(plan,task,'review'))}</div></section>`:'')+
-      panel('已选权益',tasks.map(row=>`<a class="fu-entry" data-plan-policy="${esc(row.policyId)}"
-        href="${esc(planReturn(plan,row.policyId))}" ${row===task?'aria-current="true"':''}>
-        <span>${esc(row.name)}</span>${badge(stageOf(row),row.stage)}</a>`).join('') ||
-        '<p>从 AI 发现或待核实清单选择想跟进的权益。</p>')+
-      (ids.length>1?disclosure('怎么办更省跑腿',renderAdvice(plan)+
-        (!canEdit(plan)?'':'<button type="button" class="fu-button" data-analyze>核对协同安排</button>')):'')+
-      disclosure('管理计划与历史',`<div class="fu-row">
+    const completed=tasks.filter(row=>row.stage==='completed').length;
+    const planState=current.memberArchived?'成员已归档':plan.pausedAt?'计划已暂停':
+      !tasks.length?'尚未选择权益':completed===tasks.length?'已全部办结':'逐项准备中';
+    const pauseForm=current.memberArchived?'':`<form id="planPauseForm">${plan.pausedAt?
+      `<p>${plan.pauseReason?esc(plan.pauseReason):'原有进度已保留，方便时可以继续。'}</p>`:
+      '<label>暂停原因（选填）<input name="reason" maxlength="500" placeholder="需要时再暂停，进度会保留"></label>'}
+      <button type="submit" class="fu-button${plan.pausedAt?' fu-primary':''}">${plan.pausedAt?'恢复计划':'暂停计划'}</button></form>`;
+    const steps=[['conditions','核实条件','先问清'],['prepare','准备材料','再整理'],
+      ['review','确认渠道','去哪里'],['task','记录进度','留记录']];
+    // Use the same destination as the primary action; never infer completed steps.
+    const routeStep=task ? steps.findIndex(([next])=>next===taskAction(task).next) : -1;
+    return `<div class="plan-overview">
+      <div class="plan-topline">${link('‹ 我的计划',route('plans'))}<span>政策找人 · 家庭服务</span></div>
+      <header class="plan-hero" aria-labelledby="plan-title">
+        <p class="plan-eyebrow">为家人，把准备做在前面</p>
+        <h1 id="plan-title">家庭少跑腿计划</h1>
+        <p class="plan-hero-copy">问清条件，备好材料。<br>每一步，都更有准备。</p>
+        <img class="plan-family-art" src="assets/plan-family-v2.webp" alt="" aria-hidden="true" width="720" height="540">
+        <div class="plan-family-line"><span>正在为 <strong>${esc(current.label)}</strong> 跟进</span>
+          ${plan.region?`<span class="plan-region">${esc(plan.region)}</span>`:''}</div>
+      </header>
+      <div class="plan-body">
+        <section class="plan-progress" aria-label="计划办理进度">
+          <div><span>共 <strong>${tasks.length}</strong> 项权益</span><span>已办结 <strong>${completed}</strong> 项</span></div>
+          <progress value="${completed}" max="${Math.max(tasks.length,1)}" aria-label="已办结 ${completed} 项，共 ${tasks.length} 项权益"></progress>
+          <p>${esc(planState)}<span>办理结果以实际记录为准</span></p>
+        </section>
+        ${current.memberArchived?'<p class="plan-state-note">该家庭成员已归档，计划仅供查阅。</p>':
+          plan.pausedAt?`<section class="plan-state-note"><h2>计划已暂停</h2>${pauseForm}</section>`:''}
+        ${task?`<section class="fu-panel fu-lead plan-next" aria-labelledby="plan-next-title">
+          <div class="plan-section-heading"><h2>${task===suggested?'建议先处理':'当前事项'}</h2>${badge(stageOf(task),task.stage)}</div>
+          <h3 id="plan-next-title">${esc(task.name)}</h3>
+          <p class="plan-next-reason">${esc(task.awaitingConsultation && ['pending','preparing'].includes(task.stage) ? '已记录咨询，等待答复。' :
+            task.stage==='pending' && hasPreparedMaterials(task) ? '已记录材料准备情况，可继续整理。' : task.nextAction?.reason)}</p>
+          ${submissionDates(task)}
+          <div class="plan-next-actions">${!canEdit(plan)?link('查看办理记录',taskLink(plan,task),true):actionLink(plan,task)}
+            <a class="plan-channel-link" href="${esc(taskLink(plan,task,'review'))}">查看办理渠道</a></div>
+        </section>`:`<section class="fu-panel plan-next"><h2>从一项权益开始</h2>
+          <p>从 AI 发现或待核实清单选择想跟进的权益。</p>${link('查找可能相关的权益',PFNavigation.withParams('find.html',{member:current.memberId}),true)}</section>`}
+        ${task?`<section class="plan-route" aria-labelledby="plan-route-title">
+          <div class="plan-section-heading"><h2 id="plan-route-title">这件事，分步准备</h2><span>当前事项</span></div>
+          <nav class="plan-route-steps" aria-label="当前事项办理路线">${steps.map(([next,label,hint],index)=>
+            `<a href="${esc(taskLink(plan,task,next))}" ${index===routeStep?'aria-current="step"':''}>
+              <span class="plan-step-number" aria-hidden="true">0${index+1}</span><strong>${label}</strong>
+              <small>${index===routeStep?'当前建议':hint}</small></a>`).join('')}</nav>
+          <p class="plan-green-note">先在线核对，问清再出门，减少重复奔波。</p>
+        </section>`:''}
+        <section class="plan-rights" aria-labelledby="plan-rights-title">
+          <div class="plan-section-heading"><h2 id="plan-rights-title">已选权益</h2><span>${tasks.length} 项</span></div>
+          <div class="plan-rights-list">${tasks.map((row,index)=>`<a class="fu-entry" data-plan-policy="${esc(row.policyId)}"
+            href="${esc(planReturn(plan,row.policyId))}" ${row===task?'aria-current="true"':''}>
+            <span class="plan-right-number" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
+            <span class="plan-right-name">${esc(row.name)}<small>${row===suggested?'建议先处理':'点击查看当前事项'}</small></span>
+            ${badge(stageOf(row),row.stage)}</a>`).join('') || '<p class="fu-muted">暂未选择权益。</p>'}</div>
+        </section>
+        ${ids.length>1?disclosure('怎么办更省跑腿',renderAdvice(plan)+
+          (!canEdit(plan)?'':'<button type="button" class="fu-button" data-analyze>核对协同安排</button>')):''}
+        ${disclosure('管理计划与历史',`<div class="fu-row">
         ${link('查看全部材料',route('prepare',{plan:plan.id}))}
         ${link('办理历史',route('logs',{plan:plan.id,from:PFNavigation.current()}))}
         ${task?link('政策详情',detail(task.policyId)):''}
@@ -352,7 +394,11 @@
         (canEdit(plan)?list([
           ...(current.availableTasks||[]).map(row=>`${esc(row.name)} <button type="button" class="fu-button" data-task="add" data-id="${esc(row.id)}">加入计划</button>`),
           ...plan.tasks.filter(row=>row.removedAt!==null&&row.intent==='verify').map(row=>`${esc(row.name)} <button type="button" class="fu-button" data-task="restore" data-id="${esc(row.policyId)}">恢复到计划</button>`)
-        ],'没有其他可加入或恢复的事项。'):''));
+        ],'没有其他可加入或恢复的事项。'):'')+
+        (!plan.pausedAt&&pauseForm?`<section class="plan-pause-controls"><h3>需要晚点再办？</h3><p>暂停后，已核对的信息和办理记录都会保留。</p>${pauseForm}</section>`:''))}
+        <p class="plan-footnote">线上先理清，线下更从容。具体受理要求以主管部门答复为准。</p>
+      </div>
+    </div>`;
   }
 
   function official(policy) {
