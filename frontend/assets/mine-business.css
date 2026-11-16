@@ -1,0 +1,98 @@
+.business-mine {
+  --mine-paper: #fffdf8;
+  --mine-ink: #193429;
+  --mine-muted: #58645a;
+  --mine-green: #245f3d;
+  --mine-line: #dddcd1;
+  background: #f6f1e7;
+}
+.business-mine .app {
+  background: radial-gradient(ellipse 90% 140px at 100% 8px, #d8e0c8 0, transparent 75%),
+    linear-gradient(#faf5eb, #f6f1e7);
+}
+.business-mine .app > :not(#businessMine, .hybrid-tabbar) { display: none; }
+#businessMine {
+  display: grid;
+  gap: 18px;
+  padding: 10px clamp(12px, 4vw, 20px) 16px;
+  color: var(--mine-ink);
+}
+#businessMine a { color: inherit; text-decoration: none; }
+#businessMine a:focus-visible, #businessMine summary:focus-visible { outline: 3px solid #3d7851; outline-offset: 2px; }
+#businessMine h1, #businessMine h2, #businessMine p { margin: 0; }
+#businessMine h1, #businessMine h2, .mine-greeting strong, .mine-title span {
+  font-family: "Noto Serif SC", "Songti SC", SimSun, serif;
+  font-weight: 800;
+}
+#businessMine svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.mine-title { position: relative; display: grid; place-items: center; min-height: 45px; }
+.mine-title h1 { font-size: 26px; line-height: 1.2; }
+.mine-title a { position: absolute; inset-inline-start: 0; display: flex; align-items: center; gap: 4px; font-size: 16px; min-height: 44px; }
+#businessMine .mine-title svg { width: 23px; height: 23px; }
+.mine-greeting, .mine-person, .mine-service, .mine-disclosure, .mine-help {
+  border: 1px solid #fffdf8;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--mine-paper) 82%, transparent);
+  box-shadow: 0 5px 15px #3f30120d;
+}
+.mine-greeting {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  margin-top: -8px;
+  background: radial-gradient(ellipse at right top, #e3e8d2, transparent 52%), #fffcf7;
+}
+.mine-avatar { display: block; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 1px solid #fff; background: #e8e7d7; }
+.mine-avatar picture, .mine-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.mine-greeting .mine-avatar { width: 66px; height: 66px; }
+.mine-greeting strong { display: block; font-size: clamp(19px, 5.7vw, 25px); line-height: 1.3; }
+.mine-greeting small, .mine-service small { display: block; color: var(--mine-muted); font-size: 13px; line-height: 1.4; margin-top: 3px; }
+.mine-section-heading { display: flex; justify-content: space-between; gap: 6px; align-items: center; min-height: 42px; margin-bottom: 3px; }
+.mine-section-heading h2 { font-size: 20px; line-height: 1.25; padding-inline-start: 9px; border-inline-start: 4px solid var(--mine-green); }
+.mine-section-heading a { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; color: var(--mine-muted); }
+.mine-people { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.mine-person { position: relative; display: grid; place-items: center; gap: 4px; min-height: 69px; padding: 6px 3px; text-align: center; font-size: 14px; }
+.mine-person[aria-current] { border-color: #53865e; background: #ebf0de; }
+.mine-person small { font-size: 12px; line-height: 1.25; padding-inline: 2px; color: var(--mine-muted); overflow-wrap: anywhere; }
+.mine-selected { position: absolute; inset: 5px 5px auto auto; display: grid; place-items: center; width: 17px; height: 17px; background: var(--mine-green); color: white; border-radius: 50%; }
+#businessMine .mine-selected svg { width: 12px; height: 12px; }
+.mine-plan {
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 100% 100%, #dce0b6 0, transparent 70%), linear-gradient(130deg,#214d36,#63846b);
+  padding: 12px;
+  color: #fff;
+  box-shadow: 0 8px 18px #20372b20;
+}
+.mine-plan h2 { font-size: 22px; line-height: 1.3; padding: 1px 3px 10px; }
+.mine-plan-inset { border-radius: 12px; padding: 10px 11px 7px; background: #fffaf1; color: var(--mine-ink); }
+#mineOverview p { color: var(--mine-ink); font-weight: 700; }
+#mineNext, #mineProgressLabel { margin-top: 5px; font-size: 13px; color: var(--mine-muted); }
+#mineProgress { appearance: none; display: block; width: 100%; height: 6px; margin-block: 7px; border: 0; border-radius: 9px; overflow: hidden; accent-color: var(--mine-green); }
+#mineProgress::-webkit-progress-bar { background: #e2e6d9; }
+#mineProgress::-webkit-progress-value { background: #4f8059; }
+#businessMine [hidden] { display: none !important; }
+.mine-plan-actions, .mine-quick { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; }
+.mine-plan-actions { justify-content: space-between; margin-top: 5px; }
+.mine-plan-actions a, .mine-quick a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: 14px; }
+#businessMine .mine-primary { min-height: 48px; margin-inline-start: auto; background: var(--mine-green); color: #fff; padding: 0 10px 0 13px; border-radius: 22px; font-weight: 700; }
+#businessMine #entPlan { order: -1; }
+.mine-services { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.mine-service { display: grid; grid-template-columns: auto minmax(0,1fr); min-height: 65px; align-items: center; gap: 6px; padding: 8px 6px; overflow-wrap: anywhere; }
+.mine-service > svg { display: none; }
+.mine-service strong { font-size: 14px; line-height: 1.25; display: block; }
+.mine-service small { font-size: 12px; }
+.mine-service-icon { display: grid; place-items: center; width: 31px; height: 33px; border-radius: 9px; color: var(--mine-green); background: #e9eed9; }
+.mine-disclosure { margin-top: 7px; padding: 0 10px; }
+.mine-disclosure summary { min-height: 48px; display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; }
+.mine-disclosure summary::-webkit-details-marker { display: none; }
+.mine-disclosure summary svg:last-child { margin-inline-start: auto; }
+.mine-disclosure[open] summary svg:last-child { transform: rotate(90deg); }
+.mine-disclosure p, #mineFavorites > div { padding: 4px 2px 10px; overflow-wrap: anywhere; }
+.mine-help { padding-inline: 9px; }
+.mine-help .mine-disclosure { margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.mine-help .mine-disclosure + .mine-disclosure { border-top: 1px solid var(--mine-line); }
+#mineFavorites:not([open]) { display: none; }
+#mineFavorites:target { display: block; scroll-margin-block-start: 8px; }
+.mine-quick { padding-inline: 3px; color: var(--mine-green); }

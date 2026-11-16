@@ -1,0 +1,807 @@
+/* ==========================================================================
+   pf-services.js —— 「政策找人」A/B 两版共用的业务核心（服务闭环 + 存储规则）
+   设计原则：
+   1. 这里只放业务规则与数据读写，不写任何一套皮肤的视觉结构；
+      标记一律用中性的 pfv- 前缀，A 版用 partner 变量上色，B 版用 theme-cb 变量上色。
+   2. A/B 共用同一份文件（字节一致），因此同一功能只有一套实现。
+   3. 存储命名空间由 pf-ns.js 提供（A='a'、B='b'），两版浏览器存储互相隔离，
+      测试数据不会串味；同时仍与 partner 原有键（policy_finder_session / pf_saved）共存。
+   4. 依赖 app.js 已有的全局：store / escapeHtml / API / showToast。
+   5. 存储不可用（隐私模式）或 JSON 损坏时，一律安全降级为空数据，不抛错。
+   ========================================================================== */
+(function (global) {
+  'use strict';
+
+  var NS = (global.PF_NS === 'b' ? 'b' : 'a');
+  function legacyWriteBlocked() {
+    return NS === 'b'; // This independent B preview writes business changes through SQLite.
+  }
+
+  /* 真实存储键：A/B 各自独立命名空间 */
+  var K = {
+    records: 'pf_verify_records_v1_' + NS,
+    prep: 'pf_prep_v1_' + NS,
+    mark: 'pf_fs_' + NS + '_',          /* 详情页标记：pf_fs_<ns>_<policy_id> */
+    savedNs: 'pf_saved_' + NS
+  };
+
+  var STATUS = {
+    pending:  { label: '待核实', cls: 'is-pending' },
+    checking: { label: '核实中', cls: 'is-checking' },
+    needinfo: { label: '还需要补充信息', cls: 'is-needinfo' },
+    ready:    { label: '已核实，准备办理', cls: 'is-ready' },
+    done:     { label: '已核实，暂不办理或已处理', cls: 'is-done' }
+  };
+  var ORDER = ['pending', 'checking', 'needinfo', 'ready', 'done'];
+  var VERIFIED = { ready: true, done: true };
+  var HINT = {
+    pending: '先确认政策条件，再通过官方渠道咨询核实。',
+    checking: '已联系官方、等待答复期间无需重复咨询，有进展可随时更新。',
+    needinfo: '还有信息待补充，补齐后再向官方渠道确认一次。',
+    ready: '可按官方指引准备办理；出发前记得确认材料、时间与预约要求。',
+    done: '已处理或暂不办理，历史记录会保留，可随时调整。'
+  };
+
+  /* ---------------- 存储层：一律安全降级 ---------------- */
+  function readJSON(key, fallback) {
+    try {
+      var raw = sessionStorage.getItem(key);
+      if (!raw) return fallback;
+      var v = JSON.parse(raw);
+      return (v === null || v === undefined) ? fallback : v;
+    } catch (e) { return fallback; }
+  }
+  function writeJSON(key, value) {
+    if (legacyWriteBlocked()) return false;
+    try { sessionStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch (e) { return false; }
+  }
+
+  /* ---------------- 当前查询对象 ---------------- */
+  function session() {
+    try {
+      var s = (typeof store !== 'undefined' && store.read) ? store.read() : {};
+      return s && typeof s === 'object' ? s : {};
+    } catch (e) { return {}; }
+  }
+  /* 受益人键：家庭模式用受益人名义；本人模式固定 self。
+     家庭 / 本人两种模式因此天然隔离，不会互相覆盖记录。 */
+  function benKey() {
+    var s = session();
+    var ben = s.beneficiary ? String(s.beneficiary).trim() : '';
+    if (!ben) return 'self';
+    var mode = s.lastQuery || '';
+    if (mode === 'self') return 'self';
+    return ben;
+  }
+  function benLabel() {
+    var s = session();
+    var ben = s.beneficiary ? String(s.beneficiary) : '';
+    var key = benKey();
+    if (key === 'self') return '本人';
+    if (ben) return (s.operator ? s.operator + ' → ' + ben : ben);
+    return '本人';
+  }
+
+  /* ---------------- 记录读写 ---------------- */
+  function loadRecords() {
+    var arr = readJSON(K.records, []);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(function (r) { return r && r.pid && r.benKey; });
+  }
+  function saveRecords(arr) { return writeJSON(K.records, arr); }
+  function findRecord(arr, pid) {
+    var ben = benKey();
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].pid === pid && arr[i].benKey === ben) return arr[i];
+    }
+    return null;
+  }
+  /* 详情页的「打算去核实」标记：键里带查询对象，换人后不会串到别的受益人名下 */
+  function markKey(pid) { return K.mark + pid + '@' + benKey(); }
+  function selectedIds() {
+    var ids = [];
+    var suffix = '@' + benKey();
+    try {
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var k = sessionStorage.key(i);
+        if (k && k.indexOf(K.mark) === 0 && k.length > suffix.length
+            && k.slice(k.length - suffix.length) === suffix
+            && sessionStorage.getItem(k) === 'verify') {
+          ids.push(k.slice(K.mark.length, k.length - suffix.length));
+        }
+      }
+    } catch (e) { /* 隐私模式忽略 */ }
+    return ids;
+  }
+  function isSelected(pid) {
+    try { return sessionStorage.getItem(markKey(pid)) === 'verify'; } catch (e) { return false; }
+  }
+  function setSelected(pid, on) {
+    if (legacyWriteBlocked()) return false;
+    try {
+      if (on) sessionStorage.setItem(markKey(pid), 'verify');
+      else sessionStorage.removeItem(markKey(pid));
+      return true;
+    } catch (e) { return false; }
+  }
+  /* 「打算去核实」开关：同一政策重复点击不会产生重复条目 */
+  function toggleSelected(pid, pname, dept, url) {
+    if (legacyWriteBlocked()) return isSelected(pid);
+    var on = !isSelected(pid);
+    setSelected(pid, on);
+    if (on) ensureRecord(pid, pname, dept, url);
+    else removeFromList(pid);
+    return on;
+  }
+  /* 清单条目：已标记 verify 且未被移出清单；没有记录的补占位条目 */
+  function listRecords() {
+    var arr = loadRecords();
+    var out = [];
+    selectedIds().forEach(function (pid) {
+      var rec = findRecord(arr, pid);
+      if (rec && rec.listRemoved && !legacyWriteBlocked()) {
+        /* 详情页又重新选择了「打算去核实」→ 恢复进清单，历史不动 */
+        rec.listRemoved = false;
+        rec.updatedAt = Date.now();
+        saveRecords(arr);
+      }
+      out.push(rec || { pid: pid, benKey: benKey(), status: 'pending', note: '', next: '', noRecord: true });
+    });
+    return out;
+  }
+  function ensureRecord(pid, pname, dept, url) {
+    var arr = loadRecords();
+    var rec = findRecord(arr, pid);
+    if (!rec) {
+      rec = {
+        rid: pid + '|' + benKey(), pid: pid, benKey: benKey(), ben: benLabel(),
+        pname: pname || '', dept: dept || '', url: url || '',
+        status: 'pending', note: '', next: '', listRemoved: false,
+        createdAt: Date.now(), updatedAt: Date.now(),
+        history: [{ ts: Date.now(), status: 'pending', note: '', next: '' }]
+      };
+      arr.push(rec);
+      saveRecords(arr);
+    } else {
+      var changed = false;
+      if (!rec.pname && pname) { rec.pname = pname; changed = true; }
+      if (!rec.dept && dept) { rec.dept = dept; changed = true; }
+      if (!rec.url && url) { rec.url = url; changed = true; }
+      if (changed) { rec.updatedAt = Date.now(); saveRecords(arr); }
+    }
+    return rec;
+  }
+  /* 更新状态：写当前值 + 追加一条历史，历史永不覆盖 */
+  function updateRecord(pid, pname, dept, url, status, note, next) {
+    var arr = loadRecords();
+    var rec = findRecord(arr, pid);
+    if (!rec) {
+      rec = {
+        rid: pid + '|' + benKey(), pid: pid, benKey: benKey(), ben: benLabel(),
+        pname: pname || '', dept: dept || '', url: url || '',
+        status: 'pending', note: '', next: '', listRemoved: false,
+        createdAt: Date.now(), updatedAt: Date.now(), history: []
+      };
+      arr.push(rec);
+    }
+    rec.pname = rec.pname || pname || '';
+    rec.dept = rec.dept || dept || '';
+    rec.url = rec.url || url || '';
+    rec.status = STATUS[status] ? status : rec.status;
+    rec.note = String(note || '').slice(0, 300);
+    rec.next = String(next || '').slice(0, 120);
+    rec.updatedAt = Date.now();
+    rec.listRemoved = false;
+    rec.history.push({ ts: rec.updatedAt, status: rec.status, note: rec.note, next: rec.next });
+    return saveRecords(arr) ? rec : null;
+  }
+  /* 只从清单移除：清标记 + 打 listRemoved；核实历史保留 */
+  function removeFromList(pid) {
+    if (!setSelected(pid, false)) return false;
+    var arr = loadRecords();
+    var rec = findRecord(arr, pid);
+    if (!rec) return true;
+    rec.listRemoved = true;
+    rec.updatedAt = Date.now();
+    return saveRecords(arr);
+  }
+  /* 删除记录：仅「核实记录」页两次确认后调用。
+     同时清除该政策在该受益人名下的表态标记（pf_fs_b_<pid>@<受益人>）——
+     标记不清，listRecords() 会依残留标记重建 noRecord 占位，
+     verify-list/plan 刷新时 ensureRecord 立即复活一条已删除记录（P1-1）。
+     返回 true/false：标记清除与记录写入都成功才算成功，调用方据此如实反馈。 */
+  function deleteRecord(pid) {
+    var ben = benKey();
+    var markOk = setSelected(pid, false);
+    var saveOk = saveRecords(loadRecords().filter(function (r) { return !(r.pid === pid && r.benKey === ben); }));
+    return !!(markOk && saveOk);
+  }
+  /* 当前受益人的全部记录（含已移出清单的），按更新时间倒序 */
+  function recordsOf(ben) {
+    var key = ben || benKey();
+    return loadRecords()
+      .filter(function (r) { return r.benKey === key; })
+      .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+  }
+
+  /* ---------------- 出发前准备（按受益人隔离） ----------------
+     新键：K.prep + '_' + benKey()，即 pf_prep_v1_b_self / pf_prep_v1_b_父亲 …，
+     受益人身份与核实记录同一套（benKey：本人 self，家庭成员为关系称谓）。
+     旧键 pf_prep_v1_b 没有受益人归属，无法判断属于谁：
+     只保留原样——不读取、不迁移、不删除、不显示为任何人的进度（P1-4）。
+     plan 页检测到旧键有效数据时会给出未归属提示，由用户自行决定是否重新勾选。 */
+  function prepKey() {
+    return K.prep + '_' + benKey();
+  }
+  /* 旧键是否残留有效勾选（仅供界面提示，不参与任何进度统计） */
+  function hasLegacyPrep() {
+    try {
+      var raw = sessionStorage.getItem(K.prep);
+      if (!raw) return false;
+      var v = JSON.parse(raw);
+      return !!(v && typeof v === 'object' && !Array.isArray(v)
+        && (v.p1 === true || v.p2 === true || v.p3 === true || v.p4 === true));
+    } catch (e) { return false; }
+  }
+  function loadPrep() {
+    var o = readJSON(prepKey(), {});
+    if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
+    /* 只认布尔真值：非法字段值一律按未勾选处理，不崩页、不错误归属 */
+    return { p1: o.p1 === true, p2: o.p2 === true, p3: o.p3 === true, p4: o.p4 === true };
+  }
+  function savePrep(p) {
+    var next = {
+      p1: !!(p && p.p1 === true), p2: !!(p && p.p2 === true),
+      p3: !!(p && p.p3 === true), p4: !!(p && p.p4 === true)
+    };
+    return writeJSON(prepKey(), next);   /* true/false：调用方据此如实反馈 */
+  }
+  function prepCount(p) {
+    var o = p || loadPrep();
+    var n = 0;
+    ['p1', 'p2', 'p3', 'p4'].forEach(function (k) { if (o[k]) n++; });
+    return n;
+  }
+  /* 是否已经真的开始计划：只认准备勾选、状态、备注或多次历史，不靠「已选政策」冒充进度 */
+  function hasPlanProgress() {
+    if (prepCount() > 0) return true;
+    var arr = loadRecords();
+    var ben = benKey();
+    return selectedIds().some(function (pid) {
+      var rec = null;
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].pid === pid && arr[i].benKey === ben) { rec = arr[i]; break; }
+      }
+      return !!rec && (rec.status !== 'pending' || !!rec.note || !!rec.next
+        || (Array.isArray(rec.history) && rec.history.length > 1));
+    });
+  }
+
+  /* ---------------- 收藏（B 版专属键 pf_saved_b，与 A 版 pf_saved 完全隔离） ----------------
+     - 键复用上方 K.savedNs（由 pf-ns.js 的 PF_NS 决定，B 版恒为 'pf_saved_b'）；
+     - 存 localStorage（收藏跨会话保留），与核实记录的 sessionStorage 分开；
+     - 结构保持 Array<{id, name?, dept?}>，只存这三样，不存任何个人信息；
+     - 读取函数绝不写存储；写入失败必须返回 false，由调用方如实提示，不伪装成功；
+     - 不回退读取 A 版的 'pf_saved'，也不同时读写两个键。 */
+  function readFavorites() {
+    var arr = [];
+    try {
+      var raw = localStorage.getItem(K.savedNs);
+      if (!raw) return [];
+      var v = JSON.parse(raw);
+      arr = Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+    /* 过滤无效/缺 ID 条目并按 ID 去重，避免列表重复显示 */
+    var seen = {};
+    var out = [];
+    arr.forEach(function (x) {
+      if (!x || typeof x !== 'object') return;
+      var id = String(x.id || '').trim();
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ id: id, name: String(x.name || ''), dept: String(x.dept || '') });
+    });
+    return out;
+  }
+  function writeFavorites(items) {
+    if (legacyWriteBlocked()) return false;
+    var seen = {};
+    var out = [];
+    (Array.isArray(items) ? items : []).forEach(function (x) {
+      if (!x || typeof x !== 'object') return;
+      var id = String(x.id || '').trim();
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      out.push({ id: id, name: String(x.name || ''), dept: String(x.dept || '') });
+    });
+    try { localStorage.setItem(K.savedNs, JSON.stringify(out)); return true; }
+    catch (e) { return false; }   /* 隐私模式/配额不足：如实报失败 */
+  }
+  function isFavorite(pid) {
+    var id = String(pid || '').trim();
+    if (!id) return false;
+    return readFavorites().some(function (x) { return x.id === id; });
+  }
+  /* 收藏 / 取消收藏：按政策 ID 判断，不会重复添加；只增删目标 ID 这一条。
+     返回 { on: 操作后的收藏状态, ok: 写入是否成功 }——写入失败时 on 保持原状态。 */
+  function toggleFavorite(policy) {
+    var id = String((policy && policy.id) || '').trim();
+    if (!id) return { on: false, ok: false };
+    var arr = readFavorites();
+    var on = arr.some(function (x) { return x.id === id; });
+    var next = on
+      ? arr.filter(function (x) { return x.id !== id; })
+      : arr.concat([{ id: id, name: String((policy && policy.name) || ''), dept: String((policy && policy.dept) || '') }]);
+    var ok = writeFavorites(next);
+    return { on: ok ? !on : on, ok: ok };
+  }
+
+  /* ---------------- 统计（我的服务 / 主页面共用口径） ---------------- */  function serviceStats(ben) {
+    var items = listRecords();
+    var total = items.length;
+    var verified = items.filter(function (it) { return VERIFIED[it.status]; }).length;
+    var pending = total - verified;
+    var recCount = recordsOf(ben).length;
+    return {
+      total: total, verified: verified, pending: pending,
+      percent: total > 0 ? Math.round(verified / total * 100) : 0,
+      recordCount: recCount,
+      hasPlan: hasPlanProgress()
+    };
+  }
+
+  /* ---------------- 少跑腿计划：按真实责任部门组织 ---------------- */
+  var DEPT_MISSING = '责任部门未标注';
+  function deptOf(item) {
+    var d = String((item && item.dept) || '').trim();
+    return d && d.indexOf(DEPT_MISSING) === -1 ? d : '';
+  }
+  /**
+   * 主责部门：责任部门一栏常写「A局 B局 C委」多个单位，
+   * 归组与「能否一次问清」只看第一家（主责），展示仍保留全量部门。
+   */
+  function primaryDept(raw) {
+    var s = String(raw || '').replace(/[、，,;；/]+/g, ' ').trim();
+    if (!s || s.indexOf(DEPT_MISSING) !== -1) return '';
+    var parts = s.split(/\s+/).filter(Boolean);
+    return parts.length ? parts[0] : '';
+  }
+  /**
+   * 生成计划分组。
+   * rules:
+   *  - 只按正式政策库里的责任部门分组，部门缺失/占位一律不参与合并（不推断主管部门）
+   *  - 同一部门 >= 2 项才提示「可尝试一并咨询」
+   *  - 不同部门绝不合并
+   */
+  function planGroups(items) {
+    var actionable = (items || []).filter(function (it) { return it.status !== 'done'; });
+    var byDept = {};
+    actionable.forEach(function (it) {
+      var d = primaryDept(deptOf(it));
+      if (!d) return;
+      (byDept[d] = byDept[d] || []).push(it);
+    });
+    var merged = Object.keys(byDept).map(function (d) {
+      return { dept: d, items: byDept[d] };
+    }).filter(function (g) { return g.items.length >= 2; });
+    var ungrouped = actionable.filter(function (it) { return !deptOf(it); });
+    return {
+      actionableCount: actionable.length,
+      merged: merged,
+      mergedCount: merged.reduce(function (n, g) { return n + g.items.length; }, 0),
+      ungroupedDept: ungrouped,
+      distinctDepts: Object.keys(byDept).length
+    };
+  }
+
+  /* ---------------- 详情批量拉取（清单/计划/记录共用） ---------------- */
+  function fetchDetails(pids) {
+    var map = {};
+    var list = (pids || []).filter(Boolean);
+    return Promise.all(list.map(function (pid) {
+      return Promise.resolve()
+        .then(function () { return API.policy(pid); })
+        .then(function (d) { if (d && !d.error && d.policy_id) map[pid] = d; })
+        .catch(function () { /* 单条失败不影响其他 */ });
+    })).then(function () { return map; });
+  }
+  /* 把接口详情合并进清单条目（政策名/部门/来源链接以正式政策库为准） */
+  function mergeDetail(item, d) {
+    var detail = d || {};
+    var pname = detail.policy_name || item.pname || '';
+    var dept = (detail.source && detail.source.department) || item.dept || '';
+    var url = (detail.source && detail.source.official_url) || item.url || '';
+    var rec = item.noRecord ? ensureRecord(item.pid, pname, dept, url) : item;
+    return {
+      pid: item.pid, pname: pname, dept: dept, url: url,
+      region: detail.region || '',
+      status: rec.status || 'pending', note: rec.note || '', next: rec.next || ''
+    };
+  }
+
+  /* ---------------- 时间格式 ---------------- */
+  function fmtTime(ts) {
+    try {
+      return new Date(ts).toLocaleString('zh-CN',
+        { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  /* ---------------- 头像角色判定（A/B 同一套规则） ----------------
+     只按「已选关系」白名单映射，不猜姓名、不按年龄推断。 */
+  var AVATAR_SRC = {
+    'elder-male': 'assets/avatars/elder-male.png',
+    'elder-female': 'assets/avatars/elder-female.png',
+    'adult-male': 'assets/avatars/adult-male.png',
+    'adult-female': 'assets/avatars/adult-female.png',
+    'couple': 'assets/avatars/couple.png',
+    'self': 'assets/avatars/self.png',
+    'worker': 'assets/avatars/worker.png',
+    'other': 'assets/avatars/other.png',
+    'neutral': 'assets/avatars/neutral.png'
+  };
+  var AVA_MALE = ['父亲', '爸爸', '爷爷', '外公', '姥爷'];
+  var AVA_FEMALE = ['母亲', '妈妈', '奶奶', '外婆', '姥姥'];
+  var AVA_COUPLE = ['配偶', '老伴'];
+  var AVA_WORKER = ['社区工作人员', '工作人员'];
+  function avatarRole(name, mode) {
+    if (mode === 'self') return 'self';
+    var n = String(name || '').trim();
+    if (!n) return 'neutral';
+    if (AVA_COUPLE.indexOf(n) !== -1) return 'couple';
+    if (AVA_WORKER.indexOf(n) !== -1) return 'worker';
+    if (AVA_MALE.indexOf(n) !== -1) return 'elder-male';
+    if (AVA_FEMALE.indexOf(n) !== -1) return 'elder-female';
+    return 'neutral';
+  }
+
+  /* Stage 3: explicit, inactive v2 facade. No adapter is created or initialized
+     here. Pages keep the v1 aliases below. All v2 methods return Result objects. */
+  function createV2Service(options) {
+    var adapter = options && options.adapter;
+    var clock = options && options.clock;
+    function fail(code, message) { return { ok: false, error: { code: code, message: message } }; }
+    function copy(value) { return JSON.parse(JSON.stringify(value)); }
+    function context(ctx, writing) {
+      if (!ctx || typeof ctx.benKey !== 'string' || !ctx.benKey
+          || (writing && (!Number.isSafeInteger(ctx.expectedRevision) || ctx.expectedRevision < 0))) return null;
+      return { benKey: ctx.benKey, expectedRevision: ctx.expectedRevision };
+    }
+    function protect(fn) {
+      try { return fn(); } catch (e) { return fail('INVALID_ARGUMENT', '无法执行 v2 服务操作'); }
+    }
+    function project(ctx, fn, all) {
+      return protect(function () {
+        var identity = all ? null : context(ctx, false);
+        if (!all && !identity) return fail('INVALID_ARGUMENT', '必须提供明确受益人');
+        if (!adapter || typeof adapter.readState !== 'function') return fail('INVALID_ARGUMENT', '必须注入 v2 存储适配器');
+        var result = adapter.readState();
+        if (result.ok !== true) return result;
+        return { ok: true, data: copy(fn(result.data, identity)), revision: result.revision, changed: false };
+      });
+    }
+    function mutate(type, pid, fields, ctx, select) {
+      return protect(function () {
+        var identity = context(ctx, true);
+        if (!identity || typeof pid !== 'string' || !pid) return fail('INVALID_ARGUMENT', '必须提供政策、受益人和预期版本');
+        if (!adapter || typeof adapter.commit !== 'function' || typeof clock !== 'function') return fail('INVALID_ARGUMENT', '必须注入适配器和时钟');
+        var action = Object.assign({ type: type, pid: pid, now: clock() }, fields || {});
+        var result = adapter.commit(action, identity);
+        if (result.ok !== true) return result;
+        return { ok: true, data: copy(select ? select(result.data, identity) : null), revision: result.revision, changed: result.changed };
+      });
+    }
+    function choiceOf(state, pid, ben) {
+      return state.choices.find(function (c) { return c.pid === pid && c.benKey === ben; });
+    }
+    function readChoice(pid, ctx) {
+      if (typeof pid !== 'string' || !pid) return fail('INVALID_ARGUMENT', '政策 ID 无效');
+      return project(ctx, function (state, id) { var c = choiceOf(state, pid, id.benKey); return c ? c.value : null; });
+    }
+    return Object.freeze({
+      readChoice: readChoice,
+      setChoice: function (pid, value, ctx) { return mutate(value === null ? 'CLEAR_CHOICE' : 'SET_CHOICE', pid, value === null ? {} : { value: value }, ctx, function (state, id) { var c = choiceOf(state, pid, id.benKey); return c ? c.value : null; }); },
+      loadRecords: function () { return project(null, function (state) { return state.records; }, true); },
+      selectedIds: function (ctx) { return project(ctx, function (state, id) { return state.choices.filter(function (c) { return c.benKey === id.benKey && c.value === 'verify'; }).map(function (c) { return c.pid; }).sort(); }); },
+      listRecords: function (ctx) {
+        return project(ctx, function (state, id) {
+          return state.choices.filter(function (c) { return c.benKey === id.benKey && c.value === 'verify'; }).map(function (c) {
+            var rec = state.records.find(function (r) { return r.pid === c.pid && r.benKey === id.benKey; });
+            return rec ? Object.assign({}, rec, { listRemoved: false })
+              : { pid: c.pid, benKey: id.benKey, status: 'pending', note: '', next: '', noRecord: true };
+          });
+        });
+      },
+      ensureRecord: function (pid, metadata, ctx) { return mutate('ENSURE_RECORD', pid, { metadata: metadata }, ctx, function (state, id) { return state.records.find(function (r) { return r.pid === pid && r.benKey === id.benKey; }); }); },
+      updateRecord: function (pid, fields, ctx) {
+        if (!fields || typeof fields !== 'object' || Object.keys(fields).some(function (k) { return ['metadata', 'status', 'note', 'next'].indexOf(k) === -1; })) return fail('INVALID_ARGUMENT', '编辑内容无效');
+        return mutate('UPDATE_RECORD', pid, fields, ctx, function (state, id) { return state.records.find(function (r) { return r.pid === pid && r.benKey === id.benKey; }); });
+      },
+      removeFromList: function (pid, ctx) { return mutate('REMOVE_FROM_LIST', pid, {}, ctx); },
+      deleteRecord: function (pid, ctx) { return mutate('DELETE_RECORD', pid, {}, ctx); },
+      recordsOf: function (ctx) { return project(ctx, function (state, id) { return state.records.filter(function (r) { return r.benKey === id.benKey; }).sort(function (a, b) { return b.updatedAt - a.updatedAt; }); }); }
+    });
+  }
+
+  /* Stage 2A: opt-in schema 3 facade. No page constructs this service by
+   * default; callers must inject the schema 3 adapter, clock and identity. */
+  function createV3Service(options) {
+    var adapter = options && options.adapter;
+    var clock = options && options.clock;
+    var idFactory = options && options.idFactory;
+    var currentIdentity = options && options.currentIdentity;
+    var writePermit = options && options.writePermit;
+    var verifyOfficialSource = options && options.verifyOfficialSource;
+    function fail(code, message) { return { ok: false, error: { code: code, message: message } }; }
+    function copy(v) { return JSON.parse(JSON.stringify(v)); }
+    function protect(fn) { try { return fn(); } catch (_) { return fail('INVALID_ARGUMENT', '无法执行 schema 3 服务操作'); } }
+    function identity(ctx, write) {
+      if (!ctx || typeof ctx.householdId !== 'string' || !ctx.householdId || typeof ctx.beneficiaryId !== 'string' || !ctx.beneficiaryId || typeof ctx.actingActorId !== 'string' || !ctx.actingActorId) return null;
+      if (write && (!Number.isSafeInteger(ctx.expectedRevision) || ctx.expectedRevision < 0)) return null;
+      return { householdId: ctx.householdId, beneficiaryId: ctx.beneficiaryId, actingActorId: ctx.actingActorId, expectedRevision: ctx.expectedRevision };
+    }
+    function same(x, id) { return x.householdId === id.householdId && x.beneficiaryId === id.beneficiaryId; }
+    function read(ctx, fn, all) { return protect(function () {
+      var active = typeof currentIdentity === 'function' ? currentIdentity() : null;
+      var id = all ? active && identity(active, false) : identity(ctx, false);
+      if (!id || !active || !same(active,id) || active.actingActorId !== id.actingActorId)
+        return fail('IDENTITY_CHANGED', '当前操作人或受益人不匹配');
+      if (!adapter || typeof adapter.readState3 !== 'function') return fail('INVALID_ARGUMENT', '缺少 schema 3 适配器');
+      var r = adapter.readState3(); if (!r.ok) return r;
+      if (id && !r.data.beneficiaries.some(function (b) { return same(b,id); })) return fail('UNKNOWN_BENEFICIARY', '受益人不存在');
+      if (!r.data.actors.some(function (a) { return a.actorId === id.actingActorId && Array.isArray(a.householdIds) && a.householdIds.includes(id.householdId); })) return fail('ACTOR_HOUSEHOLD_DENIED', '操作人尚未关联该家庭');
+      return { ok: true, data: copy(fn(r.data,id)), revision: r.revision, changed: false };
+    }); }
+    function write(type, pid, fields, ctx, select) { return protect(function () {
+      var id = identity(ctx, true);
+      if (!id) return fail('INVALID_ARGUMENT', '必须固定受益人和预期版本');
+      if (typeof currentIdentity !== 'function') return fail('IDENTITY_REQUIRED', '缺少当前受益人校验，已阻止保存');
+      var active = currentIdentity();
+      if (!active || !same(active,id) || active.actingActorId !== id.actingActorId) return fail('IDENTITY_CHANGED', '操作人或受益人已切换，请保留草稿并重新打开');
+      if (typeof writePermit !== 'function' || writePermit() !== true) return fail('LOCK_REQUIRED', '当前没有独占写入许可，已阻止保存');
+      if (!adapter || typeof adapter.commit3 !== 'function' || typeof clock !== 'function') return fail('INVALID_ARGUMENT', '缺少适配器或时钟');
+      if (!fields || typeof fields !== 'object' || Array.isArray(fields) || Object.keys(fields).some(function (k) { return ['type','pid','now','householdId','beneficiaryId','expectedRevision'].indexOf(k) !== -1; })) return fail('INVALID_ARGUMENT', '操作字段无效');
+      var check = adapter.readState3(); if (!check.ok) return check;
+      if (!check.data.actors.some(function (a) { return a.actorId === id.actingActorId && Array.isArray(a.householdIds) && a.householdIds.includes(id.householdId); })) return fail('ACTOR_HOUSEHOLD_DENIED', '操作人尚未关联该家庭');
+      var action = Object.assign({ type: type, now: clock() }, pid ? { pid: pid } : {}, fields || {});
+      var r = adapter.commit3(action, id); if (!r.ok) return r;
+      return { ok: true, data: copy(select ? select(r.data,id) : null), revision: r.revision, changed: r.changed };
+    }); }
+    function selected(s,id) { return s.choices.filter(function (c) { return same(c,id) && c.value === 'verify'; }); }
+    function forPolicy(x,id,pid) { return same(x,id) && x.pid === pid; }
+    function officialAllowed(pid,kind,text,sourceRef) {
+      if (kind !== 'official_requirement') return true;
+      return !!(sourceRef && typeof verifyOfficialSource === 'function' && verifyOfficialSource(pid,sourceRef,text) === true);
+    }
+    function policy(s,id,pid) { return s.records.find(function (r) { return forPolicy(r,id,pid); }) || null; }
+    function summary(s,id) {
+      var choices = selected(s,id), records = choices.map(function (c) { return policy(s,id,c.pid); });
+      var statuses = { pending:0, checking:0, consulted:0, needinfo:0, preparing:0, paused:0, closed:0, legacy_done_review:0 };
+      records.forEach(function (r) { statuses[r ? r.status : 'pending']++; });
+      var items = s.prepItems.filter(function (p) { return same(p,id) && !p.archived && choices.some(function (c) { return c.pid === p.pid; }); });
+      var next = !choices.length ? 'select_policy' : statuses.needinfo || statuses.legacy_done_review ? 'review_missing_information' : statuses.pending ? 'verify_conditions' : statuses.checking ? 'follow_up' : statuses.consulted ? 'review_consultation' : statuses.preparing ? 'prepare_items' : 'review_or_reopen';
+      return { total:choices.length, statuses:statuses, prepTotal:items.length, prepDone:items.filter(function (p) { return p.checked && !p.sourceNeedsReview; }).length, nextAction:next };
+    }
+    return Object.freeze({
+      makeCommand: function () { return protect(function () { if (typeof idFactory !== 'function') return fail('INVALID_ARGUMENT','缺少安全 ID 生成器'); return { ok:true, data:{ eventId:idFactory(), commandId:idFactory() }, revision:null, changed:false }; }); },
+      listHouseholds: function(ctx){return read(ctx,function(s,id){var actor=s.actors.find(function(a){return a.actorId===id.actingActorId;});return s.households.filter(function(h){return actor.householdIds.includes(h.householdId);}).map(function(h){return {householdId:h.householdId,displayLabel:h.displayLabel,beneficiaries:s.beneficiaries.filter(function(b){return b.householdId===h.householdId;})};});});},
+      createHousehold: function(fields,ctx){return protect(function(){
+        var fixed=identity(ctx,true),active=typeof currentIdentity==='function'?currentIdentity():null;
+        if(!fixed||!active||!same(active,fixed)||active.actingActorId!==fixed.actingActorId)return fail('IDENTITY_CHANGED','当前操作人或受益人已改变');
+        if(!fields||typeof fields.displayLabel!=='string'||typeof fields.relationLabel!=='string'||!fields.displayLabel.trim()||!fields.relationLabel.trim()||typeof idFactory!=='function')return fail('INVALID_ARGUMENT','请填写家庭和受益人称谓');
+        if(typeof writePermit!=='function'||writePermit()!==true)return fail('LOCK_REQUIRED','缺少独占写入许可');
+        var current=adapter.readState3();if(!current.ok)return current;
+        if(!current.data.actors.some(function(a){return a.actorId===fixed.actingActorId&&Array.isArray(a.householdIds)&&a.householdIds.includes(fixed.householdId);}))return fail('ACTOR_HOUSEHOLD_DENIED','操作人未关联当前家庭');
+        var householdId=idFactory(),beneficiaryId=idFactory();
+        var result=adapter.commit3({type:'ADD_HOUSEHOLD',displayLabel:fields.displayLabel.trim(),relationLabel:fields.relationLabel.trim(),now:clock()},
+          {householdId:householdId,beneficiaryId:beneficiaryId,actingActorId:fixed.actingActorId,expectedRevision:fixed.expectedRevision});
+        return result.ok?{ok:true,data:{householdId:householdId,beneficiaryId:beneficiaryId},revision:result.revision,changed:result.changed}:result;
+      });},
+      linkActorToHousehold: function(actorId,ctx){return write('LINK_ACTOR_HOUSEHOLD',null,{actorId:actorId,explicitConfirmation:true},ctx);},
+      listPolicies: function (ctx) { return read(ctx,function (s,id) { return selected(s,id).map(function (c) { return { pid:c.pid, choice:c.value, record:policy(s,id,c.pid), prepCount:s.prepItems.filter(function (p) { return forPolicy(p,id,c.pid) && !p.archived; }).length }; }); }); },
+      readChoice: function (pid,ctx) { if(typeof pid!=='string'||!pid)return fail('INVALID_ARGUMENT','政策 ID 无效');return read(ctx,function (s,id) { var c=s.choices.find(function (x) { return forPolicy(x,id,pid); }); return c ? c.value : null; }); },
+      setChoice: function (pid,value,ctx) { return write('SET_CHOICE',pid,{value:value},ctx,function (s,id) { var c=s.choices.find(function (x) { return forPolicy(x,id,pid); }); return c ? c.value : null; }); },
+      removePolicy: function (pid,ctx) { return write('REMOVE_POLICY',pid,{},ctx); },
+      rejoinPolicy: function (pid,ctx) { return write('REJOIN_POLICY',pid,{},ctx); },
+      deletePolicy: function (pid,ctx) { return write('DELETE_POLICY',pid,{},ctx); },
+      saveConsultation: function (pid,draft,ctx) { return write('SAVE_CONSULTATION',pid,draft,ctx,function (s,id) { return policy(s,id,pid); }); },
+      setStatus: function (pid,draft,ctx) { return write('SET_STATUS',pid,draft,ctx,function (s,id) { return policy(s,id,pid); }); },
+      correctConsultation: function (pid,draft,ctx) { return write('CORRECT_CONSULTATION',pid,draft,ctx,function (s,id) { return s.events.filter(function (e) { return forPolicy(e,id,pid); }); }); },
+      history: function (pid,ctx) { if(typeof pid!=='string'||!pid)return fail('INVALID_ARGUMENT','政策 ID 无效');return read(ctx,function (s,id) { return s.events.filter(function (e) { return forPolicy(e,id,pid); }); }); },
+      listPrep: function (pid,ctx) { if(typeof pid!=='string'||!pid)return fail('INVALID_ARGUMENT','政策 ID 无效');return read(ctx,function (s,id) { return s.prepItems.filter(function (p) { return forPolicy(p,id,pid); }); }); },
+      addPrep: function (pid,item,ctx) { if(!item || !officialAllowed(pid,item.kind,item.text,item.sourceRef))return fail('SOURCE_NOT_VERIFIED','缺少经过核对的官方条款，不能标为官方要求');return write('ADD_PREP_ITEM',pid,{item:item},ctx); },
+      updatePrep: function (pid,itemId,fields,ctx) { if(!fields || !officialAllowed(pid,fields.kind,fields.text,fields.sourceRef))return fail('SOURCE_NOT_VERIFIED','缺少经过核对的官方条款，不能标为官方要求');return write('UPDATE_PREP_ITEM',pid,Object.assign({itemId:itemId},fields),ctx); },
+      checkPrep: function (pid,itemId,checked,ctx) { return write('SET_PREP_CHECKED',pid,{itemId:itemId,checked:checked},ctx); },
+      archivePrep: function (pid,itemId,archived,ctx) { return write('SET_PREP_ARCHIVED',pid,{itemId:itemId,archived:archived},ctx); },
+      markPrepSourceStale: function (pid,itemId,ctx) { return write('MARK_PREP_SOURCE_STALE',pid,{itemId:itemId},ctx); },
+       quarantine: function () { return read(null,function (s) { return s.quarantine.map(function (q) { return { legacyBenKey:q.legacyBenKey, recordCount:q.records.length, choiceCount:q.choices.length, genericPrepCount:q.legacyPrep.length, requiredEventIds:q.records.reduce(function (n,r) { var last=r.history[r.history.length-1]; return n+r.history.length+(!last||last.status!==r.status||last.note!==r.note||last.next!==r.next?1:0); },0) }; }); },true); },
+      confirmLegacy: function (legacyBenKey,eventIds,ctx) { return write('CONFIRM_LEGACY',null,{legacyBenKey:legacyBenKey,eventIds:eventIds},ctx); },
+      progress: function (ctx) { return read(ctx,summary); },
+      questions: function (pid,detail,ctx) { if(typeof pid!=='string'||!pid||!detail||detail.policy_id!==pid||!Array.isArray(detail.missing_information)) return fail('POLICY_DETAIL_UNAVAILABLE','政策详情不可用或政策 ID 不符，暂不能生成待核实问题');return read(ctx,function () { var raw=detail.missing_information,seen={};return raw.filter(function (x) { return typeof x==='string' && x.trim() && !seen[x.trim()] && (seen[x.trim()]=true); }).map(function (x,i) { return { id:pid+':missing:'+i, text:x.trim(), provenance:'policy_data', state:'to_verify' }; }); }); }
+    });
+  }
+
+  /* Independent opt-in entry. Identity is captured on open; revision stays fixed
+     until success. A stale modal never silently rebases over another edit. */
+  function openV2Sheet(item, binding) {
+    if (!item || !binding || !binding.service || typeof binding.service.updateRecord !== 'function'
+        || typeof binding.currentIdentity !== 'function' || !binding.ctx
+        || typeof binding.ctx.benKey !== 'string' || !binding.ctx.benKey
+        || !Number.isSafeInteger(binding.ctx.expectedRevision) || binding.ctx.expectedRevision < 0
+        || (item.benKey && item.benKey !== binding.ctx.benKey)) {
+      return { ok: false, error: { code: 'INVALID_ARGUMENT', message: 'v2 弹层绑定无效' } };
+    }
+    var fixed = { benKey: binding.ctx.benKey, expectedRevision: binding.ctx.expectedRevision };
+    var captured = JSON.parse(JSON.stringify(item));
+    var service = binding.service, currentIdentity = binding.currentIdentity;
+    openSheet(captured, binding.onSaved, function (draft) {
+      if (currentIdentity() !== fixed.benKey) return { ok: false, error: { code: 'IDENTITY_CHANGED', message: '查询对象已改变，请重新打开编辑' } };
+      return service.updateRecord(captured.pid, {
+        metadata: { pname: captured.pname || '', dept: captured.dept || '', url: captured.url || '' },
+        status: draft.status, note: draft.note, next: draft.next
+      }, fixed);
+    });
+    return { ok: true, data: null, revision: fixed.expectedRevision, changed: false };
+  }
+
+  /* ---------------- 状态更新弹层（中性标记 + 皮肤分别上色） ----------------
+     三个服务页共用同一套逻辑：A/B 只换 CSS，不换行为。 */
+  function q(id) { return document.getElementById(id); }
+  function mountSheet() {
+    if (q('pfvSheet')) return;
+    var mask = document.createElement('div');
+    mask.id = 'pfvMask'; mask.className = 'pfv-mask';
+    var sheet = document.createElement('section');
+    sheet.id = 'pfvSheet'; sheet.className = 'pfv-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-labelledby', 'pfvTitle');
+    sheet.tabIndex = -1;
+    sheet.innerHTML =
+      '<div class="pfv-sheet-head"><h2 id="pfvTitle">更新核实状态</h2>'
+      + '<button type="button" class="pfv-x" data-pfv="close" aria-label="关闭">✕</button></div>'
+      + '<div class="pfv-sheet-body">'
+      + '<p class="pfv-sheet-policy" id="pfvPolicy"></p>'
+      + '<div class="pfv-flabel" id="pfvStatusLb">当前状态</div>'
+      + '<div class="pfv-opts" id="pfvOpts" role="radiogroup" aria-labelledby="pfvStatusLb"></div>'
+      + '<label class="pfv-flabel" for="pfvNote">官方答复或核实备注 <span class="pfv-opt-tag">（选填）</span></label>'
+      + '<textarea id="pfvNote" rows="3" maxlength="300" placeholder="例如：通过官方渠道了解到的情况，方便以后查看"></textarea>'
+      + '<label class="pfv-flabel" for="pfvNext">接下来要做什么 <span class="pfv-opt-tag">（选填）</span></label>'
+      + '<input type="text" id="pfvNext" maxlength="120" placeholder="例如：先确认需要带哪些材料">'
+      + '<p class="pfv-sheet-note">您的记录只保存在本设备，不提交给任何部门；记录不构成官方确认。</p>'
+      + '</div>'
+      + '<div class="pfv-sheet-foot"><button type="button" class="pfv-save" data-pfv="save">保存</button></div>';
+    document.body.appendChild(mask);
+    document.body.appendChild(sheet);
+    mask.addEventListener('click', closeSheet);
+    sheet.querySelector('[data-pfv="close"]').addEventListener('click', closeSheet);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sheet.classList.contains('is-open')) closeSheet();
+    });
+    sheet.querySelector('[data-pfv="save"]').addEventListener('click', function () {
+      var ctx = sheet._pfvCtx;
+      if (!ctx) return;
+      var sel = sheet.querySelector('input[name="pfv-status"]:checked');
+      var status = sel ? sel.value : ctx.status;
+      var saved;
+      if (sheet._pfvSave) {
+        try {
+          saved = sheet._pfvSave({ status: status, note: q('pfvNote').value, next: q('pfvNext').value });
+        } catch (e) { saved = { ok: false, error: { code: 'INVALID_ARGUMENT', message: '保存服务不可用' } }; }
+        if (!saved || saved.ok !== true) {
+          if (typeof showToast === 'function') showToast('保存失败：' + ((saved && saved.error && saved.error.message) || '请稍后重试'));
+          return;
+        }
+      } else {
+        saved = updateRecord(ctx.pid, ctx.pname, ctx.dept, ctx.url, status,
+          q('pfvNote').value, q('pfvNext').value);
+      }
+      if (!saved) {
+        if (typeof showToast === 'function') showToast('保存失败：浏览器存储不可用或已满，请稍后重试');
+        return;
+      }
+      closeSheet();
+      if (typeof showToast === 'function') showToast('已保存，相关页面已同步');
+      if (typeof sheet._pfvOnSaved === 'function') sheet._pfvOnSaved();
+    });
+  }
+  function openSheet(item, onSaved, saveBinding) {
+    if (!item) return;
+    mountSheet();
+    var sheet = q('pfvSheet');
+    sheet._pfvCtx = item;
+    sheet._pfvSave = typeof saveBinding === 'function' ? saveBinding : null;
+    sheet._pfvOnSaved = onSaved || null;
+    var pEl = q('pfvPolicy');
+    pEl.innerHTML = '正在更新：<b></b>';
+    pEl.querySelector('b').textContent = item.pname || item.pid;
+    q('pfvOpts').innerHTML = ORDER.map(function (k) {
+      var cur = item.status === k;
+      return '<label class="pfv-opt"><input type="radio" name="pfv-status" value="' + k + '"'
+        + (cur ? ' checked' : '') + '>'
+        + '<span class="pfv-dot" aria-hidden="true"></span>'
+        + '<span class="pfv-o">' + escapeHtml(STATUS[k].label) + '</span></label>';
+    }).join('');
+    q('pfvNote').value = item.note || '';
+    q('pfvNext').value = item.next || '';
+    q('pfvMask').classList.add('is-open');
+    sheet.classList.add('is-open');
+    document.body.classList.add('no-scroll');
+    sheet.focus();
+  }
+  function closeSheet() {
+    var mask = q('pfvMask');
+    var sheet = q('pfvSheet');
+    if (mask) mask.classList.remove('is-open');
+    if (sheet) sheet.classList.remove('is-open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  /* ---------------- 状态胶囊（中性类名，皮肤只改外观） ---------------- */
+  function statusPill(status) {
+    var m = STATUS[status] || STATUS.pending;
+    return '<span class="pfv-pill ' + m.cls + '">' + escapeHtml(m.label) + '</span>';
+  }
+
+  global.PFServices = {
+    NS: NS, K: K,
+    createV2Service: createV2Service, openV2Sheet: openV2Sheet, createV3Service: createV3Service,
+    STATUS: STATUS, ORDER: ORDER, VERIFIED: VERIFIED, HINT: HINT,
+    benKey: benKey, benLabel: benLabel,
+    loadRecords: loadRecords, saveRecords: saveRecords, findRecord: findRecord,
+    recordsOf: recordsOf,
+    selectedIds: selectedIds, isSelected: isSelected, setSelected: setSelected, markKey: markKey,
+    toggleSelected: toggleSelected, listRecords: listRecords,
+    ensureRecord: ensureRecord, updateRecord: updateRecord,
+    removeFromList: removeFromList, deleteRecord: deleteRecord,
+    loadPrep: loadPrep, savePrep: savePrep, prepCount: prepCount, hasPlanProgress: hasPlanProgress,
+    prepKey: prepKey, hasLegacyPrep: hasLegacyPrep,
+    readFavorites: readFavorites, writeFavorites: writeFavorites,
+    isFavorite: isFavorite, toggleFavorite: toggleFavorite,
+    serviceStats: serviceStats, planGroups: planGroups, deptOf: deptOf, primaryDept: primaryDept,
+    fetchDetails: fetchDetails, mergeDetail: mergeDetail,
+    fmtTime: fmtTime,
+    AVATAR_SRC: AVATAR_SRC, avatarRole: avatarRole,
+    mountSheet: mountSheet, openSheet: openSheet, closeSheet: closeSheet,
+    statusPill: statusPill
+  };
+
+  /* 同时暴露扁平别名，页面脚本可直接调用（A/B 同一套名字） */
+  global.VSTATUS = STATUS;
+  global.VORDER = ORDER;
+  global.VERIFIED_SET = VERIFIED;
+  global.VHINT = HINT;
+  global.vBenKey = benKey;
+  global.vBenLabel = benLabel;
+  global.vLoadRecords = loadRecords;
+  global.vSaveRecords = saveRecords;
+  global.vFindRecord = findRecord;
+  global.vListRecords = listRecords;
+  global.vSelectedIds = selectedIds;
+  global.pfMarkKey = markKey;
+  global.vEnsureRecord = ensureRecord;
+  global.vUpdateRecord = updateRecord;
+  global.vRemoveFromList = removeFromList;
+  global.vDeleteRecord = deleteRecord;
+  global.vLoadPrep = loadPrep;
+  global.vSavePrep = savePrep;
+  global.vHasPlanProgress = hasPlanProgress;
+  global.vHasLegacyPrep = hasLegacyPrep;
+  global.vStatusPill = statusPill;
+  global.vFetchDetails = fetchDetails;
+  global.mergeDetail = mergeDetail;
+  global.vDeptOf = deptOf;
+  global.vPrimaryDept = primaryDept;
+  global.vPlanGroups = planGroups;
+  global.vPrepCount = prepCount;
+  global.vServiceStats = serviceStats;
+  global.vFmtTime = fmtTime;
+  global.vAvatarRole = avatarRole;
+  global.vHasPlanProgress = hasPlanProgress;
+  global.mountVerifySheet = mountSheet;
+  global.openVerifySheet = openSheet;
+  global.closeVerifySheet = closeSheet;
+  global.pfAvatarRole = avatarRole;
+  global.PF_AVATAR_SRC = AVATAR_SRC;
+})(typeof window !== 'undefined' ? window : this);

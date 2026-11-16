@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>政策找人 · 查询历史</title>
+  <link rel="stylesheet" href="assets/tcb.css">
+  <link rel="stylesheet" href="assets/query-flow.css">
+  <script src="assets/navigation-policy.js"></script>
+</head>
+<body>
+<main class="app q-app">
+  <header class="q-head"><a class="q-back" href="services.html" aria-label="返回我的">←</a>查询历史</header>
+  <h1>查询历史</h1>
+  <p id="historyStatus" role="status"></p>
+  <form id="historyUnlock" class="q-section" hidden>
+    <label class="q-label" for="historyToken">本机预览访问凭证</label>
+    <input id="historyToken" type="password" autocomplete="off" required>
+    <div class="q-actions"><button class="q-primary">解锁</button></div>
+  </form>
+  <section id="historyContent" hidden>
+    <label class="q-label" for="historyMember">查看哪位成员的查询？</label>
+    <select id="historyMember"></select>
+    <div id="historyList"></div>
+  </section>
+</main>
+<script src="assets/app.js"></script>
+<script src="assets/followup-client.js"></script>
+<script src="assets/query-history-page.js"></script>
+</body>
+</html>

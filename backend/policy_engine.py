@@ -34,6 +34,23 @@ DB_KEY = os.environ.get("POLICY_DB", "guangzhou")
 DB_PATH = DATABASES.get(DB_KEY, DB_KEY)
 
 # ---------------------------------------------------------------- 生活场景词典
+# 程度副词：夹在关键词中间不影响意思（「压力很大」=「压力大」）。
+# 只在关键词匹配时抹掉，不参与否定判断。
+DEGREE_WORDS = ["特别", "非常", "比较", "越来越", "更", "很", "挺", "太", "还", "都"]
+
+# 否定词：出现在关键词前面紧邻位置时，说明这个关键词并不成立。
+# 顺序要从长到短匹配，否则「并没有」会被「没有」截断后误判位置。
+NEGATION_WORDS = [
+    "并没有", "并不是", "并没有在", "并没有参加",
+    "没有", "不是", "不算", "不属于", "未曾", "从未", "并不", "不再",
+    "不", "没", "无",
+]
+
+# 时间词：判断一句话里的情况是「过去的」还是「现在的」。
+# 用在 _superseded 里——「以前独居，现在和子女一起住」不能当独居。
+PAST_MARKERS = ["以前", "之前", "去年", "前年", "曾经", "原先", "原来", "过去", "早年"]
+NOW_MARKERS = ["现在", "如今", "目前", "现在的", "后来", "如今已", "已经能", "已经好了", "目前已经"]
+
 # 关键词 -> 生活场景标签（与数据库的 scene_tag_library / match.scene_signals 对齐）
 SCENE_KEYWORDS = {
     "独居": ["独居", "一个人住", "一个人生活", "自己住", "独自居住", "单独居住", "一个人"],
@@ -47,19 +64,25 @@ SCENE_KEYWORDS = {
     "医疗护理压力": ["医疗", "看病", "住院", "药费", "医药费", "护理费", "治疗",
                      "生病", "慢性病", "身体不好", "健康"],
     "记忆下降": ["记忆", "忘事", "健忘", "痴呆", "认知", "阿尔茨海默", "迷路", "糊涂"],
-    "跌倒风险": ["摔倒", "跌倒", "摔了", "摔跤", "滑倒"],
+    # 「摔过」「摔过一跤」「摔过一次」是口语里最常见的说法，原来一条都不在表里，
+    # 用户明明说了却识别不出来。补词时注意两点：
+    # ① 不要放「摔」这种单字——「摔门」「摔东西」都会误命中；
+    # ② 新词都从「摔/跌」起头，原有的「没有摔倒」「没摔过」仍会走到 _negated。
+    "跌倒风险": ["摔倒", "跌倒", "摔了", "摔跤", "滑倒",
+                 "摔过", "摔过一次", "跌过一次", "跌过跤",
+                 "摔骨折", "摔伤", "跌伤"],
     "子女无法陪伴": ["不在身边", "在外地", "没法陪", "无法陪", "没时间陪", "不能陪",
                      "工作忙", "没人陪"],
     "经济压力": ["费用高", "压力大", "经济困难", "没钱", "负担重", "费用压力"],
     "不了解政策": ["不知道有", "不了解", "没听说过", "有哪些政策", "有什么补贴"],
     # ---- 医疗救助域（佛山场景，见 data/foshan_medical_assistance_v1.json）
-    "住院自付高": ["住院自付", "自付高", "自付费用高", "自付了", "自费高", "自付很多",
+    "住院自付高": ["住院自付", "住院自费", "自付高", "自付费用高", "自付了", "自费高", "自付很多",
                    "住院花", "住院费用高", "报销后还要", "自己掏"],
     "大病医疗支出": ["大病", "重病", "重大疾病", "肿瘤", "癌症", "化疗", "透析", "手术费"],
     "长期服药": ["长期吃药", "长期服药", "每天吃药", "常年吃药", "长期用药", "长期开药"],
     "门诊特定病种": ["门诊特定病种", "门特", "门慢", "特定病种"],
     "家庭经济困难": ["低保", "特困", "经济困难", "家庭困难", "困难家庭", "低收入"],
-    "收入偏低": ["收入低", "没有收入", "没收入", "收入不高", "没有固定收入"],
+    "收入偏低": ["收入偏低", "收入低", "没有收入", "没收入", "收入不高", "没有固定收入"],
     "需要长期照护": ["长期照护", "长期护理", "长期照顾"],
 }
 
@@ -108,18 +131,35 @@ def _cn_to_int(text):
 
 
 def parse_age(text):
-    """从文本中解析年龄，支持「72岁」「72 周岁」「七十二岁」。"""
-    m = re.search(r"(\d{1,3})\s*(?:岁|周岁)", text)
-    if m:
-        age = int(m.group(1))
-        if 0 < age <= 130:
-            return age
-    m = re.search(r"([零一二两三四五六七八九十]+)\s*(?:岁|周岁)", text)
-    if m:
-        age = _cn_to_int(m.group(1))
-        if age and 0 < age <= 130:
-            return age
-    return None
+    """只返回无冲突的精确年龄。"""
+    age, _ = resolve_age(None, text)
+    return age
+
+
+def resolve_age(structured_age, *descriptions):
+    """保存年龄的不同说法，冲突时让下游使用未知年龄。"""
+    observations = {}
+    for description in descriptions:
+        for match in re.finditer(r"(?<!\d)(\d{1,3}|[零一二两三四五六七八九十]+)\s*(?:周岁|岁)", description):
+            token = match[1]
+            age = int(token) if token.isdecimal() else _cn_to_int(token)
+            if age is not None and 0 <= age <= 130:
+                observations.setdefault(age, match[0])
+    if structured_age is not None:
+        if any(value != structured_age for value in observations):
+            return None, {
+                "kind": "年龄",
+                "said": [f"表单 {structured_age} 岁",
+                         *(f"描述「{phrase}」" for value, phrase in observations.items() if value != structured_age)],
+                "note": "表单年龄与生活描述不一致，请核对受益人的年龄并修改相应资料。",
+            }
+        return structured_age, None
+    if len(observations) > 1:
+        return None, {
+            "kind": "年龄", "said": list(observations.values()),
+            "note": "生活描述中出现不同年龄，请确认受益人的实际年龄。",
+        }
+    return next(iter(observations), None), None
 
 
 def parse_age_approx(text):
@@ -194,23 +234,194 @@ def parse_self_paid(text):
 
 
 def parse_region(text):
-    """解析地区。当前支持广州与佛山两套库，其他地区由上层提示无对应数据。"""
-    if "广州" in text:
-        return "广州市"
-    if "佛山" in text:
-        return "佛山市"
-    for other in ["深圳", "东莞", "北京", "上海", "珠海", "中山", "惠州"]:
-        if other in text:
-            return other
+    """城市单独出现或有居住表述时才提取地区。"""
+    mentioned = [city for city in REGION_ALIASES if city in text and not _negated(text, city)]
+    if len(mentioned) != 1:
+        return None
+    city = mentioned[0]
+    name = rf"{city}市?"
+    if (re.search(rf"(?:^|[，,。；;\s])(?:在)?{name}(?=$|[，,。；;\s])", text)
+            or re.search(rf"(?:住在|居住地[是为]|现住|家在){name}|在{name}(?:生活|居住)|{name}(?:的)?老人", text)):
+        return normalize_region(city)
     return None
 
 
+def beneficiary_description(description, beneficiary):
+    """只把指向本次受益人的补充描述用于年龄核对和规则线索。"""
+    if not isinstance(description, str):
+        return ""
+    subject_matches = True
+    relevant = []
+    for sentence in re.split(r"[。！？!?；;\n]+", description):
+        mentioned = {relation for relation, words in RELATION_KEYWORDS.items()
+                     if any(word in sentence for word in words)}
+        if any(subject in sentence for subject in ("邻居", "朋友", "同事", "别人", "其他人")):
+            subject_matches = False
+        elif mentioned and beneficiary:
+            subject_matches = mentioned == {beneficiary}
+        if subject_matches:
+            relevant.append(sentence)
+    return "。".join(relevant)
+
+
+def _negated(text, word):
+    """
+    判断某个关键词在文本里是不是被否定的。
+
+    「不是独居，和家人一起住」和「独居」在子串匹配下没有区别，
+    会把完全相反的情况识别成同一种。这里只看关键词前紧邻的一小段，
+    发现否定词就视为不成立。
+
+    只覆盖紧挨着的否定（「不是独居」「没有参加医保」「不爱出门」），
+    不做整句语法分析——宁可漏判成「未提及」，也不要错判成「确认」。
+    """
+    start = 0
+    while True:
+        idx = text.find(word, start)
+        if idx == -1:
+            return False
+        # 取关键词前最多 6 个字做否定检查
+        prefix = text[max(0, idx - 6):idx]
+        # 「不是独居」这种，否定词可以隔着「是/太/怎么」
+        for neg in NEGATION_WORDS:
+            pos = prefix.rfind(neg)
+            if pos != -1:
+                tail = prefix[pos + len(neg):]
+                # 否定词和关键词之间只允许隔很短的填充词，避免跨句误伤
+                if len(tail) <= 3 and not re.search(r"[，。；、！？,.;!?]", tail):
+                    return True
+        start = idx + 1
+    return False
+
+
+def _superseded(text, word):
+    """
+    判断关键词描述的情况是否「已经过去了」。
+
+    「以前独居，现在和子女一起住」里的独居已经不再成立；
+    「之前行动不便，现在能走了」同理。这类表述如果按当前情况处理，
+    推荐方向会整个反过来——用户照着准备材料，到窗口才发现不符合。
+
+    做法：找到关键词后，看它前面一段里有没有时间词（以前/之前/去年…），
+    再看同一句后面有没有「现在/如今/目前」把情况改写成新的。
+    只有「先说过去、后说现在」才算已过期；只说「以前独居」但没有
+    交代现在如何，仍算未确认的当前信息（保守处理：保留标签）。
+    """
+    start = 0
+    while True:
+        idx = text.find(word, start)
+        if idx == -1:
+            return False
+        # 关键词所在句子的边界
+        seg_start = max(text.rfind(p, 0, idx) for p in "。；;！!？?\n") + 1
+        if seg_start < 0:
+            seg_start = 0
+        prefix = text[seg_start:idx]
+        # 前面必须有过去时间词
+        has_past = any(p in prefix for p in PAST_MARKERS)
+        if has_past:
+            # 同一句里，关键词之后是否出现「现在」类改写
+            seg_end = len(text)
+            for p in "。；;！!？?\n":
+                j = text.find(p, idx)
+                if j != -1 and j < seg_end:
+                    seg_end = j
+            suffix = text[idx:seg_end]
+            if any(p in suffix for p in NOW_MARKERS):
+                return True
+        start = idx + 1
+    return False
+
+
+def detect_conflicts(text):
+    """
+    找出一句话里自相矛盾的说法。
+
+    不做猜测，只挑那些「两种说法不可能同时成立」的明确组合：
+    说要人陪又说独自居住、说户口不在广州又说是本市户籍。
+    发现矛盾时不移除任何标签（不知道哪句才是真的），
+    而是把矛盾原样交给界面去问用户。
+
+    返回 [{"kind": ..., "said": [...], "note": ...}, ...]，没有矛盾时返回 []。
+    """
+    text = text or ""
+    found = []
+
+    def both(group_a, group_b, note):
+        # 被否定的说法不算「说过」：「不是独居，和家人一起住」里
+        # 独居恰恰被否认了，若照字面计入就会把一句自洽的话报成自相矛盾。
+        # 已经过去的情况同理（「以前独居，现在和子女一起住」）。
+        def live(words):
+            return [w for w in words if w in text
+                    and not _negated(text, w) and not _superseded(text, w)]
+
+        hit_a = live(group_a)
+        hit_b = live(group_b)
+        if hit_a and hit_b:
+            found.append({"kind": "居住情况", "said": hit_a + hit_b, "note": note})
+            return True
+        return False
+
+    both(
+        ["独居", "一个人生活", "一个人住", "独自居住", "单独居住", "自己住", "独自生活"],
+        ["和子女一起住", "跟子女一起", "和子女同住", "和家人一起住", "跟家人一起",
+         "有人陪", "有人照顾", "老伴在",
+         # 下面这些是同义但字面不同的说法：「和家人同住」「跟老伴一起」与
+         # 「和家人一起住」是同一件事，缺一条就会把「独居，又和家人同住」
+         # 这种最典型的矛盾漏掉。
+         #
+         # 注意：这里只收「住在一起」的说法。「有家人照应」「子女常来看」
+         # 说的是有人帮，不是同住——「独居，子女住得远，平时有家人照应」
+         # 完全自洽，收进来会把它冤枉成矛盾。
+         "和家人同住", "跟家人同住", "和子女共同生活", "跟老伴一起"],
+        "既说独自居住，又说有人一起住或有人陪，需要确认哪一种是现在的情况。",
+    )
+
+    # 「户口不在广州」与「本市户籍」互斥
+    has_local = bool(re.search(r"(是|属于)?本市户籍|广州户口|户口在广州|广州户籍", text))
+    if has_local and re.search(r"户口不在广州|不是本市户籍|户籍不在广州|外地户口", text):
+        found.append({
+            "kind": "户籍情况",
+            "said": ["本市户籍", "户口不在广州"],
+            "note": "户籍说法前后不一致，需要确认户口到底在广州还是外地。",
+        })
+
+    return found
+
+
+def _has_word(text, word):
+    """
+    关键词匹配：允许程度副词插在关键词中间。
+
+    词典里的「压力大」遇上用户写的「压力很大」、「行动不便」遇上「行动很不方便」，
+    字面不相等但意思完全一致。逐字（去掉程度副词后）比较就能同等对待，
+    否则用户明明说了，系统却当作没提——这是最伤信任的一类漏判。
+    """
+    if word in text:
+        return True
+    # 去掉程度副词后逐字匹配：先用占位符把副词抹掉，再在结果里找关键词
+    stripped = text
+    for adv in DEGREE_WORDS:
+        if adv in stripped:
+            stripped = stripped.replace(adv, "\u0000")
+    # 关键词也做同样的处理，保证两边比较口径一致
+    target = word
+    for adv in DEGREE_WORDS:
+        if adv in target:
+            target = target.replace(adv, "\u0000")
+    if target == word:
+        # 关键词本身不含副词：在去掉副词的文本里按「关键词各字之间可隔着副词」匹配
+        pattern = "\u0000*".join(re.escape(ch) for ch in word)
+        return re.search(pattern, stripped) is not None
+    return target in stripped
+
+
 def detect_scenes(text):
-    """从文本中识别生活场景标签。"""
+    """从文本中识别生活场景标签。被否定或已过期的情况不算命中。"""
     hits = []
     for scene, words in SCENE_KEYWORDS.items():
         for w in words:
-            if w in text:
+            if _has_word(text, w) and not _negated(text, w) and not _superseded(text, w):
                 hits.append(scene)
                 break
     return sorted(set(hits))
@@ -232,17 +443,17 @@ def detect_operator(text, fallback=None):
     return fallback
 
 
-def build_profile(text="", relation=None, operator=None, age=None, region=None, mode=None):
+def build_profile(text="", relation=None, operator=None, age=None, region=None, mode=None, age_description=""):
     """
     把用户输入解析成老人画像。未知字段一律保留为 None，不猜测。
     mode="self" 为本人模式：受益人是用户自己，称谓用「您」，不套用亲属关系。
     mode 为 None 时是原有的家庭协助模式，行为完全不变。
     """
     text = text or ""
-    age = age if age is not None else parse_age(text)
+    age, age_conflict = resolve_age(age, text, age_description)
     # 「70多岁」这类不确定表达：只留下限，不写进 age（保留不确定性）
-    age_approx = parse_age_approx(text) if age is None else None
-    region = region or parse_region(text)
+    age_approx = parse_age_approx(text) if age is None and not age_conflict else None
+    region = (region.strip() or None if isinstance(region, str) else None) or parse_region(text)
     scenes = detect_scenes(text)
 
     # 年龄本身就是一种生活变化：达到 60 后自动补充「年龄增长」标签。
@@ -290,6 +501,9 @@ def build_profile(text="", relation=None, operator=None, age=None, region=None, 
         "self_paid_amount": parse_self_paid(text),
         # family_economic 取值见各政策 conditions.qualify[].options
         "family_economic": None,
+        # 自相矛盾的说法：不替用户裁决，交给界面去问。
+        # 恒为列表（无矛盾时为 []），调用方不必判空。
+        "conflicts": detect_conflicts(text) + ([age_conflict] if age_conflict else []),
     }
     return profile
 
@@ -406,11 +620,13 @@ def _qualify_state(item, profile):
     if itype == "enum":
         options = item.get("options") or []
         labels = {o.get("value"): o.get("label") for o in options}
-        if val is None:
+        if val in (None, "unknown"):
             return "unknown", "尚未选择，需要您确认"
         if val == "none":
             return "failed", "您已确认：以上都不是"
-        return "met", "您已确认：%s" % labels.get(val, val)
+        if val not in labels:
+            return "unknown", "已提供类别，仍需核对该政策适用范围"
+        return "met", "您已提供：%s" % labels[val]
 
     if itype == "ratio_condition":
         # 比例型条件：需要票据与家庭收入核算，用户无法自判，一律转待确认。
@@ -522,24 +738,53 @@ def _parse_date(s):
         return None
 
 
+def policy_validity(policy, today=None):
+    """共同的时效判断。没有明确时效证据的旧条目保留为待核实。"""
+    import datetime
+    today = today or datetime.date.today()
+    validity = policy.get("validity") or {}
+    status = validity.get("status")
+    if status in ("expired", "superseded", "repealed", "revoked", "abolished", "historical", "inactive"):
+        return status if status in ("expired", "superseded", "historical") else "repealed"
+    if status == "not_yet_effective":
+        return status
+    start = _parse_date(validity.get("effective_from"))
+    end = _parse_date(validity.get("expires_at"))
+    if end and end < today:
+        return "expired"
+    if start and start > today:
+        return "not_yet_effective"
+    if (validity.get("effective_from") and not start) or (validity.get("expires_at") and not end):
+        return "unknown"
+    return "active" if status in (None, "active", "expiring") and (start or end) else "unknown"
+
+
+NON_CURRENT = frozenset({"expired", "superseded", "repealed", "historical", "not_yet_effective"})
+
+
 def derive_validity(policy, today=None):
     """
     从 validity 派生展示状态。
     数据层只存 active / expired / superseded；expiring 由 expires_at 与当天日期计算，
     不写死在数据里（见 docs/policy-data-spec.md 第二节）。
-    返回 {status, level, expires_at, effective_from, verified_at, superseded_by, message}
+    返回 {status, level, expires_at, effective_from, verified_at, superseded_by, message, basis}
     level: normal | warn | muted
+
+    basis（可选）：当政策本体的效力来源是另一份文件（延期/修改通知）时，
+    数据层会把那份文件写在 validity.basis 里。这里原样透传——它只用于展示
+    「有效期依据」，不参与任何时效判断。
     """
     import datetime
     v = policy.get("validity") or {}
     today = today or datetime.date.today()
 
-    stored = v.get("status") or "active"
+    stored = policy_validity(policy, today)
     expires = _parse_date(v.get("expires_at"))
     sup = v.get("superseded_by")
+    basis = v.get("basis") or None
 
-    if stored == "superseded" and sup:
-        name = sup.get("name") or "新文件"
+    if stored == "superseded":
+        name = (sup or {}).get("name") or "新文件"
         return {
             "status": "superseded",
             "level": "muted",
@@ -548,20 +793,27 @@ def derive_validity(policy, today=None):
             "verified_at": v.get("verified_at"),
             "superseded_by": sup,
             "message": "该政策已由《%s》替代，请查看新规" % name,
+            "basis": basis,
         }
 
-    if stored == "expired" or (expires and expires < today):
+    if stored in NON_CURRENT:
         return {
-            "status": "expired",
+            "status": stored,
             "level": "muted",
             "expires_at": v.get("expires_at"),
             "effective_from": v.get("effective_from"),
             "verified_at": v.get("verified_at"),
             "superseded_by": sup,
-            "message": "该政策已过有效期，请以最新文件为准",
+            "message": {
+                "expired": "该政策已过有效期，请以最新文件为准",
+                "not_yet_effective": "该政策尚未生效",
+                "repealed": "该政策已废止",
+                "historical": "这是历史政策版本",
+            }[stored],
+            "basis": basis,
         }
 
-    if expires and (expires - today).days <= EXPIRING_DAYS:
+    if stored == "active" and expires and (expires - today).days <= EXPIRING_DAYS:
         return {
             "status": "expiring",
             "level": "warn",
@@ -570,16 +822,18 @@ def derive_validity(policy, today=None):
             "verified_at": v.get("verified_at"),
             "superseded_by": None,
             "message": "本办法有效期至 %s，届时请以最新文件为准" % v.get("expires_at"),
+            "basis": basis,
         }
 
     return {
-        "status": "active",
+        "status": stored,
         "level": "normal",
         "expires_at": v.get("expires_at"),
         "effective_from": v.get("effective_from"),
         "verified_at": v.get("verified_at"),
         "superseded_by": None,
         "message": "",
+        "basis": basis,
     }
 
 
@@ -595,9 +849,8 @@ def _hard_condition_check(policy, profile):
     """
     # 地区不符一律排除，两种模型通用。比较时做归一化，避免「佛山」与「佛山市」被判死。
     region_scope = (policy.get("region", {}) or {}).get("scope")
-    if region_scope and profile.get("region"):
-        if normalize_region(profile["region"]) != normalize_region(region_scope):
-            return True, ["该政策适用于%s，老人当前所在地区为%s" % (region_scope, profile["region"])]
+    if region_scope and normalize_region(profile.get("region")) != normalize_region(region_scope):
+        return True, ["请先核对该政策要求的所在地区：%s" % region_scope]
 
     # 新版三层模型：第 1 层资格条件
     if _has_three_layer(policy):
@@ -753,6 +1006,7 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
         _blocked, _missing, rows = _check_qualify(policy, profile)
         for r in rows:
             conds.append({
+                "key": r["key"],
                 "label": r["label"],
                 "requirement": r["requirement"],
                 "state": r["state"],
@@ -772,6 +1026,7 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
         if cond.get("age_min"):
             met = profile.get("age") is not None and profile["age"] >= cond["age_min"]
             conds.append({
+                "key": "age",
                 "label": "年龄门槛",
                 "requirement": "年满 %s 周岁" % cond["age_min"],
                 "state": "met" if met else "unknown",
@@ -791,6 +1046,7 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
             else:
                 state, ev = "unknown", "尚未确认，需要您或受理单位核实"
             conds.append({
+                "key": key,
                 "label": label,
                 "requirement": "需符合：%s" % yes_text,
                 "state": state,
@@ -841,11 +1097,14 @@ def assign_tier(result):
     return "待确认"
 
 
-def score_policy(policy, profile):
+def score_policy(policy, profile, today=None):
     """
     计算一条政策与画像的匹配情况。
     返回 None（不推荐）或结果字典。
     """
+    validity = derive_validity(policy, today)
+    if validity["status"] in NON_CURRENT:
+        return None
     blocked, missing = _hard_condition_check(policy, profile)
     if blocked:
         return None
@@ -915,7 +1174,7 @@ def score_policy(policy, profile):
         # 佛山库新增字段。全部为纯透传或纯派生：广州库缺这些字段时返回空值/None，
         # 既有调用方与基线输出完全不受影响。
         "policy_level": policy.get("policy_level", ""),
-        "validity": derive_validity(policy),
+        "validity": validity,
         "green_note": policy.get("green_note") or None,
         "materials": policy.get("materials") or [],
         "threshold_signal": threshold_signal(policy, profile),
@@ -923,11 +1182,11 @@ def score_policy(policy, profile):
     }
 
 
-def match_policies(db, profile):
+def match_policies(db, profile, today=None):
     """对全库做匹配，返回按分数排序的结果列表。"""
     results = []
     for policy in db.get("policies", []):
-        r = score_policy(policy, profile)
+        r = score_policy(policy, profile, today)
         if r:
             results.append(r)
     results.sort(key=lambda x: (-x["score"], x["policy_id"]))

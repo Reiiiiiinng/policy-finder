@@ -1,0 +1,18 @@
+/* Isolated schema 3 wiring only. Loaded after the explicit localhost gate. */
+.pf-v3-shell{margin:12px 16px;padding:16px;border:1px solid #bad0c0;border-radius:16px;background:#fcfaf5;color:#1d4a3e}
+body.pf-v3-isolated:has(#pfV3Recovery) .app > :not(.topbar):not(#pfV3Recovery),body.pf-v3-isolated:has(#pfV3Migration) .app > :not(.topbar):not(#pfV3Migration),body.pf-v3-isolated:has(#pfV3ActorLink) .app > :not(.topbar):not(#pfV3ActorLink){display:none!important}
+body.pf-v3-isolated #vlPlanCta,body.pf-v3-isolated #vlSum,body.pf-v3-isolated #vlChips,body.pf-v3-isolated #vlCards,body.pf-v3-isolated #plSum,body.pf-v3-isolated #plEmpty,body.pf-v3-isolated #plContent,body.pf-v3-isolated #rcSum,body.pf-v3-isolated #rcList{display:none!important}
+body.pf-v3-isolated:has(#pfV3Migration) #fsOpts,body.pf-v3-isolated:has(#pfV3Migration) #fsClear,body.pf-v3-isolated:has(#pfV3Recovery) #fsOpts,body.pf-v3-isolated:has(#pfV3Recovery) #fsClear{display:none!important}
+.pf-v3-shell strong{font-size:18px}.pf-v3-shell p{margin:8px 0;line-height:1.55}
+.pf-v3-muted{color:#426d59}.pf-v3-warning{color:#914c35;background:#f6f1e7;padding:10px;border-radius:10px}
+.pf-v3-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.pf-v3-actions a,.pf-v3-actions button,.pf-v3-actions select{min-height:44px}
+.pf-v3-card{margin:12px 0;padding:15px;border:1px solid #d6e5da;border-radius:14px;background:#fff}
+.pf-v3-card h3{font-size:17px;margin:0 0 8px}.pf-v3-card p{overflow-wrap:anywhere}
+.pf-v3-card input:not([type=checkbox]),.pf-v3-card select{box-sizing:border-box;width:100%;min-height:44px;font:inherit}
+.pf-v3-check{display:flex;gap:10px;align-items:center;margin:10px 0}.pf-v3-check input{width:20px;height:20px}
+#pfV3Message{min-height:24px;color:#914c35}
+#pfV3Editor,#pfV3Discard{box-sizing:border-box;width:min(92vw,480px);max-height:90dvh;overflow:auto;border:1px solid #bad0c0;border-radius:16px;padding:18px;background:#fcfaf5;color:#1d4a3e}
+#pfV3Editor::backdrop,#pfV3Discard::backdrop{background:#17362d99}
+#pfV3Editor label{display:block;margin:10px 0}#pfV3Editor input,#pfV3Editor select,#pfV3Editor textarea{box-sizing:border-box;width:100%;min-height:44px;font:inherit;padding:8px;border:1px solid #9fb8a7;border-radius:9px}
+#pfV3Editor textarea{min-height:95px}#pfV3EditError{color:#914c35}

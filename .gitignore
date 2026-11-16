@@ -1,35 +1,33 @@
-# 运行环境
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*-wal
+*-shm
+/data/private-migration/
+**/evidence/
+*.log
+*.pid
+*.lock
+*.tmp
+*.bak
+*.zip
 __pycache__/
 *.py[cod]
-*.egg-info/
+.pytest_cache/
 .venv/
-venv/
-
-# 依赖
 node_modules/
-
-# 日志与临时产物
-*.log
-.tools/server.log
-.DS_Store
-Thumbs.db
-
-# e2e 脚本每次运行都会重写的截图（不是留存证据，别入库）
-# 生成处：phase6-e2e.py / phase7-e2e.py / fix-e2e.py / backnav-e2e.py / return-e2e.py
-*-run.png
-
-# WorkBuddy 会话数据（不入库）
-.workbuddy/
-*.genie
-
-# 误落盘的废弃文件
-/60
-
-# 设计参考图与对照截图（本地勘察用，不入库）
-/_ui/
-
-# 临时截图与验证壳，不入库
-_shots/
-frontend/_s_*.html
-frontend/_frame_*.html
-frontend/_tabprobe.html
+.cache/
+dist/
+build/
+playwright-report/
+test-results/

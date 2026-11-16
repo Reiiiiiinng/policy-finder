@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f6ef">
+  <title>发现 · 政策找人</title>
+  <link rel="stylesheet" href="assets/household-analysis.css">
+  <link rel="stylesheet" href="assets/v32-discovery.css">
+  <link rel="stylesheet" href="assets/navigation.css">
+  <script src="assets/navigation-policy.js"></script>
+</head>
+<body class="v32-flow discovery-entry">
+  <header class="entry-header"><a href="index.html">政策找人</a><span>发现</span></header>
+  <main>
+    <div id="discoveryLanding">
+      <section class="entry-hero">
+        <svg class="entry-art" viewBox="0 0 220 210" aria-hidden="true">
+          <defs><linearGradient id="sheet" x2="100%" y2="100%"><stop stop-color="#fffef7"/><stop offset="1" stop-color="#e6ead6"/></linearGradient></defs>
+          <circle cx="118" cy="105" r="81" fill="#e5eddb"/>
+          <circle cx="118" cy="105" r="97" fill="none" stroke="#cddac0"/>
+          <path d="M158 178q24-27 34-67m-13 43q-19-3-18-22 17 3 18 22m4-10q22-2 22-20-17 3-22 20" fill="#9ab890" stroke="#73976e" stroke-width="2"/>
+          <rect x="60" y="39" width="98" height="131" rx="14" fill="#8fab83" transform="rotate(-13 109 105)"/>
+          <g transform="rotate(9 117 100)">
+            <rect x="76" y="34" width="97" height="133" rx="13" fill="url(#sheet)" stroke="#c0d0b2"/>
+            <path d="M94 89h57m-57 13h46m-46 13h33" stroke="#a0b59a" stroke-width="4" stroke-linecap="round"/>
+            <path d="M109 49l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#2f694c"/>
+          </g>
+          <circle cx="148" cy="151" r="22" fill="#2c674b"/>
+          <path d="m139 151 6 6 12-13" fill="none" stroke="#fffdf0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M37 63v12m-6-6h12m153 5v14m-7-7h14" stroke="#779b76" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h1>从家里的变化，<br>发现用得上的权益</h1>
+        <p>说说家里的近况，AI 帮你查找本地政策，梳理还需核实的条件。</p>
+        <a class="button primary" id="startDiscovery" href="find.html?choose=1">开始 AI 权益发现 <span aria-hidden="true">→</span></a>
+      </section>
+      <div class="entry-links">
+        <a href="analysis.html?view=history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6m-2-6V5m0 6h6m2-4v5l3 2"/></svg>查询历史 <span aria-hidden="true">›</span></a>
+        <a href="search.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h6a3 3 0 0 1 3 3v13a4 4 0 0 0-3-2H5zm9 3a3 3 0 0 1 3-3h3v14h-3a4 4 0 0 0-3 2"/></svg>政策目录 <span aria-hidden="true">›</span></a>
+      </div>
+      <details class="demo-links">
+        <summary>验收演示</summary>
+        <p class="muted">以下案例仅预填合成资料。提交后使用真实 AI 和政策规则查询。</p>
+        <a href="analysis.html?demo=medical">佛山住院自费 · 相关政策待核实</a>
+        <a href="analysis.html?demo=meal">佛山老年助餐 · 当前目录无匹配</a>
+      </details>
+    </div>
+    <section id="chooseMember" hidden>
+      <a class="entry-back" href="find.html">‹ 返回发现</a>
+      <div class="entry-member">
+        <h1 tabindex="-1">为谁查找权益？</h1>
+        <p>先选择一位家人，再描述最近的情况。</p>
+        <form action="analysis.html">
+          <fieldset aria-label="家庭成员"></fieldset>
+          <p role="status">正在读取家庭成员…</p>
+          <button class="primary" type="submit" disabled>继续填写情况 <span aria-hidden="true">→</span></button>
+        </form>
+        <a class="entry-manage" href="follow-up.html?view=members&amp;from=find.html%3Fchoose%3D1">添加或管理家庭成员</a>
+      </div>
+    </section>
+  </main>
+  <script>
+    if (new URLSearchParams(location.search).has('choose')) {
+      document.getElementById('discoveryLanding').hidden = true;
+      const chooser = document.getElementById('chooseMember');
+      chooser.hidden = false;
+      chooser.querySelector('h1').focus();
+      const form = chooser.querySelector('form');
+      const status = form.querySelector('[role=status]');
+      const next = form.querySelector('button');
+      const fieldset = form.querySelector('fieldset');
+      const key = 'pf-v32-discovery-member';
+      function selected(id) {
+        next.disabled = !id;
+        try { if (id) sessionStorage.setItem(key, id); } catch {}
+      }
+      form.addEventListener('change', () => selected(form.elements.member.value));
+      async function loadMembers() {
+        try {
+          const response = await fetch('/api/followup/members');
+          if (!response.ok) throw Error();
+          const {members} = await response.json();
+          let previous = '';
+          try { previous = sessionStorage.getItem(key); } catch {}
+          const active = members.filter(member => !member.archivedAt);
+          fieldset.replaceChildren(...active.map(member => {
+            const card = document.createElement('label');
+            card.innerHTML = '<input type="radio" name="member" required><span><strong></strong><small></small></span>';
+            const radio = card.querySelector('input');
+            radio.value = member.id;
+            radio.checked = member.id === previous || active.length === 1;
+            card.querySelector('strong').textContent = member.name;
+            card.querySelector('small').textContent = member.relation;
+            return card;
+          }));
+          selected(fieldset.querySelector(':checked')?.value);
+          status.textContent = active.length ? '' : '请先添加一位家庭成员。';
+        } catch {
+          status.textContent = '家庭成员暂不可读取，请刷新重试。';
+        }
+      }
+      loadMembers();
+      addEventListener('pageshow', event => { if (event.persisted) loadMembers(); });
+    }
+  </script>
+</body>
+</html>

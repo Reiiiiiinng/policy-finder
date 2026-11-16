@@ -6,17 +6,57 @@
  */
 
 const API = {
+  /**
+   * 统一取回响应体。
+   *
+   * 非 2xx 必须抛错，不能把错误对象当成功结果往下传——
+   * 后端出错时返回的是 {"error": ...}，若直接 res.json() 交给调用方，
+   * 界面会渲染成「0 条结果」或空白，用户看到的是「查过了，没有适合的」，
+   * 而真实情况是这次查询根本没成功。那是把失败伪装成成功。
+   */
+  async _read(res) {
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      // 响应不是 JSON（例如网关返回的 HTML 错误页）
+      const err = new Error('服务返回的内容无法解析');
+      err.status = res.status;
+      throw err;
+    }
+    if (!res.ok) {
+      const detail = (data && (data.detail || data.error)) || ('HTTP ' + res.status);
+      const err = new Error(detail);
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data;
+  },
+  /**
+   * 请求路径白名单：本应用的接口全部挂在同源 /api/ 下，
+   * 路径必须以 /api/ 开头且不允许协议相对写法（// 开头会被当成别的源）。
+   * 调用点全是写死的字面量，这条校验不改变任何现有行为，
+   * 只保证将来有人把外部地址传进来时会立刻抛错，而不是发出去。
+   */
+  _checkPath(path) {
+    const p = String(path || '');
+    if (!p.startsWith('/api/') || p.startsWith('/api//')) {
+      throw new Error('非法请求路径：' + p);
+    }
+    return p;
+  },
   async get(path) {
-    const res = await fetch(path);
-    return res.json();
+    const res = await fetch(this._checkPath(path));
+    return API._read(res);
   },
   async post(path, body) {
-    const res = await fetch(path, {
+    const res = await fetch(this._checkPath(path), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {}),
     });
-    return res.json();
+    return API._read(res);
   },
   health: () => API.get('/api/health'),
   match: (payload) => API.post('/api/match', payload),
@@ -44,6 +84,44 @@ const store = {
     sessionStorage.removeItem(this.key);
   },
 };
+
+/* ==========================================================================
+   双模式会话：当前生效的查询是哪一种
+   --------------------------------------------------------------------------
+   家庭协助模式把资料存在 profile/text，本人模式存在 selfProfile/selfText。
+   两组键会同时留在会话里（先帮家人查、又为自己查），所以任何
+   「现在用哪份画像」的判断都必须先确定当前模式——按存储顺序取值
+   （profile || selfProfile）两个方向都劫持过：家庭画像劫持过本人模式的
+   返回目标，残留的本人画像也劫持过家庭模式的详情页。
+
+   判定依据：匹配成功时写入的 lastQuery（'family' / 'self'）。
+   旧会话没有 lastQuery 时按字段推断：selfText 只有本人模式会写。
+   ========================================================================== */
+
+/** 当前生效的查询模式：'self'（本人）或 'family'（家庭协助）。 */
+function activeQueryMode() {
+  if (window.PFQuerySnapshot?.current) return PFQuerySnapshot.current.mode;
+  const s = store.read();
+  if (s.lastQuery === 'self' || s.lastQuery === 'family') return s.lastQuery;
+  if (s.selfText && !s.text) return 'self';
+  return 'family';
+}
+
+/**
+ * 当前生效的画像。只取当前模式自己的键，绝不回退到另一模式——
+ * lastQuery 已明确标记当前模式时，把另一模式的旧画像当当前画像用，
+ * 就是本人页出现家人年龄/地区、家庭页出现「您」称谓那类串扰的根源。
+ * 当前模式的画像缺失（键不存在，或清空后留下的空对象）时返回 null，
+ * 由调用方走各自的安全空状态（详情页显示通用提示、关系条隐藏等），
+ * 绝不静默换数据。
+ */
+function activeProfile() {
+  if (window.PFQuerySnapshot?.current) return PFQuerySnapshot.current.result?.profile || null;
+  const s = store.read();
+  const p = activeQueryMode() === 'self' ? s.selfProfile : s.profile;
+  if (!p || (typeof p === 'object' && Object.keys(p).length === 0)) return null;
+  return p;
+}
 
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
@@ -96,6 +174,125 @@ function loadSiteContext() {
     return SITE;
   })();
   return _sitePromise;
+}
+
+/* ==========================================================================
+   咨询页：主管部门视图
+   - 部门、政策名、核验状态和官方链接全部来自 /api/policy 详情；
+   - official_url 只接受 HTTP(S)，缺失或非法时不生成链接；
+   - 核验状态只读 verification.status，不根据链接是否存在反推“已核验”。
+   （恢复自提交 427d544 的实现：fd317ad 融合时该函数链被遗失，
+    consult.html 的调用一直存在，导致页面永远显示“暂时无法读取政策数据”。）
+   ========================================================================== */
+function consultOfficialUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function consultVerification(detail) {
+  const status = detail && detail.verification && detail.verification.status;
+  const hasUrl = !!(detail && detail.source && consultOfficialUrl(detail.source.official_url));
+  if (status === 'verified') {
+    return { key: 'verified', label: '来源已核验' };
+  }
+  if (status === 'to_verify' && hasUrl) {
+    return { key: 'pending', label: '国家依据已核验 · 本地待确认' };
+  }
+  if (status === 'to_verify') {
+    return { key: 'pending', label: '来源待核验' };
+  }
+  return { key: 'pending', label: '核验状态未提供' };
+}
+
+function buildConsultDirectory(details, failedCount) {
+  // 详情接口不应重复，但以 policy_id 去重可避免异常响应造成重复政策。
+  const unique = new Map();
+  (Array.isArray(details) ? details : []).forEach((detail) => {
+    if (!detail || detail.error || !detail.policy_id || !detail.policy_name) return;
+    unique.set(String(detail.policy_id), detail);
+  });
+
+  const groups = new Map();
+  unique.forEach((detail) => {
+    const source = detail.source || {};
+    const department = String(source.department || '').trim() || '责任部门未标注（待核验）';
+    if (!groups.has(department)) groups.set(department, []);
+    const verification = consultVerification(detail);
+    groups.get(department).push({
+      policyId: String(detail.policy_id),
+      policyName: String(detail.policy_name),
+      department,
+      verification,
+      officialUrl: consultOfficialUrl(source.official_url),
+    });
+  });
+
+  const rows = Array.from(groups, ([department, policies]) => ({
+    department,
+    policies: policies.sort((a, b) => a.policyName.localeCompare(b.policyName, 'zh-CN')),
+  })).sort((a, b) => {
+    const byCount = b.policies.length - a.policies.length;
+    return byCount || a.department.localeCompare(b.department, 'zh-CN');
+  });
+
+  return {
+    groups: rows,
+    total: rows.reduce((sum, group) => sum + group.policies.length, 0),
+    failedCount: Math.max(0, Math.floor(Number(failedCount) || 0)),
+  };
+}
+
+function renderConsultDirectory(details, failedCount) {
+  const model = buildConsultDirectory(details, failedCount);
+  const failure = model.failedCount
+    ? `<div class="notice warn consult-failure" role="status">另有 ${model.failedCount} 项政策详情暂时无法读取，未展示其部门或链接。</div>`
+    : '';
+
+  if (!model.total) {
+    const empty = model.failedCount
+      ? `政策详情暂时无法读取（${model.failedCount} 项失败），未展示任何部门或链接，请稍后重试。`
+      : '当前政策库暂无可展示的政策。';
+    return `<div class="notice warn consult-empty" role="${model.failedCount ? 'alert' : 'status'}">${escapeHtml(empty)}</div>`;
+  }
+
+  const summary = `<p class="consult-summary">已读取 <b>${model.total}</b> 项政策，分属 <b>${model.groups.length}</b> 个责任部门；来源状态逐条标注。</p>`;
+  const groups = model.groups.map((group) => {
+    const policies = group.policies.map((policy) => {
+      const link = policy.officialUrl
+        ? `<a class="consult-official-link"
+              href="${escapeHtml(policy.officialUrl)}"
+              target="_blank"
+              rel="noopener noreferrer">查看已提供官方依据 ↗</a>`
+        : '<span class="consult-link-missing">官方链接未提供</span>';
+      return `<li class="consult-policy"
+                  data-policy-id="${escapeHtml(policy.policyId)}"
+                  data-source-status="${escapeHtml(policy.verification.key)}">
+        <div class="consult-policy-head">
+          <strong class="consult-policy-name">${escapeHtml(policy.policyName)}</strong>
+          <span class="badge ${escapeHtml(policy.verification.key)}">${escapeHtml(policy.verification.label)}</span>
+        </div>
+        ${link}
+      </li>`;
+    }).join('');
+
+    return `<section class="card consult-dept"
+                     data-consult-dept="${escapeHtml(group.department)}">
+      <div class="consult-dept-head">
+        <h3 class="consult-dept-name">${escapeHtml(group.department)}</h3>
+        <span class="consult-dept-count">${group.policies.length} 项</span>
+      </div>
+      <p class="consult-dept-sub">以下是该责任部门在正式政策库中的当前记录。</p>
+      <ul class="consult-policy-list">${policies}</ul>
+    </section>`;
+  }).join('');
+
+  return summary + failure + `<div class="consult-depts">${groups}</div>`;
 }
 
 /**
@@ -175,12 +372,18 @@ function renderDemoBanner() {
 }
 
 function mountDemoBanner() {
-  if (!store.read().demoBanner) return;
   const app = document.querySelector('.app');
   if (!app) return;
+  const shown = app.querySelector('.demo-banner');
+  if (!store.read().demoBanner) {
+    // 演示过之后又做了真实查询：横幅必须跟着撤掉，
+    // 否则用户会把自己的真实结果当成「虚拟案例」。
+    if (shown) shown.remove();
+    return;
+  }
   const tb = app.querySelector('.topbar');
   if (!tb) return;
-  if (app.querySelector('.demo-banner')) return;
+  if (shown) return;
   tb.insertAdjacentHTML('afterend', renderDemoBanner());
   const reset = document.getElementById('demoResetBtn');
   if (reset) {
@@ -608,6 +811,30 @@ function renderProfileCard(profile, opts) {
  * 结果页「发现了哪些生活场景」。
  * 类别名与服务类型全部取自结果里真实出现的字段，不做任何改写或补写。
  */
+/* P1-1 服务分类线性图标（v2，过程见 docs/design-process/）：
+   养=叶+托举（社区照护） 保=盾+勾（保障落地） 医=圆+十字（医疗） 健=心+脉搏（健康）。
+   统一 24 viewBox / 1.7 描边 / 圆角端点，currentColor 随上下文着色。 */
+const CATEGORY_ICONS = {
+  '养老服务': '<path d="M12 3.5C14.6 5.4 16 7.6 16 9.8a4 4 0 0 1-8 0C8 7.6 9.4 5.4 12 3.5Z"/><path d="M12 7.2v3"/><path d="M12 13.8v2.1"/><path d="M5.2 20.2c2.2-2.5 4.4-3.7 6.8-3.7s4.6 1.2 6.8 3.7"/>',
+  '养老保障': '<path d="M12 3.2l7 2.5v5.5c0 4.2-2.8 7.5-7 9.6-4.2-2.1-7-5.4-7-9.6V5.7Z"/><path d="M9 11.8l2.2 2.2 4-4.2"/>',
+  '医疗保障': '<circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v7.6M8.2 12h7.6"/>',
+  '健康服务': '<path d="M12 20.2C7.2 17 4 13.9 4 10.4 4 7.9 6 6 8.4 6c1.5 0 2.8.7 3.6 1.9C12.8 6.7 14.1 6 15.6 6 18 6 20 7.9 20 10.4c0 3.5-3.2 6.6-8 9.8Z"/><path d="M7 11.6h2.2l1.2-2.1 1.9 3.8 1.2-1.7h3.5"/>',
+};
+
+/** 品牌母题「一线」的叶子端点：线索端=空心叶，权益端=实心叶 */
+const LEAF_OUTLINE = '<path d="M12 4.2c3.4 2.4 5.1 5.1 5.1 7.9a5.1 5.1 0 0 1-10.2 0c0-2.8 1.7-5.5 5.1-7.9Z"/><path d="M12 8.4v6.8"/>';
+const LEAF_SOLID = '<path d="M12 4.2c3.4 2.4 5.1 5.1 5.1 7.9a5.1 5.1 0 0 1-10.2 0c0-2.8 1.7-5.5 5.1-7.9Z" fill="currentColor" stroke="none"/>';
+
+function svgIcon(paths, cls) {
+  return '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+}
+
+/** 分类线性图标：数据里没有的类别退回空心叶 */
+function categoryIcon(name, cls) {
+  return svgIcon(CATEGORY_ICONS[name] || LEAF_OUTLINE, 'cat-ic ' + (cls || ''));
+}
+
 /** 类别角标：同一首字的不同类别要有区分，映射不到时退回首字 */
 const SCENE_GLYPH = {
   '养老服务': '养',
@@ -787,9 +1014,12 @@ function renderConfirmCard(profile) {
  */
 function renderRelationStrip() {
   const s = store.read();
-  const p = s.profile || s.selfProfile;
-  if (p && p.mode === 'self') return '';
+  // 本人模式一律不显示家庭协助轴——判定只看当前模式，不看画像是否存在：
+  // 即使本人画像缺失（此时 activeProfile() 返回 null），
+  // 也不能让家庭模式的操作者/受益人出现在本人页面上。
+  if (activeQueryMode() === 'self') return '';
   if (!s.operator && !s.beneficiary) return '';
+  const p = activeProfile();
 
   const op = s.operator || '未选择';
   const ben = s.beneficiary || '未选择';
@@ -1266,6 +1496,20 @@ function mountFlow(current) {
  * 铁律：chip 的选中态完全由 profile.scenes 决定；
  *      未识别的事件只显示「可能相关 N 项权益方向」，不暗示用户一定有该需求。
  */
+/**
+ * 「可能还有这些情况」的候选清单（纯展示层分组，不改任何匹配规则）。
+ * 规则与确认台原有写法一致：从场景库里剔除 AI 已识别、或用户已确认的事件；
+ * 顺序沿用后端 build_scene_library 的排序（其余项按关联权益数降序）。
+ * 抽成函数，是为了让页面在重渲染之间能沿用同一份候选名单，
+ * 避免「点掉一个又补上一个」的错位观感。
+ * （恢复自提交 f17bd4c 的实现：fd317ad 融合时被遗失，
+ *  self.html 一直调用它，导致本人模式匹配抛 ReferenceError。）
+ */
+function optionalScenesOf(profile, sceneLibrary) {
+  const scenes = (profile && profile.scenes) || [];
+  return (sceneLibrary || []).filter((x) => !(x.detected || scenes.indexOf(x.name) >= 0));
+}
+
 function renderSituationBoard(profile, sceneLibrary, opts) {
   opts = opts || {};
   profile = profile || {};
@@ -1292,6 +1536,24 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
       <span class="bf-k">${escapeHtml(f.k)}</span>
       <span class="bf-v">${escapeHtml(f.v || '未提供')}</span>
     </div>`).join('');
+
+  // ---- 1a. 自相矛盾的说法
+  // 一句话里同时出现「独自居住」和「和子女一起住」，引擎不替用户裁决，
+  // 但要明确说出来：否则用户以为 AI 采信的那句是自己想要的。
+  const conflicts = Array.isArray(profile.conflicts) ? profile.conflicts : [];
+  const conflictsHtml = conflicts.length ? `
+    <div class="board-conflict" role="status">
+      <p class="bc-t">您的描述里有一处前后不一致，需要先确认</p>
+      <ul class="bc-list">
+        ${conflicts.map((c) => `
+          <li class="bc-item">
+            <span class="bc-kind">${escapeHtml(c.kind || '说法')}</span>
+            <span class="bc-said">${(c.said || []).map(escapeHtml).join(' / ')}</span>
+            <span class="bc-note">${escapeHtml(c.note || '')}</span>
+          </li>`).join('')}
+      </ul>
+      <p class="bc-tip">请在上面的描述里改成您现在真实的情况，再重新读一遍。这一次我们不会替您挑一句。</p>
+    </div>` : '';
 
   // ---- 2. 生活事件
   const chips = (list, kind) => list.map((x) => `
@@ -1372,6 +1634,7 @@ function renderSituationBoard(profile, sceneLibrary, opts) {
         家属代为填写也不等于${escapeHtml(who)}本人已确认。
       </p>
       ${noneHint}
+      ${conflictsHtml}
       <div class="card board">
         <div class="board-sec">
           <div class="board-sec-head">
@@ -1590,6 +1853,7 @@ function renderResultCards(data, opts) {
 
   const oneCard = (r, opts) => {
     const meta = [r.category, r.service_type, r.region].filter(Boolean).map(escapeHtml).join(' · ');
+    const catIconHtml = r.category ? categoryIcon(r.category, 'cat-ic-meta') : '';
 
     // 第一眼三件事之①：这条权益是什么。service_note 是库里已有的服务简介，
     // 只做两行截断，完整表述仍在详情页「这是什么？」里，不丢信息。
@@ -1677,14 +1941,8 @@ function renderResultCards(data, opts) {
       ? '<span class="cite-state is-pending">来源待核验</span>'
       : '<span class="cite-state is-verified">✓ 已核验</span>';
     const docNo = String(r.source_document_no || '').trim();
-    // 有文号就展示文号（库里真实字段），没有就退回来源状态；
-    // 两种都带上右侧的箭头，表示这一行点进去能看到完整来源（与卡尾入口同一去向）。
-    const citeLine = `<p class="rc-cite-line">
-          <span class="rc-cite-k">政策依据</span>
-          <span class="rc-cite-v">${docNo ? escapeHtml(docNo) : sourceState}</span>
-          ${docNo ? `<span class="rc-cite-state">${sourceState}</span>` : ''}
-          <span class="rc-cite-arrow" aria-hidden="true">›</span>
-        </p>`;
+    // 来源状态行：有文号展示「文号 + 核验态」，没有就只展示核验态——
+    // 此前无文号时写「政策依据：见详情」，读起来像一条指令而不是状态。
 
     // 导航语义由卡尾的独立 <a> 承担（原生可聚焦、可 Enter、中键可新开）；
     // 整卡不再伪装成 button——button 角色里嵌 summary/按钮是无效 ARIA 嵌套。
@@ -1704,11 +1962,11 @@ function renderResultCards(data, opts) {
       : (condFirst ? `还需确认：${escapeHtml(condFirst.label)}` : '');
     return `
       <article class="result-card${isLeadCard ? ' has-tier is-lead' : ''}" data-id="${escapeHtml(r.policy_id)}">
-        ${isLeadCard ? '<span class="rc-tier">推荐度高</span>' : ''}
+        ${isLeadCard ? '<span class="rc-tier">' + svgIcon(LEAF_SOLID, 'rc-tier-leaf') + '推荐度高 · 建议先看这一项</span>' : ''}
         <div class="result-head">
           <div class="result-head-main">
             <h3 class="result-name">${escapeHtml(r.policy_name)}</h3>
-            <p class="result-meta">${meta}</p>
+            <p class="result-meta">${catIconHtml}${meta}</p>
           </div>
           <div class="result-badges">${statusBadge(r.status, r.source_pending)}</div>
         </div>
@@ -1717,7 +1975,7 @@ function renderResultCards(data, opts) {
 
         <div class="rc-whofit">
           <span class="rc-who"><span class="rc-who-k">推荐给</span>${escapeHtml(who)}</span>
-          <span class="rc-fit"><span class="rc-fit-k">符合度</span><b class="rc-fit-v">${pct}%</b></span>
+          <span class="rc-fit" title="同批结果内的相对参考分，不是资格概率"><span class="rc-fit-k">符合度</span><b class="rc-fit-v">${pct}%</b></span>
         </div>
 
         <!-- 关联理由：卡面只一句，其余理由折叠在「另外 N 条理由」里，一条都不丢 -->
@@ -1740,7 +1998,9 @@ function renderResultCards(data, opts) {
         ${renderThresholdNote(r.threshold_signal)}
 
         <div class="priority-footer">
-          <p class="rc-cite-line">${docNo ? `政策依据：${escapeHtml(docNo)}` : '政策依据：见详情'}</p>
+          <p class="rc-cite-line"><span class="rc-cite-k">政策依据</span>${docNo
+            ? `<span class="rc-cite-v">${escapeHtml(docNo)}</span>${sourceState}`
+            : sourceState}</p>
           <a class="evidence-link" href="policy.html?id=${encodeURIComponent(r.policy_id)}">为什么推荐　›</a>
         </div>
 
@@ -1751,7 +2011,7 @@ function renderResultCards(data, opts) {
         </details>
 
         <button type="button" class="ev-toggle" data-ev-toggle="${escapeHtml(r.policy_id)}"
-                aria-expanded="false">为什么推荐？看依据</button>
+                aria-expanded="false">为什么推荐？展开依据</button>
         <div class="ev-slot" data-ev-slot="${escapeHtml(r.policy_id)}" hidden></div>
 
         <a class="result-foot" href="policy.html?id=${encodeURIComponent(r.policy_id)}">查看详情与办理方式 <span class="arrow">→</span></a>
@@ -1870,12 +2130,13 @@ function renderResultCards(data, opts) {
     if (!c) return;
     catMap.set(c, (catMap.get(c) || 0) + 1);
   });
-  const catTop = Array.from(catMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+  // P2-1：分类计数必须完整覆盖全部条目（此前 slice(0,3) 会漏掉第 4 类，
+  // 出现 6+2+1=9 ≠ 10 的对不上账）。类别多于 4 个时才收敛到前 3 + 其余。
+  const catAll = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1]);
+  const catTop = catAll.length <= 4 ? catAll : catAll.slice(0, 3);
   const catCounts = catTop.length >= 2
     ? `<div class="disc-counts">${catTop.map(([name, n]) => `
-        <div class="disc-count"><strong>${n}</strong><span>${escapeHtml(name)}</span></div>`).join('')}</div>`
+        <div class="disc-count">${categoryIcon(name)}<strong>${n}</strong><span>${escapeHtml(name)}</span></div>`).join('')}</div>`
     : '';
   // 导语标题同样避开原型的通用文案，直接报这次真实找到的数量与重点项数。
   const introTitle = focusCount
@@ -1883,7 +2144,7 @@ function renderResultCards(data, opts) {
     : `找到 ${list.length} 项可能相关的服务`;
   const discIntro = `
     <section class="disc-intro">
-      <div class="disc-kicker"><span class="spark" aria-hidden="true">✦</span>家庭权益发现</div>
+      <div class="disc-kicker">${svgIcon(LEAF_SOLID, 'spark-leaf')}家庭权益发现</div>
       <h2>${escapeHtml(introTitle)}</h2>
       <p>根据您填写的情况整理。以下为初步线索，不代表已经符合申请资格。</p>
       ${catCounts}
@@ -1904,18 +2165,26 @@ function renderResultCards(data, opts) {
   //   信息待补充 → #seg-needinfo（缺条件组）
   // 某一段当前为 0 条时该组不渲染，锚点也就不存在——这时把胶囊降级成
   // 不可点的计数，避免出现「看着能点、点了没反应」的假控件。
+  // 宽屏两栏（1024px 起）：用 grid 的具名区域把「说明 + 分段 + 提示」收进左侧栏，
+  // 「卡片列表」留在右侧主区。手机与平板不入列——它们的 CSS 不用 grid，仍是一列直排。
+  // 分段筛选本身是锚点导航（点它滚到对应分组），放进侧栏后仍指向同一批锚点，
+  // 不新增过滤能力，也没有虚构功能。
   return `
-    <div class="section">
-      ${discIntro}
-      <h2 class="section-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
-      ${renderSegments(list)}
-      ${renderAiFlowDone()}
-      <p class="result-summary">${escapeHtml(summary)}</p>
-      <p class="hint seg-sum" style="margin:-4px 0 10px">以下均为「可能相关」的初步匹配结果，不代表已符合资格。</p>
-      <div class="notice">${escapeHtml(data.notice || '')}</div>
-      <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
-      ${renderSceneSummary(list)}
-      <p class="results-note">匹配结果仅用于辅助发现线索。具体资格、材料和办理方式，请以主管部门现行规定为准。</p>
+    <div class="section result-layout">
+      <div class="rl-side">
+        ${discIntro}
+        <h2 class="section-title rl-title" id="resultAnchor">共找到 ${list.length} 条可能相关的政策</h2>
+        <div class="rl-seg">${renderSegments(list)}</div>
+        <p class="result-summary">${escapeHtml(summary)}</p>
+        <p class="hint seg-sum" style="margin:-4px 0 10px">以下均为「可能相关」的初步匹配结果，不代表已符合资格。</p>
+        <div class="notice">${escapeHtml(data.notice || '')}</div>
+        ${renderAiFlowDone()}
+      </div>
+      <div class="rl-main">
+        <div class="tier-groups">${focusHtml}${othersHtml}${verPendingHtml}${verVerifiedHtml}${needinfoHtml}</div>
+        ${renderSceneSummary(list)}
+        <p class="results-note">匹配结果仅用于辅助发现线索。具体资格、材料和办理方式，请以主管部门现行规定为准。</p>
+      </div>
     </div>`;
 }
 
@@ -1995,16 +2264,51 @@ function bindResultGroups() {
  */
 function bindSceneChips(currentData, onChange) {
   const base = (currentData && currentData.profile) || {};
+  // 调用方可以指定「本页把资料存在 store 的哪个键」，默认是家庭页的 profile。
+  const profileKey = (currentData && currentData.__profileKey) || 'profile';
   document.querySelectorAll('[data-scene]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.scene;
       const on = btn.dataset.on === '1';
+      // 场景集合要以 store 里最新的为准，不能用渲染时的 base。
+      // 连点两个 chip 时，第二次点击发生在结果重渲染之前，
+      // base 还是旧的，上面那次的新增会被这一下算掉，看起来像第一次没点上。
+      // 本人页把资料存在 selfProfile、家庭页存在 profile，所以只认当前页那一个键；
+      // 固定读 profile 会让本人页每次都退回渲染时的 base，连点照样丢选择。
+      const latest = (store.read()[profileKey] && store.read()[profileKey].scenes)
+        ? store.read()[profileKey]
+        : base;
+      const cur = latest.scenes || [];
       const next = on
-        ? (base.scenes || []).filter((s) => s !== name)
-        : (base.scenes || []).concat([name]);
+        ? cur.filter((s) => s !== name)
+        : cur.concat([name]);
       const unique = Array.from(new Set(next));
       if (onChange) onChange(unique);
     });
+  });
+}
+
+/**
+ * 「还有一些情况」的展开 / 收起。
+ * 纯展示层交互：只切换 DOM 的 hidden 与按钮文案，不请求接口、不重渲染整个确认台，
+ * 所以展开动作本身不会打断滚动位置。展开状态由页面回传保存，
+ * 点击某个情况触发重渲染后会原样带回，不会被自动收起。
+ * （恢复自提交 f17bd4c 的实现：fd317ad 融合时被遗失，self.html 一直调用它；
+ *  当前确认台没有 data-scene-more 按钮时本函数静默不动作，不会报错。）
+ */
+function bindSceneMoreToggle(onToggle) {
+  const btn = document.querySelector('[data-scene-more]');
+  const box = document.querySelector('[data-scene-extra]');
+  if (!btn || !box) return;
+  btn.addEventListener('click', () => {
+    const next = btn.getAttribute('aria-expanded') !== 'true';
+    box.hidden = !next;
+    btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+    const label = btn.querySelector('.smb-label');
+    if (label) label.textContent = next ? '收起' : (btn.dataset.moreLabel || '查看全部情况');
+    const chev = btn.querySelector('.smb-chev');
+    if (chev) chev.textContent = next ? '▴' : '▾';
+    if (onToggle) onToggle(next);
   });
 }
 
@@ -2024,7 +2328,7 @@ function bindEvidenceToggles(resultsById) {
         slot.hidden = true;
         slot.innerHTML = '';
         btn.setAttribute('aria-expanded', 'false');
-        btn.textContent = '为什么推荐？看依据';
+        btn.textContent = '为什么推荐？展开依据';
         return;
       }
       const r = (resultsById || {})[id];
@@ -2104,15 +2408,18 @@ function renderTopbar(title, parentHref, sub) {
     // href 保留：既是无 JS / 中键新窗口的兜底，也让父页面关系可被查看
     back = `<a class="back-link" href="${escapeHtml(parentHref)}" data-back="1">← 返回</a>`;
   }
+  // 返回并入标题行：原先返回独占一行，加上流程条、关系条之后，
+  // 详情页首屏近 300px 都是页面框架；合并后顶栏矮一行，
+  // 且顶栏已改为吸顶，长页滚到一半「← 返回」仍在手边。
   el.innerHTML = `
-    <div class="brand-row">
-      <div>
+    <div class="brand-row${back ? ' has-back' : ''}">
+      ${back}
+      <div class="brand-heading">
         <h1>${escapeHtml(title)}</h1>
         <div class="sub">政策找人 · AI赋能公共服务权益发现</div>
       </div>
       ${tagCol}
-    </div>
-    <div style="margin-top:10px">${back}</div>`;
+    </div>`;
 
   // 登记本页父页面（返回时按它跳转，不看浏览器历史）
   registerNavParent(parentHref);
@@ -2146,24 +2453,58 @@ const TAB_ITEMS = [
     d: 'M11 4.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6zM20 20l-3.9-3.9' },
   { key: 'consult', label: '咨询', href: 'consult.html',
     d: 'M4.4 5.4h15.2v10.2H12l-4.6 3.6v-3.6H4.4z' },
-  { key: 'mine', label: '我的', href: 'mine.html',
+  { key: 'mine', label: '我的', href: 'services.html',
     d: 'M12 4.4a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4zM4.8 20.2a7.2 7.2 0 0 1 14.4 0' },
 ];
+
+/**
+ * 导航该插在哪儿：版心 .app 里「页头之后、正文之前」。
+ *
+ * 页头有两种写法，两种都要认：
+ *   - 首页：.topbar 只是品牌条，真正的页面标题是紧跟其后的 header.hero，
+ *     导航要落在标题之后，否则会插在品牌条和大标题中间；
+ *   - 其余一级页：标题由 renderTopbar() 写进 .topbar（h1 就在里面），
+ *     导航落在 .topbar 之后即可。
+ * 找不到 .app 时返回 null，由调用方退回挂到 body。
+ */
+function tabbarHost() {
+  const app = document.querySelector('.app');
+  if (!app) return null;
+  const hero = app.querySelector(':scope > header.hero');
+  if (hero) return { app, anchor: hero };
+  const topbar = app.querySelector(':scope > .topbar');
+  if (topbar) return { app, anchor: topbar };
+  return null;
+}
 
 /**
  * 渲染并挂载底部一级导航。current 是当前页的 key（home/discover/consult/mine）。
  *
  * 只在缺少 <nav> 时创建；重复调用（例如结果重绘）会原地更新高亮，不会叠出第二条。
+ * 位置由真实 DOM 决定：插进 .app 的页头之后，宽屏下顺序天然是
+ * 「品牌条／页面标题 → 导航 → 正文」。旧做法是把 nav 追加到 body 末尾、
+ * 再用 body 的 flex + order 把它拉到最上面，结果导航跑到了品牌条之前，
+ * 也脱离了版心那一列；这里改的是插入点，不再用 order 掩盖。
  * 同时给 <body> 打上 has-tabbar，由 CSS 负责给正文留出底部空间——
  * 内容被导航遮住这件事必须由布局解决，不能靠某个页面自己记得加 padding。
  */
 function mountTabbar(current) {
   if (typeof document === 'undefined' || !document.body) return null;
+  // 本页自带发现高亮（current='discover'），清掉可能残留的「发现」点击意图，
+  // 避免之后回到 mountBottomNav 页面时误高亮（与 tcb-ui.js PF_NAV_INTENT_KEY 对应）。
+  try { sessionStorage.removeItem('pf_nav_intent'); } catch (e) {}
   let nav = document.getElementById('tabbar');
   if (!nav) {
     nav = document.createElement('nav');
     nav.id = 'tabbar';
     nav.className = 'tabbar';
+  }
+  // 已经在 .app 里就不再挪动：首屏之后 banner / 流程条也会插在 .topbar 后面，
+  // 反复重绘时不应该把导航再提回它们上面。
+  const host = tabbarHost();
+  if (host && nav.parentNode !== host.app) {
+    host.anchor.after(nav);
+  } else if (!host && nav.parentNode !== document.body) {
     document.body.appendChild(nav);
   }
   document.body.classList.add('has-tabbar');
@@ -2185,13 +2526,34 @@ function mountTabbar(current) {
 /**
  * 读取「本次查询」的会话。所有一级页读同一份，不另存一套。
  * 返回 null 表示还没查过（发现页据此显示空状态，而不是编一批结果）。
+ * 家庭模式写 text，本人模式写 selfText——只认 text 的话，
+ * 本人查询后「我的」页会显示「还没有查询过」，与事实不符。
  */
 function readQuerySession() {
   try {
     const s = JSON.parse(sessionStorage.getItem(store.key) || '{}');
-    if (!s || !s.text) return null;
+    if (!s || (!s.text && !s.selfText)) return null;
     return s;
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * 匹配请求的序号。每次发起匹配自增一次，回来时比对，
+ * 只有最新的那次请求才有资格写界面与本地状态。
+ *
+ * 为什么需要：用户连点两个场景 chip 时会有两次请求同时在飞，
+ * 网络不保证先发先回。慢的那次后到就会把新结果盖成旧的，
+ * 界面停在用户已经改掉的那份情况上，看起来像「我点了但没反应」。
+ */
+let MATCH_REQUEST_SEQ = 0;
+
+function beginMatchRequest() {
+  MATCH_REQUEST_SEQ += 1;
+  return MATCH_REQUEST_SEQ;
+}
+
+function isLatestMatchRequest(requestId) {
+  return requestId === MATCH_REQUEST_SEQ;
 }

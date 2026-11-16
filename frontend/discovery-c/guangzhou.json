@@ -1,0 +1,174 @@
+{
+  "policies": [
+    {
+      "policy_id": "gz_elderly_001",
+      "policy_name": "老年人照护需求综合评估",
+      "category": "养老服务",
+      "description": "按照全市统一的评估标准，对具有照护需求且符合规定条件的老年人，依申请评估其能力程度、健康状况、社会支持情况，确定评估等级。评估结论是享受长期护理保险待遇和养老服务补贴等政策的重要依据。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局",
+        "document_no": "穗民〔2024〕76号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_002",
+      "policy_name": "社区养老服务",
+      "category": "养老服务",
+      "description": "依托颐康中心（街道、镇层面）与颐康服务站（村、居层面）组成的社区养老服务网络，为老年人提供养老服务向导、日间托管、临时托养、康复护理、辅具租赁、平安通服务、文体教育等服务。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局",
+        "document_no": "穗民〔2024〕76号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_003",
+      "policy_name": "老年人助餐配餐服务",
+      "category": "养老服务",
+      "description": "以长者饭堂为主要依托，为在本市行政区域内居住的60周岁及以上居家老年人提供制餐、配餐、分餐、就餐、送餐等服务。长者饭堂由区民政部门、镇人民政府（街道办事处）设置；老年人通过广州市为老服务综合平台提交申请并就近选择长者饭堂。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局、广州市财政局、广州市市场监督管理局",
+        "document_no": "穗民规字〔2024〕3号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_004",
+      "policy_name": "居家上门服务",
+      "category": "养老服务",
+      "description": "为居家老年人提供上门助洁、助浴、洗涤、生活护理、协助进餐、陪伴就医、代办服务等生活照料服务。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局",
+        "document_no": "穗民〔2024〕76号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_005",
+      "policy_name": "家庭养老床位服务",
+      "category": "养老服务",
+      "description": "依托有资质的养老服务组织，为失能、部分失能老年人居家环境进行智能化、适老化改造，将专业照护服务送到家，使老年人居家即可享受类机构的专业化养老服务。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局",
+        "document_no": "穗民〔2024〕76号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_006",
+      "policy_name": "居家适老化改造",
+      "category": "养老服务",
+      "description": "为老年人提供居家适老化改造咨询、方案设计、施工改造、设施配备与老年用品配置等服务，降低居家生活中的跌倒等安全风险。居住在广州市、有需求的老年人均可申请改造服务（含自费申请）；政府资助仅面向本市户籍年满60周岁且符合方案规定三类情形的老年人家庭。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局、广州市财政局、广州市残疾人联合会",
+        "document_no": "穗民规字〔2025〕1号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_007",
+      "policy_name": "老年人健康管理",
+      "category": "健康服务",
+      "description": "为老年人提供健康评估、体检与健康指导等服务，通常由基层医疗卫生机构结合老年人健康管理相关工作提供。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "to_verify"
+      },
+      "source": {
+        "department": "广州市卫生健康部门",
+        "document_no": "国卫基层发〔2017〕13号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_008",
+      "policy_name": "认知功能筛查",
+      "category": "健康服务",
+      "description": "针对记忆下降、疑似认知障碍的老年人，可关注认知功能筛查与早期干预相关服务。国家层面已提出结合基本公共卫生老年人健康管理服务，推进65岁及以上老年人认知功能初筛。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "to_verify"
+      },
+      "source": {
+        "department": "广州市卫生健康部门",
+        "document_no": "国卫老龄发〔2024〕42号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_009",
+      "policy_name": "长期护理保险（试行办法）",
+      "category": "医疗保障",
+      "description": "长期护理保险为经评估符合条件的失能人员提供机构护理、居家护理、医疗护理与设备使用等待遇，由长护险基金按规定比例支付，用于减轻长期照护带来的费用压力。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市医疗保障局 广州市财政局 广州市民政局 广州市卫生健康委员会",
+        "document_no": "穗医保规字〔2024〕1号"
+      }
+    },
+    {
+      "policy_id": "gz_elderly_010",
+      "policy_name": "长者长寿保健金",
+      "category": "养老保障",
+      "description": "对本市户籍年满70周岁及以上的老年人按月发放长寿保健金，发放标准按年龄段分档，并根据经济社会发展情况适时调整。",
+      "region": {
+        "scope": "广州市",
+        "level": "市级"
+      },
+      "verification": {
+        "status": "verified"
+      },
+      "source": {
+        "department": "广州市民政局、广州市财政局",
+        "document_no": "穗民规字〔2026〕6号"
+      }
+    }
+  ]
+}

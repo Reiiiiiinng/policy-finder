@@ -1,0 +1,189 @@
+/* ==========================================================================
+   pf-services-tcb.css —— 共用业务核心的中性标记（B 版：theme-cb 皮肤）
+   与 A 版 pf-services.css 选择器完全一致，只有配色与圆角不同。
+   两版共用同一个 pf-services.js。
+   ========================================================================== */
+
+/* ---------- 状态胶囊 ---------- */
+.pfv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  background: var(--brand-soft, #e3f1e7);
+  color: var(--brand-dark, #1b5e3b);
+  border: 1px solid var(--brand-line, #cde2d3);
+}
+.pfv-pill.is-pending { background: var(--warn-soft, #fbefe2); color: var(--warn, #b05a1a); border-color: var(--warn-line, #f2d9bd); }
+.pfv-pill.is-checking { background: #eff3fb; color: #3a5c96; border-color: #d8e2f3; }
+.pfv-pill.is-needinfo { background: #fdf7e6; color: #8a6412; border-color: #f1e4bf; }
+.pfv-pill.is-ready { background: var(--brand-soft, #e3f1e7); color: var(--brand-dark, #1b5e3b); border-color: var(--brand-line, #cde2d3); }
+.pfv-pill.is-done { background: var(--line-soft, #f4f2e9); color: var(--muted, #5a685e); border-color: var(--line, #efeddf); }
+
+/* ---------- 更新状态弹层 ---------- */
+.pfv-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background: rgba(31, 43, 36, .45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+.pfv-mask.is-open { opacity: 1; pointer-events: auto; }
+
+.pfv-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 321;
+  width: min(520px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  transform: translate(-50%, 102%);
+  transition: transform .24s cubic-bezier(.32, .72, .28, 1);
+  background: var(--card, #fff);
+  border: 1px solid var(--brand-line, #cde2d3);
+  border-bottom: 0;
+  border-radius: var(--radius-lg, 20px) var(--radius-lg, 20px) 0 0;
+  box-shadow: var(--shadow-lg, 0 -12px 36px rgba(27, 94, 59, .16));
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.pfv-sheet.is-open { transform: translate(-50%, 0); }
+@media (min-width: 720px) {
+  .pfv-sheet {
+    bottom: auto;
+    top: 50%;
+    transform: translate(-50%, -46%) scale(.98);
+    opacity: 0;
+    border-radius: var(--radius, 16px);
+    border-bottom: 1px solid var(--brand-line, #cde2d3);
+    padding-bottom: 16px;
+  }
+  .pfv-sheet.is-open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.pfv-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pfv-sheet-head h2 { margin: 0; font-size: 16.5px; font-weight: 700; color: var(--brand-dark, #1b5e3b); }
+.pfv-x {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line, #efeddf);
+  border-radius: 50%;
+  background: var(--card, #fff);
+  color: var(--muted, #5a685e);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.pfv-x:hover { background: var(--brand-wash, #eef5ef); }
+
+.pfv-sheet-policy { margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: var(--muted, #5a685e); }
+.pfv-sheet-policy b { color: var(--ink, #1f2b24); }
+
+.pfv-flabel { display: block; margin: 14px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-2, #3e4a42); }
+.pfv-opt-tag { font-weight: 400; color: var(--muted-2, #8a948c); }
+
+.pfv-opts { display: flex; flex-direction: column; gap: 8px; }
+.pfv-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #efeddf);
+  border-radius: var(--radius-sm, 12px);
+  background: var(--card, #fff);
+  font-size: 14px;
+  color: var(--ink, #1f2b24);
+  cursor: pointer;
+}
+.pfv-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pfv-dot {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--brand-line, #cde2d3);
+  background: #fff;
+}
+.pfv-opt input:checked + .pfv-dot {
+  border-color: var(--brand, #2e7d4f);
+  box-shadow: inset 0 0 0 3.5px var(--brand, #2e7d4f);
+}
+.pfv-opt input:checked ~ .pfv-o { font-weight: 600; }
+.pfv-opt input:focus-visible + .pfv-dot { outline: 2px solid var(--brand-mid, #3a8b5c); outline-offset: 2px; }
+
+.pfv-sheet textarea,
+.pfv-sheet input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #efeddf);
+  border-radius: var(--radius-sm, 12px);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink, #1f2b24);
+  resize: vertical;
+}
+.pfv-sheet textarea:focus,
+.pfv-sheet input[type="text"]:focus {
+  outline: none;
+  border-color: var(--brand, #2e7d4f);
+  box-shadow: var(--ring, 0 0 0 3px rgba(46, 125, 79, .16));
+}
+
+.pfv-sheet-note { margin: 12px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--muted-2, #8a948c); }
+.pfv-sheet-foot { margin-top: 14px; }
+.pfv-save {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--brand, #2e7d4f);
+  color: #fff;
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pfv-save:active { transform: translateY(1px); }
+
+body.no-scroll { overflow: hidden; }
+
+/* ---- 有效期依据（partner 能力移植到 theme-cb 结构） ---- */
+.tc-basis{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-soft,#EDF1EC)}
+.tc-basis .tc-row{padding:2px 0}
+.tc-basis-date{color:var(--muted,#5D6B62);font-weight:400;font-size:12px}
+.tc-basis .tc-link{margin-top:8px}
+
+/* ---- 顶栏：theme-cb 结构 + partner 的步骤徽章（「第 N 步」）共存 ---- */
+.topbar .brand-row{flex-wrap:wrap;row-gap:8px;column-gap:8px}
+.topbar .brand-row > div:first-child{min-width:0;flex:1 1 auto}
+.topbar .brand-row .theme-tag{margin-left:auto}
+.topbar .brand-row .tag-col{display:flex;flex:none;align-items:center;gap:6px;margin-left:auto}
+.topbar .step-tag{
+  font-size:11.5px;font-weight:700;letter-spacing:.02em;
+  color:var(--brand-dark,#163A32);background:var(--card,#fff);
+  border:1px dashed var(--brand-line,#CBE0D4);border-radius:var(--radius-pill,999px);
+  padding:3px 10px;white-space:nowrap;
+}
+@media (max-width:430px){
+  .topbar .brand-row > .theme-tag{order:2}
+  .topbar .brand-row .tag-col{order:3}
+}
