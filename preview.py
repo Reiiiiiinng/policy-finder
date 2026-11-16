@@ -83,6 +83,8 @@ def _serve(instance, mode, run, database, ai_client_factory):
     class PreviewHandler(server.Handler):
         def end_headers(self):
             self.send_header("X-PF-Preview-Instance", instance)
+            if ai_client_factory is not None:
+                self.send_header("X-PF-Preview-AI", "fixture")
             self.send_header("X-PF-Preview-Run", nonce)
             if self.command == "GET" and self.headers.get("Sec-Fetch-Site") != "cross-site":
                 self.send_header("Set-Cookie", f"{cookie}={nonce}; Path=/; HttpOnly; SameSite=Strict")

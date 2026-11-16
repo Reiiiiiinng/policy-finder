@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="assets/tcb.css">
 <link rel="stylesheet" href="assets/pf-services-tcb.css">
 <script src="assets/pf-service-v3-activation.js"></script>
-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/policy-actions.js"></script>
+<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/policy-actionability.js"></script>
+<script src="assets/policy-actions.js"></script>
 <script>
   if (new URLSearchParams(location.search).has('analysis')) {
     for (const file of ['household-analysis.css','v32-discovery.css']) {
@@ -94,7 +95,7 @@
       const validity = status[policy.validity?.status] || '待核实';
       const verified = recorded.verification?.status === 'verified' && original && src.department && (src.document || src.document_no);
       const list = values => values.length ? '<ul>' + values.map(value=>'<li>'+escapeHtml(value)+'</li>').join('') + '</ul>' : '';
-      const description = recorded.description || recorded.service_note || '政策简介待核实。';
+      const description = item.benefit || recorded.description || recorded.service_note || '政策简介待核实。';
       const firstSentence = description.match(/^.+?[。！？]/)?.[0] || description;
       const intro = firstSentence.length > 92 ? firstSentence.slice(0,91)+'…' : firstSentence;
       const basis = original ? `<a class="button" href="${escapeHtml(original)}" target="_blank" rel="noopener noreferrer">查看官方原文 ↗</a>` : '';
@@ -102,12 +103,15 @@
       target.innerHTML = `<section class="flow-hero with-art"><h1>${escapeHtml(item.name)}</h1>
         <p>${escapeHtml(recorded.region?.scope || item.region)} · ${escapeHtml(recorded.category || item.category)}</p>
         <p class="policy-meta"><span>${verified ? '来源已核验' : '来源待核实'}</span><span>目录效力：${validity}</span></p></section>
-        ${state.demo ? '<p class="demo-note">合成家庭演示 · 使用真实政策和查询流程</p>' : ''}
+        ${stateResponse.headers.get('X-PF-Preview-AI') === 'fixture' ? '<p class="demo-note">合成验收 · AI 模拟结果</p>' :
+          state.demo ? '<p class="demo-note">合成家庭演示</p>' : ''}
         <section class="panel"><h2>这项政策是做什么的</h2><p>${escapeHtml(intro)}</p></section>
         <section class="panel"><h2>为什么与你可能相关</h2><p>${escapeHtml(item.reason)}</p><p class="meta">适用资格由主管部门核实。</p></section>
-        <details class="panel"><summary>查看适用条件与待核实项</summary>${list(item.conditions.filter(row=>!row.is_threshold)
-          .map(row=>[row.requirement || row.label,row.state === 'unknown' ? '待核实' : row.state === 'failed' ? '条件不满足' : '规则已核验'].join(' · '))) ||
+        <section class="panel flow-note"><h2>下一步</h2><p>${escapeHtml(['expired','superseded','repealed','historical','not_yet_effective'].includes(policy.validity?.status) ? '先查找当前有效的政策依据。' : PFActionability.next(item))}</p></section>
+        <details class="panel"><summary>查看适用条件与待核实项</summary>${list(item.conditions.map(row=>PFActionability.conditionLabel(row,item))) ||
           '<p>具体条件请查看政策依据。</p>'}${list(item.missing_information.filter(text=>!item.conditions.some(row=>row.label===text || row.requirement===text)))}</details>
+        <details class="panel"><summary>查看官方办理渠道</summary><p>政策发布机关 ${escapeHtml(src.department || '待核实')}</p>
+          ${PFActionability.channels(['active','expiring'].includes(policy.validity?.status) ? item.channels : [],escapeHtml)}</details>
         <details class="panel"><summary>查看政策依据与办理说明</summary>
           ${intro !== description ? '<p>'+escapeHtml(description)+'</p>' : ''}
           ${list([src.department,src.document_no,policy.validity?.effective_from].filter(Boolean))}

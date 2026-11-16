@@ -82,6 +82,56 @@ class V32(unittest.TestCase):
         state = self.run_ai(Model(["gz_elderly_003"]), "母亲68岁，行动不便，需要养老服务。", "佛山市")
         self.assertEqual(state["result"]["policy_candidates"], [])
 
+    def test_v34_foshan_actionability_scenarios(self):
+        scenarios = (
+            ("养老", "fs_care_001", "母亲68岁，住在佛山市，需要长期照护和上门助浴。", 68, "consult", "official_required"),
+            ("医疗", "fs_med_001", "母亲68岁，参加了佛山市基本医疗保险，住院自费较多。", 68, "fact", "context_recorded"),
+            ("临时", "fs_med_005", "母亲68岁，火灾后生活困难，想咨询临时救助。", 68, "consult", "official_required"),
+            ("信息不足", "fs_med_001", "母亲住院自费较多，不清楚当地参保情况。", None, "fact", "unknown"),
+            ("渠道缺口", "fs_med_001", "母亲68岁，住院自费较多。", 68, "fact", "unknown"),
+        )
+        for name, policy_id, description, age, action, condition in scenarios:
+            with self.subTest(name=name):
+                state = self.run_ai(Model([policy_id]), description, "佛山市", age)
+                result = state["result"]
+                self.assertEqual(result["confirmed"]["basic"]["age"], age)
+                self.assertIn(description, result["confirmed"]["facts"])
+                self.assertNotIn(description, result["public_search_query"])
+                candidate, = result["policy_candidates"]
+                self.assertEqual(candidate["id"], policy_id)
+                self.assertTrue(candidate["benefit"] and candidate["reason"] and candidate["source"]["official_url"])
+                self.assertTrue(candidate["canPlan"])
+                self.assertEqual(candidate["next_step"]["kind"], action)
+                self.assertIn(condition, {row["action_status"] for row in candidate["conditions"]})
+                self.assertTrue(candidate["channels"])
+                self.assertTrue(all(row["source_url"] for row in candidate["channels"]))
+                if name == "渠道缺口":
+                    self.assertTrue(all(not row.get("phone") and not row.get("address") for row in candidate["channels"]))
+                keys = {"memberId": self.member, "region": "佛山市", "policyId": policy_id}
+                favorite = follow.dispatch("GET", "/api/followup/favorites", keys)["favorite"]
+                follow.dispatch("POST", "/api/followup/commands", {
+                    **keys, "operationId": str(uuid4()), "type": "favorite", "saved": True,
+                    "expectedRevision": favorite["revision"],
+                })
+                review_keys = {"id": state["id"], "memberId": self.member}
+                review = self.get("selected-review", **review_keys)
+                params = {"selection": review["selection"], "version": review["version"]}
+                self.post("selected-review", **review_keys, **params, answers={})
+                plan_id = self.act("plan", self.get("state", **review_keys), reviewed=True, **params)["planId"]
+                saved = follow.dispatch("GET", "/api/followup/plans/" + plan_id, {"memberId": self.member})
+                self.assertIn(policy_id, {task["policyId"] for task in saved["plans"][plan_id]["tasks"]})
+                self.assertEqual(saved["policyEvidence"][0]["channels"], candidate["channels"])
+
+    def test_v34_clear_conflict_and_formal_report_provenance(self):
+        description = "母亲68岁，住院自费较多。她未参加佛山市基本医疗保险。"
+        state = self.run_ai(Model(["fs_med_001", "fs_med_003"]), description, "佛山市")
+        self.assertEqual([row["id"] for row in state["result"]["policy_candidates"]], ["fs_med_001"])
+        self.assertTrue(any("大病保险" in row["name"] for row in state["result"]["excluded"]))
+        rule = {"key": "family_economic", "state": "met", "label": "困难家庭认定"}
+        self.assertEqual(v32.condition_status(rule, "fs_med_001", True, {}), "official_required")
+        self.assertEqual(v32.condition_status(rule, "fs_med_001", True, {"family_economic": "区民政部门"}), "met")
+        self.assertEqual(v32.condition_status(rule, "fs_med_001", False, {}), "policy_unverified")
+
     def test_t02_guangzhou_medical_needs_use_local_evidence(self):
         state = self.run_ai(Model(["gz_elderly_007"]), "母亲68岁，住院医疗开销大。", "广州市")
         items = state["result"]["policy_candidates"]
@@ -195,7 +245,10 @@ class V32(unittest.TestCase):
         self.assertEqual(guide["steps"], v32._project(state["result"]["policy_candidates"][0]["policy"])["steps"])
         self.assertTrue(guide["source"]["url"])
         edited = self.post("selected-review", **{**data, "answers":{"insurance":False}})
-        self.assertEqual(edited["receipt"]["excluded"]["fs_med_001"], ["参加本市基本医疗保险"])
+        self.assertEqual(edited["receipt"]["excluded"], {})
+        self.assertEqual(edited["receipt"]["answers"], {"insurance": False})
+        self.assertFalse(edited["guide"][0]["excluded"])
+        edited = self.post("selected-review", **{**data, "answers":{"expense_scope":False}})
         self.assertTrue(edited["guide"][0]["excluded"])
         self.assertEqual(self.get("state", **keys)["result"], state["result"])
         with database.transaction() as db:

@@ -26,6 +26,31 @@
   "policies": [
     {
       "policy_id": "fs_med_001",
+      "channels": [
+        {
+          "name": "实际就诊的医保定点医药机构",
+          "level": "经办机构",
+          "region": "佛山市",
+          "role": "settlement",
+          "method": "就医时询问医保结算窗口能否一站式结算",
+          "source_url": "https://www.foshan.gov.cn/gfxwj/sbmgfxwj/fssylbzj/content/post_6274174.html",
+          "source_ref": "佛医保〔2025〕13号 第十八条",
+          "checked_at": "2026-11-16"
+        },
+        {
+          "name": "佛山市医疗保障局南海分局联系目录",
+          "level": "区级",
+          "region": "佛山市南海区",
+          "role": "directory",
+          "method": "查看南海分局联系方式，咨询零星报销受理窗口",
+          "source_url": "https://www.gdzwfw.gov.cn/portal/v2/contact-us?region=440605",
+          "online_url": "https://www.gdzwfw.gov.cn/portal/v2/contact-us?region=440605",
+          "source_ref": "广东政务服务网南海区联系目录",
+          "checked_at": "2026-11-16"
+        }
+      ],
+      "benefit_summary": "如果住院或门诊后还要自己承担较多合规医疗费，符合条件的家庭可以申请减轻这部分负担。",
+      "consult_prompt": "先确认是否已有民政困难认定，以及本次费用能否在定点医药机构一站式结算。",
       "policy_name": "佛山市医疗救助实施办法",
       "policy_level": "市级",
       "region": {
@@ -50,9 +75,10 @@
           {
             "key": "insurance",
             "type": "boolean",
-            "label": "参加本市基本医疗保险",
-            "ask": "老人是否已参加佛山市基本医疗保险",
-            "requirement": "已参加佛山市基本医疗保险",
+            "label": "佛山市基本医保参保情况",
+            "ask": "是否已参加佛山市基本医疗保险",
+            "requirement": "参保情况用于确定费用结算方式",
+            "informational": true,
             "source_ref": "佛医保〔2025〕13号 第九条"
           },
           {
@@ -91,9 +117,9 @@
           {
             "key": "expense_scope",
             "type": "boolean",
-            "label": "费用属定点医药机构发生的合规医疗费用",
+            "label": "在医保定点医药机构就医",
             "ask": "本次医疗费用是否发生在医保定点医药机构",
-            "requirement": "在定点医药机构发生的、符合基本医疗保险规定的普通门诊 / 门诊特定病种 / 住院费用",
+            "requirement": "就医机构须为医保定点机构，具体费用是否合规由经办机构核实",
             "source_ref": "佛医保〔2025〕13号 第十条"
           }
         ],
@@ -201,11 +227,11 @@
         "expires_at": "2030-03-31",
         "status": "active",
         "superseded_by": null,
-        "verified_at": "2026-10-03"
+        "verified_at": "2026-11-16"
       },
       "verification": {
         "status": "verified",
-        "checked_at": "2026-10-03",
+        "checked_at": "2026-11-16",
         "note": "文号、印发日期、施行日期、有效期与第六条至第二十三条条文已逐字核对官方原文。第二十八条载明：本实施办法自2025年4月1日起施行，有效期五年；《佛山市医疗保障局关于印发佛山市医疗救助实施细则的通知》（佛医保〔2020〕42号）同时废止。"
       },
       "risk_notice": "AI仅进行初步匹配，不代表符合资格。医疗救助待遇须由医疗保障部门核定。",
@@ -239,6 +265,7 @@
     },
     {
       "policy_id": "fs_med_002",
+      "benefit_summary": "生活开支或看病费用超出家庭承受范围时，可申请困难家庭认定，了解可衔接的救助。",
       "policy_name": "广东省最低生活保障边缘家庭和支出型困难家庭救助办法",
       "policy_level": "省级",
       "region": {
@@ -713,6 +740,31 @@
     },
     {
       "policy_id": "fs_med_005",
+      "benefit_summary": "突发事故、重病或其他变故让基本生活难以维持时，可以向属地申请应急或过渡性救助。",
+      "consult_prompt": "先问户籍地或经常居住地的镇街社会救助窗口，确认适用的救助类别和收件要求。",
+      "channels": [
+        {
+          "name": "户籍地或经常居住地镇政府／街道办事处",
+          "level": "镇街",
+          "region": "佛山市",
+          "role": "acceptance",
+          "method": "向社会救助窗口咨询临时救助申请",
+          "source_url": "https://www.foshan.gov.cn/gfxwj/sbmgfxwj/fssmzj/content/post_5889143.html",
+          "source_ref": "佛民办〔2021〕98号 第十一条",
+          "checked_at": "2026-11-16"
+        },
+        {
+          "name": "广东政务服务网南海区联系目录",
+          "level": "区级",
+          "region": "佛山市南海区",
+          "role": "directory",
+          "method": "查找所属镇街的联系方式",
+          "source_url": "https://www.gdzwfw.gov.cn/portal/v2/contact-us?region=440605",
+          "online_url": "https://www.gdzwfw.gov.cn/portal/v2/contact-us?region=440605",
+          "source_ref": "南海区官方联系目录",
+          "checked_at": "2026-11-16"
+        }
+      ],
       "policy_name": "佛山市临时救助办法",
       "policy_level": "市级",
       "region": {
@@ -802,6 +854,7 @@
       },
       "match": {
         "scene_signals": [
+          "突发生活困难",
           "住院自付高",
           "大病医疗支出",
           "家庭经济困难",
@@ -880,7 +933,7 @@
         "document": "佛山市临时救助办法",
         "document_no": "佛民办〔2021〕98号",
         "publish_date": "2021-12-29",
-        "official_url": "http://www.foshan.gov.cn/gfxwj/sbmgfxwj/fssmzj/content/post_5889143.html"
+        "official_url": "https://www.foshan.gov.cn/gfxwj/sbmgfxwj/fssmzj/content/post_5889143.html"
       },
       "validity": {
         "effective_from": "2022-02-01",
@@ -1030,6 +1083,99 @@
         "citations": [],
         "disclaimer": "本条为政策原文的流程性说明，不构成任何碳减排量化承诺。"
       }
+    },
+    {
+      "policy_id": "fs_care_001",
+      "policy_name": "广东省养老服务消费补贴（佛山）",
+      "policy_level": "省级",
+      "region": {
+        "scope": "佛山市",
+        "level": "省级",
+        "coverage": "广东省"
+      },
+      "category": "居家社区养老",
+      "description": "经统一评估为中度、重度或完全失能的老年人，在广东购买符合规定的居家、社区或机构养老服务，可按规定使用电子消费券抵扣费用。",
+      "benefit_summary": "家里老人需要助浴、助餐或康复护理等服务时，符合条件可用电子消费券抵扣部分费用。",
+      "target_people": [
+        "经统一评估为中度、重度或完全失能，并在广东省内购买养老服务的老年人"
+      ],
+      "conditions": {
+        "other": [
+          "老年人能力评估须达到中度、重度或完全失能",
+          "服务地址位于广东省内",
+          "需核实是否已享受特困供养、经济困难失能老人集中照护补助或居家和社区基本养老服务提升行动项目"
+        ]
+      },
+      "life_scenes": [
+        "需要长期照护",
+        "日常生活需要帮助",
+        "照护压力"
+      ],
+      "match": {
+        "scene_signals": [
+          "需要长期照护",
+          "洗澡不便",
+          "照护压力"
+        ],
+        "priority": 1
+      },
+      "ai_reason": [
+        "电子消费券可用于符合条件的居家和社区养老服务。"
+      ],
+      "consult_prompt": "先在「民政通」查看老年人能力评估和养老服务消费补贴申请。",
+      "application_process": [
+        {
+          "step": "本人或代办人通过民政通小程序或 App 申请养老服务消费补贴，并签署诚信承诺书。",
+          "to_verify": false
+        },
+        {
+          "step": "在民政通老年人能力评估模块按指引申请评估或确认已有结果能否采信。",
+          "to_verify": false
+        }
+      ],
+      "materials": [
+        {
+          "item": "老年人诚信承诺书（通过民政通签署）",
+          "source_ref": "粤民发〔2026〕6号 第二部分（一）"
+        }
+      ],
+      "channels": [
+        {
+          "name": "民政通小程序或 App",
+          "level": "国家级平台",
+          "region": "广东省（含佛山市）",
+          "role": "acceptance",
+          "method": "线上进入养老服务消费补贴专区申请，按指引完成能力评估",
+          "source_url": "https://www.lw.gov.cn/gzlwmz/attachment/7/7968/7968390/10675578.pdf",
+          "source_ref": "粤民发〔2026〕6号 第二部分",
+          "checked_at": "2026-11-16"
+        }
+      ],
+      "source": {
+        "department": "广东省民政厅、广东省财政厅",
+        "document": "广东省向中度以上失能老年人发放养老服务消费补贴项目实施方案",
+        "document_no": "粤民发〔2026〕6号",
+        "publish_date": "2026-01-15",
+        "official_url": "https://www.lw.gov.cn/gzlwmz/attachment/7/7968/7968390/10675578.pdf"
+      },
+      "validity": {
+        "effective_from": "2026-01-01",
+        "expires_at": "2026-12-31",
+        "status": "active",
+        "verified_at": "2026-11-16"
+      },
+      "verification": {
+        "status": "verified",
+        "checked_at": "2026-11-16",
+        "note": "核对荔湾区民政部门公开的盖章文件第一、二部分和实施周期，并核对省老干部局关于佛山颐养院的落地报道。"
+      },
+      "keywords": [
+        "居家养老",
+        "助浴",
+        "养老服务消费补贴",
+        "中度失能",
+        "民政通"
+      ]
     }
   ]
 }

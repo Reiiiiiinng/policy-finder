@@ -199,7 +199,7 @@
       .map(([type,label])=>`<option value="${type}" ${type===selected?'selected':''}>${esc(label)}</option>`).join('');
   }
 
-  const conditionSummary = row => `${esc(row.text)} · ${badge(...conditionStatus(row))}`;
+  const conditionSummary = row => `${esc(row.text)} · ${badge(...conditionStatus(row))}${row.reportedIssuer ? ' · '+esc(row.reportedIssuer) : ''}`;
 
   function renderExecution(task) {
     const actions = (task.workflowActions || []).filter(action=>!['start_preparation','review_submission'].includes(action));
@@ -302,12 +302,13 @@
       `<section class="fu-panel" id="official-channels" aria-labelledby="channel-heading"><h2 id="channel-heading">官方办理渠道</h2>
         ${policy?.source.department?`<p>政策发布机关 ${esc(policy.source.department)}</p>`:''}
         ${list(channel,'受理部门和办理方式待官方确认。')}
-        <p>办理地点及时间待官方确认。</p>${official(policy)}
+        ${PFActionability.channels(policy?.channels,esc)}${official(policy)}
         ${active ? `<div class="fu-row">${link('咨询官方',consultLink(plan,task))}
           ${link('记录实际提交或办理结果',taskLink(plan,task))}</div>` : ''}</section>` +
       disclosure('待向官方核实',list([
         ...(policy?.missing || []).map(esc),
-        ...conditions.filter(row=>['official','observation'].includes(row.inputKind) || row.state==='stale')
+        ...conditions.filter(row=>row.state==='stale' ||
+          (row.state!=='confirmed' && ['official','observation'].includes(row.inputKind)))
           .map(row=>esc(row.text))
       ],'请核对实际受理机构提供的办事信息。'));
   }
@@ -431,6 +432,7 @@
 
   function conditionStatus(row) {
     if (row.state === 'stale') return ['需重新核实','stale'];
+    if (row.source === 'reported_official_result') return ['用户转述正式结果','confirmed'];
     if (row.inputKind === 'official' || row.inputKind === 'observation') return ['需要官方核实','pending'];
     if (row.inputKind === 'reference') return [row.relatedCondition ? '见对应条件' : '暂时无法判断','pending'];
     if (row.source === 'user_record') {
@@ -501,7 +503,7 @@
     return header('官方咨询与核实',consultReturn(plan,task),'‹ 返回原办理页面') +
       panel(esc(item.name),`<p>${status[task.consultationStatus]}</p>
         ${policy?.source.department?`<p>政策发布机关：${esc(policy.source.department)}</p>`:''}
-        <p>具体窗口、电话与线上办理入口尚待核实。</p>
+        ${PFActionability.channels(policy?.channels,esc)}
         ${official(policy)}${list((policy?.locations||[]).filter(row=>row.verified).map(row=>esc(row.text)), '受理方式待核实。')}${list(ordered.map(row=>esc(row.text)), '当前没有需要重复核实的条件。')}
         <details><summary>查看可复制的咨询内容</summary><pre style="white-space:pre-wrap">${esc(text)}</pre></details>
         ${canEdit(plan)&&task.consultationStatus==='unrecorded' ?

@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import followup_api as follow
-from action_plan import _project
+from action_plan import _project, official_channels
 from followup_db import transaction
 from followup_identity import principal
 import policy_engine as engine
@@ -172,13 +172,16 @@ def base_facts(data):
 
 def automatic_facts(data):
     basics = data["suggested_basic"]
-    return {"basic": {**{key: basics[key] for key in ("age", "region")}, **provided_facts(data, basics["region"])},
+    facts = provided_facts(data, basics["region"])
+    provenance = {key: "user_input" if data["basic"][key] is not None else "user_description"
+                  for key in ("age", "region")}
+    structured = (data.get("provided_facts") or {}) if basics["region"] == data["basic"]["region"] else {}
+    provenance.update({key: "user_input" if key in structured else "user_description" for key in facts})
+    return {"basic": {**{key: basics[key] for key in ("age", "region")}, **facts},
             "facts": [text for value in data["original_description"].values()
                       if (text := relevant_text(value, data["relation"]))],
             "needs": data["intake"]["inferred_needs"],
-            "provenance": {"basic": {key: "user_input" if data["basic"][key] is not None else "user_description"
-                                     for key in ("age", "region")},
-                           "facts":"user_description", "needs":"ai_inference"}}
+            "provenance": {"basic": provenance, "facts":"user_description", "needs":"ai_inference"}}
 
 
 def provided_facts(data, region):
@@ -286,32 +289,94 @@ def questions(pool, selection, base):
     return list(prompts.values())
 
 
-def candidates(pool, selected, base, facts, needs):
+FORMAL_KEYS = {"disability", "family_economic"}
+FORMAL_WORDS = re.compile(r"(?:失能.{0,12}(?:评估|认定|等级)|能力评估)|(?:评估|认定).{0,12}(?:失能|困难)|家庭经济状况核对")
+
+
+def condition_status(row, policy_id, source_current, formal_reports):
+    key = row.get("key")
+    if not source_current:
+        return "policy_unverified"
+    formal = (key in FORMAL_KEYS or row.get("is_threshold")
+              or FORMAL_WORDS.search(row.get("requirement") or row.get("label") or ""))
+    if row.get("informational") and row["state"] == "met":
+        return "context_recorded"
+    if formal:
+        if (key in formal_reports and row["state"] in {"met", "failed"}
+                and (key != "family_economic" or policy_id != "fs_med_002")):
+            return row["state"]
+        return "official_required"
+    return {"met": "met", "failed": "failed"}.get(row["state"], "unknown")
+
+
+def next_step(policy, conditions, source_current, excluded=False):
+    if excluded:
+        return {"kind": "review", "text": "核对与已知情况冲突的条件，必要时更新家庭资料。"}
+    if not source_current:
+        return {"kind": "source", "text": "先向主管部门核实政策是否有效及当地是否受理。"}
+    question = next((row for row in conditions if row["action_status"] == "unknown"
+                     and row.get("key") in ("age", "hukou", "insurance", "expense_scope")), None)
+    if question:
+        return {"kind": "fact", "text": ("先补充年龄。" if question["key"] == "age"
+                                         else "先确认" + QUESTIONS[question["key"]])}
+    if any(row["action_status"] in {"official_required", "unknown"} for row in conditions):
+        return {"kind": "consult", "text": (policy.get("consult_prompt") or
+                "先向受理机构确认待核实的条件，再准备材料。")}
+    if official_channels(policy):
+        return {"kind": "channel", "text": "查看适合你的官方办理方式。"}
+    return {"kind": "consult", "text": "先向属地主管部门确认实际受理窗口。"}
+
+
+def candidates(pool, selected, base, facts, needs, provenance=None, formal_reports=None):
     profile = profile_for(base, needs, facts)
     result = []
+    provenance = (provenance or {}).get("basic", {})
+    formal_reports = formal_reports or {}
     for identifier, reason in selected.items():
         policy, version, missing = pool[identifier]
         evidence = engine.build_evidence_chain(policy, profile, profile["scenes"], missing)
         official = _evidence_state(policy)
+        source_current = (official["official_source_verified"] and official["validity_status"] == "active")
         for condition in evidence["policy_conditions"]:
             key = condition.get("key")
             supplied = key in ("age", *FACT_KEYS) and base.get(key) not in (None, "unknown")
             condition["user_provided"] = supplied
+            condition["action_status"] = condition_status(condition, identifier, source_current, formal_reports)
+            if key in formal_reports:
+                condition["fact_source"] = "user_reported_official_result"
+                condition["reported_issuer"] = formal_reports[key].strip()
+            elif supplied:
+                condition["fact_source"] = ((provenance.get(key) if isinstance(provenance, dict) else provenance)
+                                            or "user_input")
             condition["verification"] = ("rule_verified" if condition["state"] == "met" else
                                          "unmet" if condition["state"] == "failed" else
                                          "not_provided" if key in ("age", *FACT_KEYS) and not supplied else
                                          "needs_verification")
-        can_plan = (official["official_source_verified"] and official["validity_status"] == "active"
-                    and base["age"] is not None)
+        can_plan = source_current
         result.append({
             "id": identifier, "name": policy["policy_name"], "region": base["region"],
             "category": policy["category"], "reason": reason,
-            "status": "仅供进一步了解" if not can_plan else ("待核实" if evidence["pending_count"] else "可能相关"),
+            "status": ("仅供进一步了解" if not can_plan else "待核实" if any(
+                condition["action_status"] in {"official_required", "unknown"} for condition in evidence["policy_conditions"]
+            ) else "可能相关"),
             "canPlan": can_plan, "version": version, "policy": policy,
             "missing_information": missing, "source": evidence["citation"],
             "conditions": evidence["policy_conditions"],
+            "benefit": policy.get("benefit_summary") or policy.get("description") or policy.get("service_note") or policy["category"],
+            "channels": official_channels(policy) if source_current else [],
+            "next_step": next_step(policy, evidence["policy_conditions"], source_current),
         })
     return result
+
+
+def public_search_query(region, scenes):
+    topics = (
+        ("居家养老 能力评估", {"需要长期照护", "长期卧床", "需要照护", "洗澡不便"}),
+        ("医疗救助 医保", {"住院自付高", "大病医疗支出", "长期服药", "门诊特定病种"}),
+        ("临时救助 镇街", {"突发生活困难", "家庭经济困难", "收入偏低"}),
+    )
+    public_terms = next((name for name, signals in topics if signals.intersection(scenes)), "民生救助")
+    return f"{region} {public_terms} 官方 办理" if region in REGIONS else ""
 
 
 def judge(data, progress, mode, confirmed):
@@ -328,9 +393,10 @@ def judge(data, progress, mode, confirmed):
         matches = engine.match_policies({"policies": [p for p, _, _ in pool.values()]}, profile)
         selected = {item["policy_id"]: "；".join(item["ai_reason"]) or "与您描述的生活情况有关。"
                     for item in matches if set(item["matched_scenes"]) - {"年龄增长"}}
-    items = candidates(pool, selected, base, facts, needs)
+    items = candidates(pool, selected, base, facts, needs, confirmed.get("provenance"))
     return {"mode": mode, "confirmed": confirmed, "policy_candidates": items,
             "source_references": [item["source"] for item in items],
+            "public_search_query": public_search_query(base["region"], profile["scenes"]),
             "missing_information": questions(pool, selected, base),
             "excluded": [{"name": policy["policy_name"], "reasons": excluded[policy["policy_id"]]}
                          for policy, _ in rows if policy["policy_id"] in excluded
@@ -391,11 +457,14 @@ def selected_review(db, row, data):
             evidence = _project(policy)
             updated = matched.get(item["id"], item)
             guide.append({"id":item["id"], "name":item["name"], "region":item["region"],
-                          "purpose":policy.get("description") or policy.get("service_note") or item["category"],
+                          "purpose":item.get("benefit") or policy.get("description") or policy.get("service_note") or item["category"],
                           "conditions":updated["conditions"], "excluded":item["id"] in receipt["excluded"],
                           "canPlan":updated["canPlan"] and item["id"] not in receipt["excluded"],
                           "reasons":receipt["excluded"].get(item["id"], []),
-                          "source":evidence["source"], "steps":evidence["steps"], "materials":evidence["materials"]})
+                          "source":evidence["source"], "steps":evidence["steps"], "materials":evidence["materials"],
+                          "channels": evidence["channels"],
+                          "next_step": (next_step(policy, [], evidence["trusted"], excluded=True)
+                                        if item["id"] in receipt["excluded"] else updated.get("next_step"))})
     return {"items": items, "questions": prompts, "ids": ids, "selection": selection,
             "version": result["version"], "receipt": receipt, "guide":guide}
 
@@ -424,7 +493,8 @@ def complete_review(db, row, data, body):
             excluded[item["id"]] = failed or excluded[item["id"]]
     receipt = {"selection":review["selection"], "version":review["version"], "answers":body.get("answers", {}),
                "basic":{key:base[key] for key in ("age", "region")},
-               "items":candidates(pool, {key:reasons[key] for key in pool}, base, confirmed["facts"], confirmed["needs"]),
+               "items":candidates(pool, {key:reasons[key] for key in pool}, base, confirmed["facts"], confirmed["needs"],
+                                  confirmed.get("provenance"), reports),
                "excluded":excluded}
     if reports:
         receipt["formalReports"] = {key: source.strip() for key, source in reports.items()}
@@ -519,6 +589,7 @@ def link_query(db, row, data, result, now):
     actor = principal.get()[1]
     mode = "self" if actor == row["member_id"] else "family"
     profile = profile_for(base, confirmed["needs"], confirmed["facts"])
+    profile["formal_reports"] = result.get("formalReports", {})
     profile["beneficiary"] = data["relation"]
     profile["operator"] = "本人"
     profile["v32_candidates"] = {
@@ -532,7 +603,7 @@ def link_query(db, row, data, result, now):
     if not existing:
         if previous:
             params.update(previousQueryId=previous_id, expectedVersion=previous["version"])
-        follow._make_query(db, params, now)
+        follow._make_query(db, params, now, allow_unknown_age=True)
     data["planQuery"] = query_id
     return query_id
 
@@ -562,7 +633,8 @@ def plan(db, row, data, body):
             confirmed = result["confirmed"]
             base = dict(confirmed["basic"])
             confirm_answers({"intake":{"missing_information":review["questions"]}}, receipt, base)
-            snapshot = dict(result, confirmed=dict(confirmed, basic=base), queryId=str(uuid4()))
+            snapshot = dict(result, confirmed=dict(confirmed, basic=base), queryId=str(uuid4()),
+                            formalReports=receipt.get("formalReports", {}))
             query_id = link_query(db, row, data, snapshot, now)
             data["reviewed_plan_query"] = {"receipt": receipt, "id": query_id}
     else:

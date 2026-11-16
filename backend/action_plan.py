@@ -9,6 +9,17 @@ from deepseek_client import DeepSeekClient, DeepSeekError
 import semantic_discovery as evidence
 
 
+def official_channels(policy):
+    """Read only catalogued channels that carry their own official reference."""
+    channels = []
+    for row in policy.get("channels", []):
+        source = evidence._official_url(row.get("source_url"))
+        if source and row.get("checked_at") and row.get("name") and row.get("level"):
+            channels.append({**row, "source_url": source,
+                             "online_url": evidence._official_url(row.get("online_url"))})
+    return channels
+
+
 def _project(policy):
     source = policy.get("source") or {}
     url = evidence._official_url(source.get("official_url"))
@@ -50,7 +61,7 @@ def _project(policy):
         "validity": validity, "audiences": audiences, "eligibility": conditions, "locations": places,
         "deadlines": deadlines, "prerequisites": prerequisites, "missing": missing,
         "conditions": policy.get("missing_information") or [], "steps": steps, "materials": materials,
-        "trusted": trusted,
+        "trusted": trusted, "channels": official_channels(policy) if trusted else [],
     }
 
 

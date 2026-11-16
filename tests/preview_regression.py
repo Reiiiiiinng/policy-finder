@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("PF_V33_PORT", "8148")
 os.environ.setdefault("PF_V33_INSTANCE", "browser-test")
-os.environ["PF_V33_SEARCH_MODE"] = "mock"
+os.environ.setdefault("PF_V33_SEARCH_MODE", "mock")
 
 from preview import main
 from test_v32 import Model

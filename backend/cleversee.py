@@ -75,7 +75,7 @@ def source_type(parts, item):
             return "government_policy", "政府域名及政策文件栏目"
         return "government_information", "政府域名，文件类别待核实"
     tags = item.get("tags")
-    if (any(host == site or host.endswith("." + site) for site in ("nfnews.com", "sohu.com"))
+    if (any(host == site or host.endswith("." + site) for site in ("nfnews.com", "sohu.com", "bendibao.com"))
             or isinstance(tags, dict) and tags.get("genre") == "NewsPortal"):
         return "third_party_information", "媒体站点域名或搜索服务媒体分类"
     return "unknown", "缺少可判定的来源依据"
@@ -189,6 +189,39 @@ def send(query, limit, key, proxy):
         raise SearchError("upstream") from None
 
 
+def classify_results(results, *, live):
+    # Match only exact links in the curated catalogue. Domain and provider snippets
+    # alone can establish a lead, never a benefit or its validity.
+    verified = {}
+    if live and results:
+        from policy_assessment import _evidence_state
+        from semantic_discovery import REGIONS, _catalog
+        for region in REGIONS:
+            for policy in _catalog(region):
+                evidence = _evidence_state(policy)
+                if evidence["official_source_verified"] and evidence["validity_status"] == "active":
+                    verified[evidence["official_url"]] = policy
+
+    ranks = {"verified_official": 0, "official_lead": 1, "third_party": 2, "unverified": 3}
+    for row in results:
+        policy = verified.get(row["url"])
+        if policy is not None:
+            row["group"] = "verified_official"
+            row["verification_status"] = "catalogue_verified"
+            row["source_basis"] = "链接与本地已核验的当前政策原文一致"
+            row["title"] = policy["source"].get("document") or policy["policy_name"]
+            row["snippet"] = policy.get("benefit_summary") or policy.get("description") or ""
+            row["verified_at"] = policy["verification"].get("checked_at")
+        elif row["source_type"].startswith("government_"):
+            row["group"] = "official_lead"
+        elif row["source_type"] == "third_party_information":
+            row["group"] = "third_party"
+        else:
+            row["group"] = "unverified"
+    results.sort(key=lambda row: ranks[row["group"]])
+    return "has_official" if any(ranks[row["group"]] <= 1 for row in results) else "no_reliable_result"
+
+
 class SearchService:
     def __init__(self, transport=None, clock=monotonic):
         self.transport = transport
@@ -243,9 +276,11 @@ class SearchService:
             response = (self.transport or send)(query, limit, key, proxy)
             retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
             results = normalize(response, limit, retrieved_at)
+            search_status = classify_results(results, live=self.transport is None)
             if key and any(key in str(item) for item in results):
                 raise SearchError("upstream")
-            return {"results": results, "retrieved_at": retrieved_at, "mode": "mock" if self.transport else "live"}
+            return {"results": results, "retrieved_at": retrieved_at, "status": search_status,
+                    "mode": "mock" if self.transport else "live"}
         finally:
             with self.lock:
                 self.active = False

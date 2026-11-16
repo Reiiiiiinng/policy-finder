@@ -37,13 +37,16 @@
     meal: {age:68, region:'佛山市', description:'我妈妈今年68岁，住在佛山市。她只想找社区老年助餐点，平时身体健康，没有医疗支出或照护需求。'}
   };
   const demo = Object.hasOwn(demoCases, params.get('demo')) ? params.get('demo') : null;
-  const demoLabel = () => (state ? state.demo : demo) ? '<p class="demo-note">合成家庭演示 · 使用真实政策和查询流程</p>' : '';
+  let fixtureAI = false;
+  const demoLabel = () => fixtureAI ? '<p class="demo-note">合成验收 · AI 模拟结果</p>' :
+    (state ? state.demo : demo) ? '<p class="demo-note">合成家庭演示</p>' : '';
 
   async function request(path, data) {
     const response = await fetch('/api/followup/' + path, data ? {
       method:'POST', headers:{'Content-Type':'application/json','X-PF-Local':'1'}, body:JSON.stringify(data),
       keepalive:path === 'v32/chat'
     } : {});
+    fixtureAI = response.headers.get('X-PF-Preview-AI') === 'fixture';
     const value = await response.json();
     if (!response.ok) throw Error(value.detail || '当前操作暂不可用。');
     return value;
@@ -244,37 +247,28 @@
   }
 
   function conditionGroups(item) {
-    const rows = item.conditions.filter(row=>!row.is_threshold);
-    const label = row => row.requirement || row.label;
-    const known = rows.filter(row=>row.state === 'met').map(label);
-    const pending = [...new Set([...rows.filter(row=>row.state === 'unknown').map(label),
-      ...(item.conditions.some(row=>row.is_threshold) ? ['费用标准由主管部门核定'] : [])])];
-    return `<h3>已明确的条件</h3>${list(known) || '<p class="muted">暂无已明确的条件。</p>'}
-      <h3>仍待核实</h3>${list(pending) || '<p class="muted">目前未列出其他待核实条件，实际资格由主管部门确认。</p>'}
-      ${item.excluded ? '<h3>条件不满足</h3>' + (list(item.reasons) || '<p>现有信息未通过规则核验。</p>') : ''}`;
+    const rows = list(item.conditions.map(row => PFActionability.conditionLabel(row, item)));
+    return `<h3>适用条件</h3>${rows || '<p>具体条件待核实。</p>'}
+      ${item.excluded ? list(item.reasons) : ''}`;
   }
 
   function rightsSummary(review) {
     const eligible = review.guide.filter(item=>item.canPlan);
     const focus = eligible[0] || review.guide.find(item=>!item.excluded) || review.guide[0];
     const others = review.guide.filter(item=>item !== focus);
-    const pending = focus.conditions.filter(row=>row.state === 'unknown' && !row.is_threshold &&
-      !(focus.id === 'fs_med_002' && row.key === 'family_economic'))
-      .map(row=>row.label || row.requirement);
-    const status = focus.excluded ? '条件不满足' : pending.length ? '资格待核实' : '可进一步了解';
-    const firstQuestion = review.questions.find(item=>item.policies.includes(focus.name) &&
-      review.receipt.answers[item.key] == null);
-    const next = focus.excluded ? '先核对不满足的条件，再调整权益选择。' :
-      firstQuestion ? '先确认：' + firstQuestion.text :
-      pending.length ? '向主管部门核实适用要求。' : '查看办理渠道和准备要求。';
+    const pending = focus.conditions.filter(row => ['unknown', 'official_required', 'policy_unverified'].includes(PFActionability.status(row, focus)))
+      .map(row => row.label || row.requirement);
+    const status = focus.excluded ? '条件不满足' : focus.next_step?.kind === 'source' ? '政策依据待核实' :
+      pending.length ? '资格待核实' : '可进一步了解';
+    const next = PFActionability.next(focus);
     const purpose = focus.id === 'fs_med_002' ? '了解低保边缘家庭或支出型困难家庭的认定与救助。' : shortText(focus.purpose,48);
     return `${hero('为你整理好了', `已找到 ${review.guide.length} 项值得进一步了解的权益`)}${demoLabel()}
       <p class="muted">已保存。稍后可从「我的」恢复。</p>
       <section class="panel rights-focus"><p class="meta">重点关注 · ${escape(state.memberLabel)}</p>
         <h2>${escape(focus.name)}</h2><span class="tag">${status}</span><p>${escape(purpose)}</p>
-        ${pending.length && !focus.excluded ? '<h3>还需核实</h3>' + list([...new Set(pending)].slice(0,3)) : ''}
+        <p class="flow-note"><strong>下一步</strong>　${escape(next)}</p>
+        ${pending.length && !focus.excluded ? '<h3>还需核实</h3>' + list([...new Set(pending)].slice(0,1)) : ''}
         ${focus.excluded ? list(focus.reasons.slice(0,3)) : ''}
-        <p class="flow-note"><strong>下一步</strong>　${next}</p>
         <details class="optional"><summary>详细条件与办理依据</summary>${guideCard(focus)}</details>
       </section>
       ${others.length ? `<details class="panel"><summary>其他权益（${others.length} 项）</summary>
@@ -292,9 +286,10 @@
       analysis:state.id,version:state.result.version,from:analysisRoute('selected')});
     const evidenceList = rows => list(rows.map(row=>row.text + (row.verified ? (row.clause ? ' · ' + row.clause : '') : ' · 需向主管部门核实')));
     return panel(escape(item.name), `<p>${escape(item.purpose)}</p>${conditionGroups(item)}
-      <h3>办理渠道与步骤</h3>${evidenceList(item.steps) || '<p>当前目录没有已收录的具体渠道，请向主管部门核实。</p>'}
+      <h3>官方办理渠道</h3>${PFActionability.channels(item.channels, escape)}
+      <h3>办理步骤</h3>${evidenceList(item.steps) || '<p>当前目录没有已收录的具体渠道，请向主管部门核实。</p>'}
       <h3>材料准备</h3>${evidenceList(item.materials) || '<p>当前目录未列明材料，请向主管部门核实。</p>'}
-      <h3>下一步</h3><p>${item.excluded ? '先核实未满足的条件，必要时返回修改信息。' : '先核实未确定的条件，并向主管部门确认具体受理方式和材料。'}</p>
+      <h3>下一步</h3><p>${escape(PFActionability.next(item))}</p>
       <p>${escape([item.source.department,item.source.document_no].filter(Boolean).join(' · '))}</p>
       <div class="card-links">${item.source.url ? `<a href="${escape(item.source.url)}" target="_blank" rel="noopener noreferrer">查看官方原文</a>` : ''}
       <a href="${escape(detail)}">查看政策详情</a></div>`);
@@ -315,9 +310,6 @@
         <label>本次使用的需求<textarea name="needs" rows="2" maxlength="6500">${escape(facts.needs.join('\n'))}</textarea></label>
         ${button('保存修改并重新分析',false)}</form></details>`;
   }
-
-  const verificationLabels = {not_provided:'尚未提供信息', rule_verified:'规则已核验', unmet:'条件不满足',
-    needs_verification:'仍需核实', official_confirmed:'官方机构已确认'};
 
   const recommendationIcons = {
     care:'<path d="m2.5 11 9.5-8 9.5 8M5 9v11h14V9"/><path d="M12 16.5 9 13.7a1.8 1.8 0 0 1 3-2 1.8 1.8 0 0 1 3 2z"/>',
@@ -344,8 +336,8 @@
       const url = new URL(item.source.official_url);
       if (url.protocol === 'https:') sourceLink = `<a href="${escape(url.href)}" target="_blank" rel="noopener noreferrer">${recommendationIcon('external')}官方原文</a>`;
     } catch {}
-    const unresolved = item.conditions.filter(condition => condition.state === 'unknown' && !condition.is_threshold);
-    const next = unresolved[0]?.requirement || unresolved[0]?.label || item.missing_information[0];
+    const unresolved = item.conditions.filter(condition => !['met', 'failed', 'context_recorded'].includes(PFActionability.status(condition, item)));
+    const pending = unresolved[0]?.label || item.missing_information[0];
     const detail = 'policy.html?' + query({id:item.id, region:item.region, member:memberId, semantic:1,
       analysis:state.id, version,
       from:location.pathname.split('/').pop()+location.search});
@@ -353,17 +345,13 @@
       /养老|照护|助餐/.test(item.category) ? 'care' : 'document';
     return `<article class="card policy-card" data-policy="${escape(item.id)}">
       ${recommendationHeading(item.name, item.region + ' · ' + item.category, item.status === '待核实' ? '资格待核实' : item.status, icon)}
+      <p class="policy-benefit">${escape(shortText(item.benefit || item.policy?.description || item.category, 98))}</p>
       ${recommendationLine('为什么推荐', shortText(item.reason,84), 'spark')}
-      ${recommendationLine('还需核实', shortText(next || '具体办理资格由受理机构确认。',64), 'checkList')}
+      ${recommendationLine('还需核实', shortText(pending || '具体办理资格由受理机构确认。',64), 'checkList')}
+      <p class="flow-note"><strong>下一步</strong>　${escape(PFActionability.next(item))}</p>
       <details class="optional"><summary>核对依据与条件</summary>
       <p class="muted">规则根据已提供事实核对条件。官方机构已确认仅适用于有官方确认依据的记录。</p>
-      ${item.conditions.length ? list(item.conditions.filter(condition => !condition.is_threshold).map(condition => {
-        const status = condition.verification || (condition.state === 'met' ? 'rule_verified' :
-          condition.state === 'failed' ? 'unmet' : 'needs_verification');
-        const provided = condition.user_provided ?? condition.state === 'met';
-        return [provided ? '已提供事实' : '', verificationLabels[status], condition.requirement || condition.label].filter(Boolean).join(' · ');
-      })) : ''}
-      ${item.conditions.some(condition => condition.is_threshold) ? '<p class="muted">仍需核实 · 金额和比例由受理机构核定。</p>' : ''}
+      ${list(item.conditions.map(row => PFActionability.conditionLabel(row, item)))}
       ${item.reason.length > 84 ? '<p class="muted">'+escape(item.reason)+'</p>' : ''}
       ${list(item.missing_information.filter(text => !item.conditions.some(row => row.label === text || row.requirement === text)).slice(0,3))}
       </details><div class="card-links"><a href="${escape(detail)}">${recommendationIcon('document')}查看政策详情</a>
@@ -456,6 +444,7 @@
       ${historical ? '<button data-action="current">返回当前分析</button>' : `<div class="actions">
         <a href="${escape(route({member:memberId}))}">查询历史 / 新查询</a>
         <a href="services.html?${query({member:memberId})}#mineFavorites">该成员的权益清单</a>
+        ${result.public_search_query ? `<a href="search.html?${query({web:result.public_search_query})}">联网查找官方政策与渠道</a>` : ''}
         ${result.mode === 'rules' ? '<button data-action="analyze">重试 AI 分析</button>' : ''}
         ${result.version > 1 ? '<button data-action="versions">查看历史版本</button>' : ''}</div>${
           result.mode === 'ai' ? conversation() : ''}${plans ? `<details class="optional"><summary>已有少跑腿计划</summary>${plans}</details>` : ''}${understanding(result)}`}

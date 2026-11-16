@@ -50,9 +50,9 @@ try {
     return response.json();
   };
   const baseline = await api('/api/policies');
-  check('目录共 16 条，广州 10、佛山 6', baseline.total === 16 &&
+  check('目录共 17 条，广州 10、佛山 7', baseline.total === 17 &&
     baseline.policies.filter(p => p.region.includes('广州')).length === 10 &&
-    baseline.policies.filter(p => p.region.includes('佛山')).length === 6);
+    baseline.policies.filter(p => p.region.includes('佛山')).length === 7);
   const debugPort = await until(() => {
     const file = join(profile, 'DevToolsActivePort');
     return existsSync(file) && Number(readFileSync(file, 'utf8').split('\n')[0]);
@@ -215,6 +215,21 @@ try {
   } else {
   await wait(found('#recommendations'));
   await screenshot('recommendations');
+  if (!baselineOnly) {
+    check('推荐卡同时显示用途、推荐理由、待核实条件和下一步', await js(
+      '!!document.querySelector(".policy-card .policy-benefit") && '+
+      '["为什么推荐", "还需核实", "下一步"].every(label=>document.querySelector(".policy-card").textContent.includes(label))'));
+    check('隔离预览明确标记 AI 模拟结果', await js('document.body.textContent.includes("AI 模拟结果")'));
+    for (const width of widths) {
+      await size(width);
+      await js('document.querySelector(".policy-card").scrollIntoView({block:"start"})');
+      await sleep(80);
+      check('推荐卡 '+width+'px 无横向溢出', await js(
+        `innerWidth===${width} && document.querySelector(".result-scroll").scrollWidth===document.querySelector(".result-scroll").clientWidth`));
+      await screenshot('v34-card-'+width);
+    }
+    await size(390);
+  }
   await click('[data-action=open-chat]');
   await field('#chat-question','补充事实：父亲已经参加佛山市基本医疗保险。需要核对哪些条件？');
   await click('#chat button');
@@ -239,6 +254,7 @@ try {
   }
   await click('#selected-review button');
   await wait(found('#reviewed-plan'));
+  if (!baselineOnly) await screenshot('v34-completion-390');
   await clickThen('#rights-next','家庭少跑腿计划');
   const planUrl = await js('location.href');
   const planId = new URL(planUrl).searchParams.get('plan');

@@ -117,3 +117,6 @@ body:has(.selection-bar) { padding-bottom: 176px; }
 .age-sources label:not([hidden]) { display: block; min-height: 38px; }
 .age-sources label[hidden] { display: none; }
 .age-sources input[type=radio] { display: inline-block; width: auto; min-height: auto; margin-right: 8px; accent-color: var(--green); }
+
+.v32-flow .policy-card .policy-benefit { margin: 10px 0 6px; line-height: 1.55; }
+.v32-flow .policy-card .flow-note { margin: 10px 0; overflow-wrap: anywhere; }

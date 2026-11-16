@@ -177,7 +177,11 @@ function webCard(result) {
     government_information: 'announcement', third_party_information: 'media',
   };
   badge.prepend(icon(Object.hasOwn(glyph, result.source_type) ? glyph[result.source_type] : 'info'));
-  badges.append(badge, node('span', '待核实', 'badge pending'));
+  const groupLabel = {
+    verified_official: '目录已核验', official_lead: '官方线索待核实',
+    third_party: '第三方参考', unverified: '来源待判定'
+  };
+  badges.append(badge, node('span', groupLabel[result.group] || '待核实', 'badge pending'));
   // Provider-indexed dates alone do not establish an original publication date.
   if (result.published_at_verified === true && /^\d{4}-\d{2}-\d{2}$/.test(result.published_at)) {
     const date = node('time', result.published_at);
@@ -193,6 +197,11 @@ function webCard(result) {
     card.append(site);
   }
   if (result.snippet) card.append(node('p', result.snippet, 'snippet'));
+  const date = new Date(result.retrieved_at);
+  const time = Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Shanghai'
+  }).format(date);
+  if (time) card.append(node('p', '检索于 ' + time, 'meta'));
   try {
     const url = new URL(result.url);
     if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password) {
@@ -254,6 +263,9 @@ async function searchWeb(query) {
       const number = node('strong', String(count));
       byId('web-status').replaceChildren(data.mode === 'mock' ? '模拟演示 · 共找到 ' : '共找到 ', number, ' 条结果');
     }
+    if (data.status === 'no_reliable_result') {
+      byId('web-status').append(' · 暂未找到可靠的官方结果');
+    }
   } catch {
     feedback('web', '无法取得联网搜索结果，请检查本地服务后重试。', true);
     byId('web-retry').hidden = false;
@@ -283,3 +295,7 @@ byId('web-retry').addEventListener('click', () => {
 const localParams = new URLSearchParams(location.search);
 local.value = (history.state?.policySearchLocal ?? localParams.get('q') ?? '').slice(0, 120);
 loadLocal();
+if (localParams.has('web')) {
+  web.value = localParams.get('web').slice(0, 120);
+  activate(byId('web-tab'));
+}

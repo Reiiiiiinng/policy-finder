@@ -97,6 +97,21 @@ class CleverSeeTests(unittest.TestCase):
         self.assertIsNone(rows[3]["published_at"])
         self.assertIsNone(rows[4]["published_at"])
 
+    def test_verified_catalogue_link_requires_live_mode(self):
+        from semantic_discovery import _catalog
+        policy = next(row for row in _catalog("佛山市") if row["policy_id"] == "fs_med_001")
+        url = policy["source"]["official_url"]
+        result = search.normalize({"pageItems": [
+            {"link": "https://m.fs.bendibao.com/example", "title": "媒体"},
+            {"link": "https://www.foshan.gov.cn/example", "title": "政府线索"},
+            {"link": url, "title": "搜索索引标题"},
+        ]}, 5, "now")
+        self.assertEqual(search.classify_results(result, live=False), "has_official")
+        self.assertEqual([row["group"] for row in result], ["official_lead", "official_lead", "third_party"])
+        self.assertEqual(search.classify_results(result, live=True), "has_official")
+        self.assertEqual(result[0]["group"], "verified_official")
+        self.assertEqual(result[0]["title"], policy["source"]["document"])
+
     def test_maximum_result_count_and_empty(self):
         payload = {"pageItems": [{"title": str(i), "link": f"https://example.org/{i}"} for i in range(12)]}
         self.assertEqual(len(search.SearchService(Mock(return_value=payload)).search({"query": "助餐"})["results"]), 5)

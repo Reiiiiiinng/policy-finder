@@ -61,7 +61,9 @@ def _evidence_links(policy, refs, quotes):
     # Retain only evidenced concept/quote pairs. The model still judges whether
     # the person's circumstances actually make the documented service relevant.
     allowed = set(CONCEPTS)
-    if policy["region"]["scope"] == "佛山市":
+    if policy.get("category") == "居家社区养老":
+        allowed = {"care", "meal"}
+    elif policy["region"]["scope"] == "佛山市":
         allowed = {"medical", "financial"}
     elif "助餐" in policy["policy_name"]:
         allowed = {"meal"}
@@ -138,7 +140,7 @@ def _conditions(policy, region, age, facts):
         value = facts.get(item.get("key"))
         options = {option["value"] for option in item.get("options", [])}
         if item["type"] == "boolean" and type(value) is bool:
-            if value:
+            if value or item.get("informational"):
                 confirmed.append(row)
             else:
                 blocked = True

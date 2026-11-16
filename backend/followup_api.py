@@ -666,7 +666,7 @@ def _update_member(connection, body, now, archive=False):
     return {"member": _member_view(_member(connection, member_id, allow_archived=True))}
 
 
-def _make_query(connection, body, now, match=None):
+def _make_query(connection, body, now, match=None, *, allow_unknown_age=False):
     query_id, member_id = _uuid(body.get("queryId")), _uuid(body.get("memberId"))
     _member(connection, member_id)
     actor_id = _uuid(body.get("actorMemberId", principal.get()[1]))
@@ -679,7 +679,8 @@ def _make_query(connection, body, now, match=None):
     region = _choice(body.get("region"), semantic.REGIONS, "请选择当前查询地区。")
     profile = _object(body.get("profile"), "查询资料格式无效。")
     age = profile.get("age")
-    _require(type(age) is int and 0 <= age <= 120 and profile.get("region", region) == region, "请核对年龄和查询地区。")
+    age_valid = type(age) is int and 0 <= age <= 120 or allow_unknown_age and age is None
+    _require(age_valid and profile.get("region", region) == region, "请核对年龄和查询地区。")
     for field in ("hukou", "insurance", "disability"):
         _require(profile.get(field) is None or type(profile[field]) is bool, "请核对已确认的政策条件。")
     _require(profile.get("family_economic") is None or isinstance(profile["family_economic"], str), "请核对家庭经济类别。")
@@ -845,6 +846,8 @@ def _latest_query(connection, query):
 
 def _condition_input(policy, row_id, fact):
     """Classify supported inputs without interpreting free text as a rule."""
+    if policy["policy_id"] == "fs_care_001" and row_id == "other:0":
+        return "official", "请通过民政通申请老年人能力评估，或向属地民政部门确认已有评估能否采信。", None
     if policy["policy_id"] == "fs_med_002" and fact == "family_economic":
         return "reference", "拟申请的认定类别和所需条件可向受理机构核实。", None
     if policy["policy_id"] == "gz_elderly_009":
@@ -923,8 +926,15 @@ def _condition_checks(policy, original, latest, requirements, now):
             state, answer, source, at = "confirmed", "not_met", "confirmed_profile", confirmed_at
         else:
             state, answer, source, at = "pending", "unknown", "policy_rule", None
-        editable = not advisory and (state != "confirmed" or source == "user_record")
         input_kind, guidance, related = _condition_input(policy, key, fact)
+        reports = current.get("formal_reports")
+        issuer = reports.get(fact) if isinstance(reports, dict) else None
+        if "formal_reports" in current and input_kind == "official" and source == "confirmed_profile":
+            if isinstance(issuer, str) and issuer and not changed:
+                source = "reported_official_result"
+            else:
+                state, answer, source, at = "pending", "unknown", "policy_rule", None
+        editable = not advisory and (state != "confirmed" or source == "user_record")
         # New personal observations and reports use the existing task receipt.
         report = personal_report if matches_previous and not expired_age else None
         assessment_recorded = (policy["policy_id"] == "gz_elderly_009" and key == "other:2"
@@ -941,6 +951,7 @@ def _condition_checks(policy, original, latest, requirements, now):
                                      and not (source == "confirmed_profile" and state == "confirmed"))
                                     or (input_kind == "fact" and editable),
                        "reported": report,
+                       "reportedIssuer": issuer if source == "reported_official_result" else None,
                        "changedAt": changed_at if state == "stale" else None,
                        "fingerprint": fingerprint})
     return result

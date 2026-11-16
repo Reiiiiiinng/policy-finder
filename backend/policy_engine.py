@@ -53,6 +53,7 @@ NOW_MARKERS = ["现在", "如今", "目前", "现在的", "后来", "如今已",
 
 # 关键词 -> 生活场景标签（与数据库的 scene_tag_library / match.scene_signals 对齐）
 SCENE_KEYWORDS = {
+    "突发生活困难": ["临时救助", "灾害后生活困难", "火灾后生活困难", "突发生活困难", "基本生活陷入困境"],
     "独居": ["独居", "一个人住", "一个人生活", "自己住", "独自居住", "单独居住", "一个人"],
     "行动不便": ["行动不便", "行动不方", "走路困难", "腿脚不便", "腿脚不好", "腿脚不方便",
                  "腿脚不灵活", "不能走", "走不动",
@@ -611,6 +612,8 @@ def _qualify_state(item, profile):
     val = profile.get(key)
 
     if itype == "boolean":
+        if item.get("informational") and type(val) is bool:
+            return "met", "已提供参保情况" if val else "已提供未参保情况"
         if val is True:
             return "met", "您已确认：符合"
         if val is False:
@@ -654,6 +657,7 @@ def _check_qualify(policy, profile):
             "state": state,
             "evidence": evidence,
             "source_ref": item.get("source_ref", ""),
+            "informational": bool(item.get("informational")),
         })
         if state == "failed":
             blocked = True
@@ -1012,6 +1016,7 @@ def build_evidence_chain(policy, profile, hit_scenes, missing):
                 "state": r["state"],
                 "evidence": r["evidence"],
                 "source_ref": r["source_ref"],
+                "informational": r.get("informational", False),
             })
         for t in threshold_rows(policy):
             conds.append({
