@@ -502,7 +502,7 @@
         btn.hidden = true;
         if (contextNote) contextNote.textContent = '先选择成员，再保存这项政策';
         const choose = document.createElement('a');
-        choose.href = 'services.html';
+        choose.href = PFNavigation.withParams('find.html', {choose:1, from:PFNavigation.current()});
         choose.textContent = '选择收藏成员';
         choose.className = 'detail-member-link';
         btn.after(choose);

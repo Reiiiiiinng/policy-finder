@@ -71,6 +71,33 @@
       const status = form.querySelector('[role=status]');
       const next = form.querySelector('button');
       const fieldset = form.querySelector('fieldset');
+      const returnCandidate = PFNavigation.returnTarget('');
+      const policyReturn = returnCandidate && PFNavigation.route(returnCandidate).name === 'policy.html'
+        ? returnCandidate : '';
+      if (policyReturn) {
+        document.title = '选择收藏成员 · 政策找人';
+        fieldset.setAttribute('aria-label', '选择收藏政策的家庭成员');
+        chooser.querySelector('.entry-step').textContent = '选择收藏成员';
+        chooser.querySelector('h1').textContent = '为谁收藏政策？';
+        chooser.querySelector('.entry-member > p:not(.entry-step)').textContent = '选好成员后，回到政策详情继续收藏。';
+        const back = chooser.querySelector('.entry-back');
+        back.href = policyReturn;
+        back.textContent = '‹ 返回政策详情';
+        next.firstChild.textContent = '返回政策详情 ';
+        document.querySelector('.entry-header > span').hidden = true;
+        chooser.querySelector('.entry-manage').href = PFNavigation.withParams('follow-up.html',
+          {view:'members',from:PFNavigation.current()});
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('.pf-global-nav [aria-current]').forEach(link => link.removeAttribute('aria-current'));
+          const section = PFNavigation.route(policyReturn).section;
+          document.querySelector('.pf-global-nav [data-tab="' + section + '"]')?.setAttribute('aria-current','page');
+        }, {once:true});
+      }
+      form.addEventListener('submit', event => {
+        if (!policyReturn) return;
+        event.preventDefault();
+        location.assign(PFNavigation.withParams(policyReturn, {member:form.elements.member.value}));
+      });
       const key = 'pf-v32-discovery-member';
       function avatarRole(member) {
         if (member.relation === '本人') return 'self';

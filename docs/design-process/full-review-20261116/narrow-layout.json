@@ -1,0 +1,68 @@
+[
+  {
+    "screen": "home",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "member-choice",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "favorite-choice",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "intake",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "results",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "plan",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "mine",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "members",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "history",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "consult",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "screen": "review",
+    "brokenImages": 0,
+    "scroll": 320,
+    "width": 320
+  }
+]

@@ -1,0 +1,478 @@
+[
+  {
+    "id": "01-home",
+    "name": "首页",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/index.html",
+    "brokenImages": [],
+    "headings": [
+      "今天，想为谁找政策？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "01-home",
+    "name": "首页",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/index.html",
+    "brokenImages": [],
+    "headings": [
+      "今天，想为谁找政策？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "02-member-choice",
+    "name": "成员选择",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/find.html?choose=1",
+    "brokenImages": [],
+    "headings": [
+      "为谁查找权益？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "02-member-choice",
+    "name": "成员选择",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/find.html?choose=1",
+    "brokenImages": [],
+    "headings": [
+      "为谁查找权益？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "03-intake",
+    "name": "情况填写",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/analysis.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家里最近有什么变化？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "03-intake",
+    "name": "情况填写",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/analysis.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家里最近有什么变化？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "04-results",
+    "name": "AI 推荐结果",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/analysis.html?id=72a6d10d-d9f1-45b5-a3a3-79da7580f132&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "AI 政策推荐"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "04-results",
+    "name": "AI 推荐结果",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/analysis.html?id=72a6d10d-d9f1-45b5-a3a3-79da7580f132&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "AI 政策推荐"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "05-ai-detail",
+    "name": "AI 政策详情",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/policy.html?id=fs_med_001&semantic=1&analysis=72a6d10d-d9f1-45b5-a3a3-79da7580f132&version=1&member=97024b84-acdb-47df-bea7-d031058677b8&from=analysis.html%3Fid%3D72a6d10d-d9f1-45b5-a3a3-79da7580f132%26member%3D97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "佛山市医疗救助实施办法"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "05-ai-detail",
+    "name": "AI 政策详情",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/policy.html?id=fs_med_001&semantic=1&analysis=72a6d10d-d9f1-45b5-a3a3-79da7580f132&version=1&member=97024b84-acdb-47df-bea7-d031058677b8&from=analysis.html%3Fid%3D72a6d10d-d9f1-45b5-a3a3-79da7580f132%26member%3D97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "佛山市医疗救助实施办法"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "06-plan",
+    "name": "少跑腿计划",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=plan&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家庭少跑腿计划"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "06-plan",
+    "name": "少跑腿计划",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=plan&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家庭少跑腿计划"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "07-conditions",
+    "name": "条件核对",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=conditions&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "补充必要条件"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "07-conditions",
+    "name": "条件核对",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=conditions&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "补充必要条件"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "08-materials",
+    "name": "材料准备",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=prepare&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "材料准备清单"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "08-materials",
+    "name": "材料准备",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=prepare&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "材料准备清单"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "09-channels",
+    "name": "办理渠道",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=review&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "提交前核对与办理渠道"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "09-channels",
+    "name": "办理渠道",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=review&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "提交前核对与办理渠道"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "10-consult-record",
+    "name": "官方咨询与记录",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=consult&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "官方咨询与核实"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "10-consult-record",
+    "name": "官方咨询与记录",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=consult&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "官方咨询与核实"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "11-progress",
+    "name": "办理进度",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=task&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "办理进度与结果记录"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "11-progress",
+    "name": "办理进度",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=task&plan=cb5468ce-02d9-41c9-94bd-6e899d0e6096&pid=fs_med_001&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "办理进度与结果记录"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "12-consult",
+    "name": "咨询总页",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/consult.html",
+    "brokenImages": [],
+    "headings": [
+      "咨询与办理指引"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "12-consult",
+    "name": "咨询总页",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/consult.html",
+    "brokenImages": [],
+    "headings": [
+      "咨询与办理指引"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "13-search",
+    "name": "查政策",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/search.html",
+    "brokenImages": [],
+    "headings": [
+      "查政策"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "13-search",
+    "name": "查政策",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/search.html",
+    "brokenImages": [],
+    "headings": [
+      "查政策"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "14-catalog-detail",
+    "name": "目录政策详情",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/policy.html?id=gz_elderly_007&from=search.html",
+    "brokenImages": [],
+    "headings": [
+      "政策依据"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "14-catalog-detail",
+    "name": "目录政策详情",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/policy.html?id=gz_elderly_007&from=search.html",
+    "brokenImages": [],
+    "headings": [
+      "老年人健康管理"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "15-mine",
+    "name": "我的服务",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/services.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "我的"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "15-mine",
+    "name": "我的服务",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/services.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "我的"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "16-members",
+    "name": "家庭成员管理",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/follow-up.html?view=members&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家庭成员"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "16-members",
+    "name": "家庭成员管理",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/follow-up.html?view=members&member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "家庭成员"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "17-history",
+    "name": "查询历史",
+    "version": "initial",
+    "url": "http://127.0.0.1:28761/query-history.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "查询历史"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  },
+  {
+    "id": "17-history",
+    "name": "查询历史",
+    "version": "final",
+    "url": "http://127.0.0.1:28762/query-history.html?member=97024b84-acdb-47df-bea7-d031058677b8",
+    "brokenImages": [],
+    "headings": [
+      "查询历史"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollY": 0,
+    "width": 390
+  }
+]

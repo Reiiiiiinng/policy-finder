@@ -21,7 +21,6 @@
   background: #fdfaf5;
 }
 .plan-topline .fu-button { padding: 0; border: 0; background: transparent; font-size: 14px; }
-.plan-topline > span { color: #6d786c; font-size: 11px; }
 .plan-hero {
   position: relative;
   overflow: hidden;
@@ -119,7 +118,6 @@
 .followup .plan-footnote { margin: 22px 8px 5px; color: #68756c; font-size: 11px; text-align: center; line-height: 1.85; }
 @media (max-width: 350px) {
   .plan-topline { padding-inline: 16px; }
-  .plan-topline > span { font-size: 10px; }
   .plan-hero { padding-inline: 18px; min-height: 218px; }
   .followup .plan-hero h1 { font-size: 23px; }
   .followup .plan-hero-copy { max-width: 155px; font-size: 13px; }

@@ -1,0 +1,147 @@
+[
+  {
+    "step": 1,
+    "name": "首页",
+    "health": "已微调",
+    "screenshot": "01-home.jpg",
+    "strength": "人物插画、品牌渐变和主操作保留，首屏入口清楚。",
+    "finding": "P3：家庭入口说明的末字单独换行，可微调文字换行。",
+    "resolution": "增加均衡换行，保留原文、色彩和卡片尺寸。"
+  },
+  {
+    "step": 2,
+    "name": "成员选择",
+    "health": "良好",
+    "screenshot": "02-member-choice.jpg",
+    "strength": "头像、原生单选与浅绿渐变一致；未选择时按钮正确禁用。"
+  },
+  {
+    "step": 3,
+    "name": "情况填写",
+    "health": "良好",
+    "screenshot": "03-family-intake.jpg",
+    "strength": "查询对象明确，表单和主按钮完整显示；渐变顶栏与入口衔接正常。"
+  },
+  {
+    "step": 4,
+    "name": "AI 推荐结果",
+    "health": "良好",
+    "screenshot": "04-ai-results.jpg",
+    "extraScreenshot": "04-results-scrolled-valid.png",
+    "strength": "渐变与叶片保留，长说明可完整滚动，底部已选数量和下一步可用。",
+    "limit": "高层截图接口在滚动后出现偏移，异常图已拒绝，使用显式视口重拍确认。"
+  },
+  {
+    "step": 5,
+    "name": "政策详情",
+    "health": "良好",
+    "screenshot": "05-ai-policy-detail.png",
+    "extraScreenshot": "05b-policy-source-and-actions.png",
+    "strength": "来源、责任部门与返回操作清楚，正文不再被悬浮说明遮挡，收藏成员明确。"
+  },
+  {
+    "step": 6,
+    "name": "少跑腿计划总览",
+    "health": "已修复",
+    "screenshot": "06-plan-overview-before.png",
+    "strength": "人物插画、真实进度与四步办理路线清楚，主操作首屏可见。",
+    "finding": "P2：右上角还残留“政策找人 · 家庭服务”，与已确认的简洁偏好不符，应移除。",
+    "resolution": "删除右上残留说明，插画、进度和任务卡保持原样。"
+  },
+  {
+    "step": 7,
+    "name": "条件核对",
+    "health": "良好",
+    "screenshot": "07-conditions.png",
+    "strength": "未提供信息、官方核实与已记录事项区分清楚，四步导航及继续按钮完整。"
+  },
+  {
+    "step": 8,
+    "name": "材料准备",
+    "health": "良好",
+    "screenshot": "08-materials.png",
+    "strength": "材料待核实状态与数量一致，少数据案例仍清楚，未伪装已准备。"
+  },
+  {
+    "step": 9,
+    "name": "办理渠道与提交前核对",
+    "health": "良好",
+    "screenshot": "09-channels-review.png",
+    "extraScreenshot": "09b-official-channels.png",
+    "strength": "渠道说明、官方原文和实际提交记录入口分明；缺失的地点时间如实标注待确认。"
+  },
+  {
+    "step": 10,
+    "name": "官方咨询与记录",
+    "health": "可用，表单较长",
+    "screenshot": "10-consultation-record.png",
+    "extraScreenshot": "10c-consultation-form-actions.png",
+    "strength": "先给官方依据和咨询问题，再记录实际沟通；日期、状态与保存操作可读。",
+    "finding": "P3：咨询记录字段较多，可把选填的后续材料与要求分组折叠；涉及工作习惯，暂不改动。"
+  },
+  {
+    "step": 11,
+    "name": "办理进度与结果记录",
+    "health": "良好",
+    "screenshot": "11-task-progress.png",
+    "strength": "明确区分实际受理渠道提交与本页记录，状态卡与表单没有遮挡。"
+  },
+  {
+    "step": 12,
+    "name": "咨询总页",
+    "health": "良好",
+    "screenshot": "12-consult-guide.png",
+    "strength": "准备问题折叠、官方依据目录与已有记录入口分工明确，原有顶栏装饰保留。"
+  },
+  {
+    "step": 13,
+    "name": "政策搜索",
+    "health": "良好，联网结果有验证边界",
+    "screenshot": "13-policy-search.png",
+    "extraScreenshot": "13d-online-search-results.png",
+    "strength": "已收录/联网使用正确的选中标签；无结果和加载反馈清楚，装饰与历史页一致。",
+    "finding": "P3：无结果画面比较简洁，可后续增加更显眼的重试引导。",
+    "limit": "当前隔离预览的联网搜索为模拟演示，本次只覆盖加载和无结果，不代表真实搜索效果。"
+  },
+  {
+    "step": 14,
+    "name": "目录详情与收藏成员选择",
+    "health": "已修复并走通",
+    "screenshot": "14-catalog-detail-pending.png",
+    "extraScreenshot": "14b-catalog-member-flow-before.png",
+    "strength": "待核验标签、长标题和独立收藏区清楚。",
+    "finding": "P1：选择收藏成员后停留在我的服务，无法回到原政策继续收藏；需让现有选择页带成员返回原政策。",
+    "resolution": "复用成员选择页，带所选成员返回原政策；管理成员后也能返回；收藏成功且验证后恢复原状态。"
+  },
+  {
+    "step": 15,
+    "name": "我的服务",
+    "health": "良好",
+    "screenshot": "15-mine.png",
+    "extraScreenshot": "15b-mine-services.png",
+    "strength": "渐变计划卡已恢复；六个服务入口图标、标题和说明完整且对齐。"
+  },
+  {
+    "step": 16,
+    "name": "家庭成员管理",
+    "health": "良好",
+    "screenshot": "16-family-members.png",
+    "extraScreenshot": "16b-family-member-edit.png",
+    "strength": "默认先看成员全貌，编辑按需展开，字段与保存/归档操作完整。"
+  },
+  {
+    "step": 17,
+    "name": "查询历史",
+    "health": "良好",
+    "screenshot": "17-query-history.png",
+    "extraScreenshot": "17b-query-history-empty-valid.jpg",
+    "strength": "渐变、花枝与城市图案保留；成员切换后只显示该成员记录，空状态为0次查询。"
+  },
+  {
+    "step": 18,
+    "name": "本人入口",
+    "health": "良好",
+    "screenshot": "18-self-intake.png",
+    "strength": "本人入口正确使用本人资料，标题、说明和占位示例都为本人语境。"
+  }
+]

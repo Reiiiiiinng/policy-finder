@@ -1,0 +1,44 @@
+[
+  {
+    "screen": "home",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "scroll": 1280,
+    "width": 1280
+  },
+  {
+    "screen": "favorite-choice",
+    "bodyWidth": 760,
+    "contentWidth": 720,
+    "scroll": 1280,
+    "width": 1280
+  },
+  {
+    "screen": "results",
+    "bodyWidth": 600,
+    "contentWidth": 600,
+    "scroll": 1280,
+    "width": 1280
+  },
+  {
+    "screen": "plan",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "scroll": 1280,
+    "width": 1280
+  },
+  {
+    "screen": "mine",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "scroll": 1280,
+    "width": 1280
+  },
+  {
+    "screen": "history",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "scroll": 1280,
+    "width": 1280
+  }
+]

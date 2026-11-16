@@ -351,7 +351,7 @@
     // Use the same destination as the primary action; never infer completed steps.
     const routeStep=task ? steps.findIndex(([next])=>next===taskAction(task).next) : -1;
     return `<div class="plan-overview">
-      <div class="plan-topline">${link('‹ 我的计划',route('plans'))}<span>政策找人 · 家庭服务</span></div>
+      <div class="plan-topline">${link('‹ 我的计划',route('plans'))}</div>
       <header class="plan-hero" aria-labelledby="plan-title">
         <p class="plan-eyebrow">为家人，把准备做在前面</p>
         <h1 id="plan-title">家庭少跑腿计划</h1>

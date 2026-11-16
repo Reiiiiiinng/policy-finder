@@ -1,0 +1,31 @@
+[
+  {
+    "severity": "P1",
+    "name": "目录收藏成员选择中断",
+    "before": "14b-catalog-member-flow-before.png",
+    "after": "20-policy-return-after.png",
+    "verification": "选验收乙返回原政策，收藏保存到验收乙，原搜索条件保留。",
+    "comparison_note": "此组对比操作结果：修复前选验收甲后停在我的服务，修复后选验收乙返回原政策。成员与页面状态不同，不作为同屏像素对齐比较。"
+  },
+  {
+    "severity": "P2",
+    "name": "收藏提示覆盖底部导航",
+    "before": "21-policy-favorite-verified.png",
+    "after": "22-toast-after.png",
+    "verification": "提示底边781.6px，小于导航顶边786px；收藏状态测试后恢复。"
+  },
+  {
+    "severity": "P2",
+    "name": "计划页残留右上说明",
+    "before": "06-plan-overview-before.png",
+    "after": "24-plan-overview-after.png",
+    "verification": "plan-topline中说明节点为0，原插画与布局保留。"
+  },
+  {
+    "severity": "P3",
+    "name": "首页说明末字孤行",
+    "before": "01-home.jpg",
+    "after": "23-home-after.png",
+    "verification": "390px和320px均衡换行，原文和卡片高度保持。"
+  }
+]

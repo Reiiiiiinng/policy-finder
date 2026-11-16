@@ -1,0 +1,74 @@
+[
+  {
+    "screen": "01-home",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "今天，想为谁找政策？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "screen": "02-member-choice",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "为谁查找权益？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "screen": "03-family-intake",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "家里最近有什么变化？"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "screen": "04-ai-results",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "AI 政策推荐"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "screen": "05-ai-policy-detail",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "佛山市医疗救助实施办法"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "screen": "05b-policy-source-and-actions",
+    "brokenImages": [],
+    "defaultBlueLinks": [],
+    "duplicateIds": [],
+    "h1": [
+      "佛山市医疗救助实施办法"
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "width": 390
+  }
+]
