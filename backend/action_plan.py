@@ -7,6 +7,7 @@ import re
 
 from deepseek_client import DeepSeekClient, DeepSeekError
 import semantic_discovery as evidence
+from policy_engine import is_public_benefit
 
 
 def official_channels(policy):
@@ -24,7 +25,8 @@ def _project(policy):
     source = policy.get("source") or {}
     url = evidence._official_url(source.get("official_url"))
     validity = evidence._validity(policy, date.today())
-    trusted = (policy.get("verification") or {}).get("status") == "verified" and bool(url) and validity == "active"
+    trusted = (is_public_benefit(policy) and validity == "active" and bool(url)
+               and (policy.get("verification") or {}).get("status") == "verified")
     steps = [{"ref": f"step:{i}", "field": f"application_process[{i}].step", "text": row["step"],
               "verified": trusted and row.get("to_verify") is False}
              for i, row in enumerate(policy.get("application_process") or []) if row.get("step")]

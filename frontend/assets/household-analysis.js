@@ -39,6 +39,7 @@
   const demo = Object.hasOwn(demoCases, params.get('demo')) ? params.get('demo') : null;
   let fixtureAI = false;
   const demoLabel = () => fixtureAI ? '<p class="demo-note">合成验收 · AI 模拟结果</p>' :
+    state?.result?.mode === 'ai' ? '<p class="demo-note">真实 DeepSeek 分析 · 资格待受理单位核验</p>' :
     (state ? state.demo : demo) ? '<p class="demo-note">合成家庭演示</p>' : '';
 
   async function request(path, data) {
@@ -256,7 +257,7 @@
     const eligible = review.guide.filter(item=>item.canPlan);
     const focus = eligible[0] || review.guide.find(item=>!item.excluded) || review.guide[0];
     const others = review.guide.filter(item=>item !== focus);
-    const pending = focus.conditions.filter(row => ['unknown', 'official_required', 'policy_unverified'].includes(PFActionability.status(row, focus)))
+    const pending = focus.conditions.filter(row => ['unknown', 'official_required', 'reported_result', 'policy_unverified'].includes(PFActionability.status(row, focus)))
       .map(row => row.label || row.requirement);
     const status = focus.excluded ? '条件不满足' : focus.next_step?.kind === 'source' ? '政策依据待核实' :
       pending.length ? '资格待核实' : '可进一步了解';

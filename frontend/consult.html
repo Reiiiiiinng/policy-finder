@@ -16,12 +16,8 @@
 
   <section class="section">
     <div class="card consult-intro">
-      <h2 class="consult-title">咨询与办理指引</h2>
       <p class="consult-sub">把「去哪问、问什么」整理好，具体答复由主管部门给出。</p>
       <p><a href="follow-up.html?view=logs&amp;from=consult.html">查看已记录的咨询</a></p>
-      <ul class="consult-rules">
-        <li>本页<b>不提供在线咨询、不代办、不代填</b>；部门、政策名称与官方链接读取自正式政策库，不补造信息。</li>
-      </ul>
     </div>
   </section>
 
@@ -42,6 +38,14 @@
     <div id="consultDepts" aria-live="polite">
       <div class="notice" role="status">正在读取正式政策库…</div>
     </div>
+  </section>
+
+  <section class="section">
+    <details class="card consult-intro">
+      <summary>佛山养老事项：办理信息待核实</summary>
+      <p>家庭养老床位：本目录尚未核实适用区、受理条件与申请入口，可向属地民政部门查询。</p>
+      <p>长期护理保险：本目录尚未核实佛山正式实施文件和个人办理入口，可向属地医保部门查询。</p>
+    </details>
   </section>
 
   <div class="footnote">
@@ -77,6 +81,7 @@
       settled.forEach((result) => {
         const detail = result.status === 'fulfilled' ? result.value : null;
         if (detail && !detail.error && detail.policy_id && detail.policy_name) {
+          if (detail.recommendation_scope === 'commercial_product' || detail.policy_level === '商业') return;
           details.push(detail);
         } else {
           failed += 1;

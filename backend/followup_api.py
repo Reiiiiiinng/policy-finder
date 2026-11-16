@@ -15,6 +15,7 @@ from deepseek_client import DeepSeekError
 from followup_db import DEFAULT_DB_PATH, transaction
 from followup_identity import LOCAL, principal
 import policy_assessment
+from policy_engine import is_public_benefit
 import semantic_discovery as semantic
 
 
@@ -267,7 +268,8 @@ def _set_favorite(connection, body, now):
 
 def _require_verified(policy, blocked):
     state = policy_assessment._evidence_state(policy)
-    _require(state["official_source_verified"] and state["validity_status"] == "active" and not blocked,
+    _require(is_public_benefit(policy) and state["official_source_verified"]
+             and state["validity_status"] == "active" and not blocked,
              "该政策当前不能进入待核实计划，请先核对政策依据或硬性条件。", "policy_not_admissible", 409)
 
 
@@ -929,11 +931,12 @@ def _condition_checks(policy, original, latest, requirements, now):
         input_kind, guidance, related = _condition_input(policy, key, fact)
         reports = current.get("formal_reports")
         issuer = reports.get(fact) if isinstance(reports, dict) else None
-        if "formal_reports" in current and input_kind == "official" and source == "confirmed_profile":
+        if input_kind == "official" and source == "confirmed_profile":
+            state, answer = "pending", "unknown"
             if isinstance(issuer, str) and issuer and not changed:
                 source = "reported_official_result"
             else:
-                state, answer, source, at = "pending", "unknown", "policy_rule", None
+                source, at = "policy_rule", None
         editable = not advisory and (state != "confirmed" or source == "user_record")
         # New personal observations and reports use the existing task receipt.
         report = personal_report if matches_previous and not expired_age else None

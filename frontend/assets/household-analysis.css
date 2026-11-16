@@ -78,7 +78,11 @@ nav [aria-current] { font-weight: 800; background: #edf4eb; border-radius: 10px;
 .demo-note { color: var(--green); font-weight: 700; font-size: .87rem; }
 #intake textarea { background: var(--paper); }
 #intake textarea[name=description] { min-height: 132px; }
-#intake .fields { grid-template-columns: 1fr 1fr; }
+#intake .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#intake .fields label, #intake input, #intake select { min-width: 0; }
+@media (max-width: 350px) {
+  #intake .fields { grid-template-columns: minmax(0, 1fr); }
+}
 #intake .fields label { margin: 4px 0; }
 #intake > button { width: 100%; justify-content: center; }
 .member-field { display: flex; gap: 12px; align-items: center; }

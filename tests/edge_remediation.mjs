@@ -30,7 +30,7 @@ const sleep = ms => new Promise(done => setTimeout(done, ms));
 const widths = [320, 375, 390, 1366];
 
 async function until(read, label) {
-  for (let attempt = 0; attempt < 240; attempt++) {
+  for (let attempt = 0; attempt < (live ? 900 : 240); attempt++) {
     const value = await read();
     if (value) return value;
     await sleep(100);
@@ -143,8 +143,8 @@ try {
   await navigate('/find.html');
   await wait('location.pathname==="/find.html" && document.readyState==="complete"');
   await js(`fetch('/api/followup/members').then(r=>{if(r.headers.get('x-pf-preview-run')!==${JSON.stringify(seed.run)})throw Error('Edge instance mismatch')})`);
-  if(run==='restore'){
-    const before=JSON.parse(readFileSync(join(evidence,'edge-remediation.json'),'utf8'));
+  if(run==='restore' || run.endsWith('-restore')){
+    const before=JSON.parse(readFileSync(join(evidence,process.env.PF_AUDIT_PRIOR || 'edge-remediation.json'),'utf8'));
     const p=new URL(before.planUrl);
     const id=p.searchParams.get('plan'), member=before.member.id;
     await navigate('/services.html?member='+member);
@@ -174,7 +174,15 @@ try {
   }
   seed.member=people.id;
   report.member=people;
-  await navigate('/analysis.html');
+  if (live) {
+    await navigate('/');
+    await wait(found('.pf-global-nav [data-tab=discover]'));
+    await screenshot('home');
+    await click('.pf-global-nav [data-tab=discover]');
+    await wait('location.pathname === "/find.html"');
+    await wait(found('#startDiscovery'));
+    await click('#startDiscovery');
+  } else await navigate('/analysis.html');
   const fatherRadio='input[name=member][value="'+seed.member+'"]';
   await wait(found(fatherRadio));
   await click('label:has('+fatherRadio+')');
@@ -183,7 +191,16 @@ try {
   await wait(found('#intake'));
   await field('[name=age]', '68');
   await field('[name=region]', '佛山市', 'change');
-  await field('[name=description]', '合成案例：父亲68岁，住在佛山市，日常需照护，住院自费3万元，家庭经济困难，需要了解医疗救助。');
+  await field('[name=description]', live
+    ? '合成案例：父亲68岁，住在佛山市南海区，长期卧床，洗澡、穿衣需要家人帮忙。想了解上门照护和养老服务消费补贴，尚未参加能力评估。'
+    : '合成案例：父亲68岁，住在佛山市，日常需照护，住院自费3万元，家庭经济困难，需要了解医疗救助。');
+  if (live) for (const width of widths.slice(0,3)) {
+    await size(width);
+    check('输入表单 ' + width + 'px 无横向裁切', await js(`innerWidth === ${width} &&
+      document.querySelector('#intake').scrollWidth <= document.querySelector('#intake').clientWidth &&
+      document.documentElement.scrollWidth === innerWidth`));
+    await screenshot('intake-' + width);
+  }
   await screenshot('intake');
   await click('#intake button');
   await wait('!!document.querySelector("#recommendations,#fallback,#resolve,#revise,#confirm") || /暂时无法|普通查询/.test(document.body.innerText)');
@@ -191,27 +208,55 @@ try {
   report.analysis = {url:await js('location.href'),body:await js('document.body.innerText')};
   if (await js(found('#confirm'))) { await click('#confirm button'); await wait(found('#recommendations')); }
   if (live) {
-    const u = new URL(report.analysis.url);
-    if (u.searchParams.has('id')) report.analysis.state=await api('/api/followup/v32/state?id='+u.searchParams.get('id')+'&memberId='+seed.member);
-    if(await js(found('#recommendations'))){
-      await click('[data-action=open-chat]');
-      await field('#chat-question','补充新的事实：父亲已在佛山市参加当地基本医疗保险。请结合这个新事实说明下一步。');
-      await click('#chat button');
-      await wait(found('#chat-log article'));
-      report.liveChat=await js('document.querySelector("#conversation").innerText');
-      await screenshot('chat');
-      if(await js(found('#apply button'))){
-        const prior=report.analysis.state.result.version;
-        await click('#apply button');
-        const updated=await until(async()=>{
-          const x=await api('/api/followup/v32/state?id='+u.searchParams.get('id')+'&memberId='+seed.member);
-          return x.result?.version>prior && x;
-        },'real revised result');
-        check('真实追问补充事实后研判升版',updated.result.confirmed.facts.some(text=>text.includes('基本医疗保险')));
-        report.revised={version:updated.result.version,mode:updated.result.mode};
-        await screenshot('revised');
-      }
+    await wait(found('#recommendations'));
+    const url = new URL(await js('location.href'));
+    const state = await api('/api/followup/v32/state?id='+url.searchParams.get('id')+'&memberId='+seed.member);
+    const ids = state.result.policy_candidates.map(row=>row.id);
+    check('真实 DeepSeek 返回养老补贴，未出现商业保险或无关困难认定', state.result.mode === 'ai' &&
+      ids.length === 1 && ids[0] === 'fs_care_001');
+    check('官方能力评估仍待核实', state.result.policy_candidates.find(row=>row.id==='fs_care_001')
+      .conditions.some(condition=>condition.action_status==='official_required'));
+    report.model = {mode: state.result.mode, policyIds: ids};
+    await screenshot('recommendations');
+    const favorite = '[data-favorite="fs_care_001"]';
+    await wait(found(favorite+':not(:disabled)'));
+    if (await js(element(favorite)+'.getAttribute("aria-pressed") !== "true"')) await click(favorite);
+    await wait(found('#selected-next:not(:disabled)'));
+    await click('#selected-next');
+    await wait(found('#selected-review button'));
+    await click('#selected-review button');
+    await wait(found('#reviewed-plan'));
+    await screenshot('completion');
+    await clickThen('#rights-next','家庭少跑腿计划');
+    report.planUrl=await js('location.href');
+    const planId=new URL(report.planUrl).searchParams.get('plan');
+    const saved=async()=>(await api('/api/followup/plans/'+planId+'?memberId='+seed.member)).plans[planId];
+    const task=async()=>(await saved()).tasks.find(x=>x.policyId==='fs_care_001');
+    check('真实发现连接到持久化计划，未写入提交记录', (await task()).stage==='pending' && !(await task()).submission);
+    await screenshot('plan');
+    await clickThen('.fu-lead .fu-primary','补充必要条件');
+    await clickThen('a[href*="view=prepare"].fu-button','材料准备清单');
+    await screenshot('materials');
+    await clickThen('a.fu-primary[href*="view=review"]','提交前核对与办理渠道');
+    check('官方渠道可见民政通', await js(contains('#official-channels','民政通')));
+    await screenshot('channel');
+    await clickThen('#official-channels a[href*="view=consult"]','官方咨询与核实');
+    await screenshot('consult');
+    await clickThen('#followupView header a','提交前核对与办理渠道');
+    check('咨询返回原养老补贴事项', await js(contains('#official-channels','民政通')) && !(await task()).submission);
+    await navigate('/services.html?member='+seed.member);
+    const entry='#minePlanLink[href*="member='+seed.member+'"]';
+    await wait(found(entry));
+    await click(entry);
+    await wait('!!document.querySelector("#followupView h1") && /我的少跑腿计划|家庭少跑腿计划/.test(document.querySelector("#followupView h1").textContent)');
+    if (await js(contains('#followupView h1','我的少跑腿计划'))) {
+      await clickThen('a[href*="'+planId+'"]','家庭少跑腿计划');
     }
+    await send('Page.reload');
+    await heading('家庭少跑腿计划');
+    check('我的恢复同一事项，刷新仍在',
+      new URL(await js('location.href')).searchParams.get('plan')===planId && (await task()).policyId==='fs_care_001');
+    await screenshot('mine-restored');
   } else {
   await wait(found('#recommendations'));
   await screenshot('recommendations');

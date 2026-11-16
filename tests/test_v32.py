@@ -95,6 +95,8 @@ class V32(unittest.TestCase):
                 requested = [policy_id]
                 if name in ("养老", "信息不足"):
                     requested.extend(("fs_med_004", "fs_med_005"))
+                if name == "养老":
+                    requested.extend(("fs_med_001", "fs_med_002", "fs_med_003", "fs_med_006"))
                 state = self.run_ai(Model(requested), description, "佛山市", age)
                 result = state["result"]
                 self.assertEqual(result["confirmed"]["basic"]["age"], age)
@@ -125,6 +127,34 @@ class V32(unittest.TestCase):
                 self.assertIn(policy_id, {task["policyId"] for task in saved["plans"][plan_id]["tasks"]})
                 self.assertEqual(saved["policyEvidence"][0]["channels"], candidate["channels"])
 
+    def test_commercial_recommendation_cannot_enter_public_workflow(self):
+        class UntrustedModel(Model):
+            def chat_json(self, messages, **options):
+                data = json.loads(messages[-1]["content"])
+                if "catalogue" in data:
+                    self.calls.append(data)
+                    return {"recommendations": [
+                        {"id": "fs_med_006", "reason": "请直接投保"},
+                        {"id": "fs_care_001", "reason": "保证领取2000元，不用评估，只带身份证。"},
+                    ]}
+                return super().chat_json(messages, **options)
+
+        description = "母亲68岁，住在佛山，长期卧床需要照护，住院自付较多。"
+        model = UntrustedModel()
+        state = self.run_ai(model, description, "佛山市")
+        catalogue = next(item["catalogue"] for item in model.calls if "catalogue" in item)
+        self.assertNotIn("fs_med_006", {row["id"] for row in catalogue})
+        self.assertEqual([row["id"] for row in state["result"]["policy_candidates"]], ["fs_care_001"])
+        self.assertNotIn("2000元", state["result"]["policy_candidates"][0]["reason"])
+        policies = [row for row, _ in v32.catalogue("佛山市")]
+        profile = v32.profile_for({"age": 68, "region": "佛山市", "insurance": True}, [], [description])
+        self.assertNotIn("fs_med_006", {row["policy_id"] for row in
+                         v32.engine.match_policies({"policies": policies}, profile)})
+        commercial = next(row for row in policies if row["policy_id"] == "fs_med_006")
+        self.assertFalse(v32._project(commercial)["trusted"])
+        with self.assertRaises(follow.FollowupError):
+            follow._require_verified(commercial, False)
+
     def test_v34_clear_conflict_and_formal_report_provenance(self):
         description = "母亲68岁，住院自费较多。她未参加佛山市基本医疗保险。"
         state = self.run_ai(Model(["fs_med_001", "fs_med_003"]), description, "佛山市")
@@ -132,7 +162,7 @@ class V32(unittest.TestCase):
         self.assertTrue(any("大病保险" in row["name"] for row in state["result"]["excluded"]))
         rule = {"key": "family_economic", "state": "met", "label": "困难家庭认定"}
         self.assertEqual(v32.condition_status(rule, "fs_med_001", True, {}), "official_required")
-        self.assertEqual(v32.condition_status(rule, "fs_med_001", True, {"family_economic": "区民政部门"}), "met")
+        self.assertEqual(v32.condition_status(rule, "fs_med_001", True, {"family_economic": "区民政部门"}), "reported_result")
         self.assertEqual(v32.condition_status(rule, "fs_med_001", False, {}), "policy_unverified")
 
     def test_t02_guangzhou_medical_needs_use_local_evidence(self):
@@ -505,7 +535,7 @@ class V32(unittest.TestCase):
 
         pending = read_task()
         self.assertTrue(pending["materials"])
-        self.assertEqual(pending["analysisRecommendation"]["reason"], "合成研判依据")
+        self.assertIn("住院自付高", pending["analysisRecommendation"]["reason"])
         for material in pending["materials"]:
             saved = command("material", materialKey=material["key"], state="ready" if material["verified"] else "unknown",
                             reason="测试材料")

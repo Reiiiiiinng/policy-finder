@@ -52,7 +52,16 @@ def record(db, identifier, member):
 
 
 def view(row):
-    return dict(json.loads(row["data"]), id=row["id"], memberId=row["member_id"],
+    data = json.loads(row["data"])
+    result = data.get("result")
+    if result:
+        result["policy_candidates"] = [
+            item for item in result["policy_candidates"]
+            if engine.is_public_benefit(item["policy"])
+            and engine.policy_validity(item["policy"]) not in engine.NON_CURRENT
+        ]
+        result["source_references"] = [item["source"] for item in result["policy_candidates"]]
+    return dict(data, id=row["id"], memberId=row["member_id"],
                 revision=row["revision"], updatedAt=row["updated_at"])
 
 
@@ -218,7 +227,7 @@ def vetted(rows, base, needs, facts):
     profile = profile_for(base, needs, facts)
     pool, excluded = {}, {}
     for policy, version in rows:
-        if engine.derive_validity(policy)["status"] in engine.NON_CURRENT:
+        if not engine.is_public_benefit(policy) or engine.policy_validity(policy) in engine.NON_CURRENT:
             continue
         blocked, missing = engine._hard_condition_check(policy, profile)
         if blocked:
@@ -248,13 +257,19 @@ def rank(client, pool, base, facts, needs):
                    '仅返回 {"recommendations":[{"id":"目录ID","reason":"与确认情况的关联"}]}。',
                    {"confirmed": base, "facts": model_facts(facts, base), "needs": needs, "catalogue": options})
     selection = result.get("recommendations")
-    schema(isinstance(selection, list) and len(selection) <= len(pool))
+    schema(isinstance(selection, list) and len(selection) <= 40)
     ranked = {}
     for item in selection:
         schema(isinstance(item, dict) and isinstance(item.get("id"), str)
                and isinstance(item.get("reason"), str) and 0 < len(item["reason"].strip()) <= 320)
         if item["id"] in pool:
-            ranked.setdefault(item["id"], item["reason"])
+            # The model ranks catalogue IDs; only the server writes the displayed rationale.
+            policy = pool[item["id"]][0]
+            signals = sorted(set((policy.get("match") or {}).get("scene_signals", []))
+                             & set(engine.detect_scenes("。".join(facts))) - {"年龄增长"})
+            reason = ("描述涉及" + "、".join(signals) + "，可核对该事项的适用条件。"
+                      if signals else "AI 从公共服务目录选出此事项，请核对适用条件。")
+            ranked.setdefault(item["id"], reason)
     return ranked
 
 
@@ -304,7 +319,7 @@ def condition_status(row, policy_id, source_current, formal_reports):
     if formal:
         if (key in formal_reports and row["state"] in {"met", "failed"}
                 and (key != "family_economic" or policy_id != "fs_med_002")):
-            return row["state"]
+            return "reported_result"
         return "official_required"
     return {"met": "met", "failed": "failed"}.get(row["state"], "unknown")
 
@@ -319,7 +334,7 @@ def next_step(policy, conditions, source_current, excluded=False):
     if question:
         return {"kind": "fact", "text": ("先补充年龄。" if question["key"] == "age"
                                          else "先确认" + QUESTIONS[question["key"]])}
-    if any(row["action_status"] in {"official_required", "unknown"} for row in conditions):
+    if any(row["action_status"] in {"official_required", "reported_result", "unknown"} for row in conditions):
         return {"kind": "consult", "text": (policy.get("consult_prompt") or
                 "先向受理机构确认待核实的条件，再准备材料。")}
     if official_channels(policy):
@@ -348,8 +363,8 @@ def candidates(pool, selected, base, facts, needs, provenance=None, formal_repor
             elif supplied:
                 condition["fact_source"] = ((provenance.get(key) if isinstance(provenance, dict) else provenance)
                                             or "user_input")
-            condition["verification"] = ("rule_verified" if condition["state"] == "met" else
-                                         "unmet" if condition["state"] == "failed" else
+            condition["verification"] = ("rule_verified" if condition["action_status"] in {"met", "context_recorded"} else
+                                         "unmet" if condition["action_status"] == "failed" else
                                          "not_provided" if key in ("age", *FACT_KEYS) and not supplied else
                                          "needs_verification")
         can_plan = source_current
@@ -357,7 +372,7 @@ def candidates(pool, selected, base, facts, needs, provenance=None, formal_repor
             "id": identifier, "name": policy["policy_name"], "region": base["region"],
             "category": policy["category"], "reason": reason,
             "status": ("仅供进一步了解" if not can_plan else "待核实" if any(
-                condition["action_status"] in {"official_required", "unknown"} for condition in evidence["policy_conditions"]
+                condition["action_status"] in {"official_required", "reported_result", "unknown"} for condition in evidence["policy_conditions"]
             ) else "可能相关"),
             "canPlan": can_plan, "version": version, "policy": policy,
             "missing_information": missing, "source": evidence["citation"],
@@ -390,6 +405,9 @@ def judge(data, progress, mode, confirmed):
     # Each of these programmes requires a specific reason to investigate it.
     # Generic care or hospital spending alone does not establish that reason.
     required_signals = {
+        "fs_med_001": {"医疗护理压力", "住院自付高", "大病医疗支出", "长期服药", "门诊特定病种", "家庭经济困难", "收入偏低"},
+        "fs_med_002": {"家庭经济困难", "收入偏低", "经济压力", "住院自付高", "大病医疗支出", "突发生活困难"},
+        "fs_med_003": {"住院自付高", "大病医疗支出", "门诊特定病种", "长期服药"},
         "fs_med_005": {"突发生活困难", "家庭经济困难", "收入偏低", "经济压力"},
         "fs_med_004": {"门诊特定病种", "长期服药"},
     }
@@ -447,6 +465,8 @@ def selected_review(db, row, data):
     require(result and data["stage"] == "result", "请先完成政策查询。", 409)
     favorites = [(item, follow._favorite_row(db, row["member_id"], item["region"], item["id"]))
                  for item in result["policy_candidates"]]
+    favorites = [(item, favorite) for item, favorite in favorites if engine.is_public_benefit(item["policy"])
+                 and engine.policy_validity(item["policy"]) not in engine.NON_CURRENT]
     items = [item for item, favorite in favorites if follow._favorite_state(favorite)["saved"]]
     selection = {item["id"]: favorite["revision"] for item, favorite in favorites
                  if follow._favorite_state(favorite)["saved"]}
@@ -469,7 +489,7 @@ def selected_review(db, row, data):
             guide.append({"id":item["id"], "name":item["name"], "region":item["region"],
                           "purpose":item.get("benefit") or policy.get("description") or policy.get("service_note") or item["category"],
                           "conditions":updated["conditions"], "excluded":item["id"] in receipt["excluded"],
-                          "canPlan":updated["canPlan"] and item["id"] not in receipt["excluded"],
+                          "canPlan":evidence["trusted"] and updated["canPlan"] and item["id"] not in receipt["excluded"],
                           "reasons":receipt["excluded"].get(item["id"], []),
                           "source":evidence["source"], "steps":evidence["steps"], "materials":evidence["materials"],
                           "channels": evidence["channels"],
@@ -564,8 +584,7 @@ def chat(data, body):
     elif not references:
         reply = ("请先核对下方整理的补充情况。" if proposals
                  else "当前查询没有可引用的官方依据。您可以先补充情况，或通过政策目录核实。")
-    elif any(word in question for word in ("材料", "证件", "地址", "地点", "窗口", "去哪里", "去哪",
-                                           "怎么申请", "如何申请", "线上", "电话", "联系方式", "文号", "渠道")):
+    else:
         reply = official_details(question, cited)
     return {"question": question, "answer": reply, "sources": references, "proposals": proposals}
 
@@ -579,6 +598,8 @@ def official_details(question, candidates):
         fields.append("locations")
     if any(word in question for word in ("怎么申请", "如何申请", "线上", "渠道")):
         fields.append("steps")
+    if any(word in question for word in ("条件", "资格", "申请", "符合", "认定", "要求")):
+        fields.append("eligibility")
     lines = []
     for item in candidates:
         evidence = _project(item["policy"])
@@ -587,7 +608,7 @@ def official_details(question, candidates):
             facts.append(evidence["source"]["document_no"])
         if facts:
             lines.append(item["name"] + "｜" + "；".join(dict.fromkeys(facts)))
-    if not lines or any(word in question for word in ("电话", "联系方式", "详细地址")):
+    if not lines or any(word in question for word in ("电话", "联系方式", "详细地址", "多少", "金额", "额度")):
         lines.append("当前目录没有足够的官方依据确认这项办理细节，请查看所列官方原文或向受理机构核实。")
     return "\n".join(lines)
 
@@ -622,7 +643,7 @@ def plan(db, row, data, body):
     result = data.get("result")
     require(result is not None and data["stage"] == "result", "请先完成本次研判。", 409)
     ids = body.get("policyIds")
-    items = {item["id"]: item for item in result["policy_candidates"] if item["canPlan"]}
+    items = {item["id"]: item for item in result["policy_candidates"] if item["canPlan"] and _project(item["policy"])["trusted"]}
     reviewed = body.get("reviewed") is True
     if reviewed:
         review = selected_review(db, row, data)

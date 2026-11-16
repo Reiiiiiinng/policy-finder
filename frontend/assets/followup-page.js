@@ -432,7 +432,7 @@
 
   function conditionStatus(row) {
     if (row.state === 'stale') return ['需重新核实','stale'];
-    if (row.source === 'reported_official_result') return ['用户转述正式结果','confirmed'];
+    if (row.source === 'reported_official_result') return ['用户转述正式结果 · 待核验','pending'];
     if (row.inputKind === 'official' || row.inputKind === 'observation') return ['需要官方核实','pending'];
     if (row.inputKind === 'reference') return [row.relatedCondition ? '见对应条件' : '暂时无法判断','pending'];
     if (row.source === 'user_record') {

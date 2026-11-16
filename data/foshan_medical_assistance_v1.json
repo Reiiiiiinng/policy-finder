@@ -982,6 +982,7 @@
     },
     {
       "policy_id": "fs_med_006",
+      "recommendation_scope": "commercial_product",
       "policy_name": "健康·佛医保",
       "policy_level": "商业",
       "region": {
@@ -1108,12 +1109,14 @@
       },
       "life_scenes": [
         "需要长期照护",
+        "长期卧床",
         "日常生活需要帮助",
         "照护压力"
       ],
       "match": {
         "scene_signals": [
           "需要长期照护",
+          "长期卧床",
           "洗澡不便",
           "照护压力"
         ],

@@ -766,6 +766,16 @@ def policy_validity(policy, today=None):
 NON_CURRENT = frozenset({"expired", "superseded", "repealed", "historical", "not_yet_effective"})
 
 
+def is_public_benefit(policy):
+    """Government publication or guidance does not make a product a public benefit."""
+    labels = (policy.get("policy_level"), policy.get("category"), policy.get("policy_name"),
+              (policy.get("source") or {}).get("document"))
+    return policy.get("recommendation_scope") != "commercial_product" and not any(
+        marker in (label or "") for label in labels
+        for marker in ("商业补充", "商业保险", "商业医疗保险", "商业健康保险")
+    ) and policy.get("policy_level") != "商业"
+
+
 def derive_validity(policy, today=None):
     """
     从 validity 派生展示状态。
@@ -1107,6 +1117,8 @@ def score_policy(policy, profile, today=None):
     计算一条政策与画像的匹配情况。
     返回 None（不推荐）或结果字典。
     """
+    if not is_public_benefit(policy):
+        return None
     validity = derive_validity(policy, today)
     if validity["status"] in NON_CURRENT:
         return None

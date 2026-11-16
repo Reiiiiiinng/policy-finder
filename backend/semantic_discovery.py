@@ -6,7 +6,7 @@ import re
 from urllib.parse import urlsplit
 
 from deepseek_client import DeepSeekClient, DeepSeekError
-from policy_engine import DATABASES, NON_CURRENT, beneficiary_description, policy_validity as _validity, resolve_age
+from policy_engine import DATABASES, NON_CURRENT, beneficiary_description, is_public_benefit, policy_validity as _validity, resolve_age
 
 REGIONS = {"广州市": "guangzhou", "佛山市": "foshan"}
 # These are service concepts, not rule scores or a second policy catalogue.
@@ -178,7 +178,7 @@ def discover(payload):
     today = date.today()
     catalogue = {}
     for policy in _catalog(region):
-        if (policy.get("region") or {}).get("scope") != region:
+        if not is_public_benefit(policy) or (policy.get("region") or {}).get("scope") != region:
             continue
         source = policy.get("source") or {}
         official_url = _official_url(source.get("official_url"))

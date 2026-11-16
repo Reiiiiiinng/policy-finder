@@ -261,7 +261,7 @@ async function searchWeb(query) {
     feedback('web', (data.mode === 'mock' ? '模拟演示 · ' : '') + message);
     if (count) {
       const number = node('strong', String(count));
-      byId('web-status').replaceChildren(data.mode === 'mock' ? '模拟演示 · 共找到 ' : '共找到 ', number, ' 条结果');
+      byId('web-status').replaceChildren(data.mode === 'mock' ? '模拟搜索 · 共找到 ' : '真实联网搜索 · 共找到 ', number, ' 条结果');
     }
     if (data.status === 'no_reliable_result') {
       byId('web-status').append(' · 暂未找到可靠的官方结果');

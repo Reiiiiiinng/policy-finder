@@ -1,6 +1,7 @@
 (() => {
   const labels = {
-    met: '已确认符合（单项条件）', failed: '已确认不符合（单项条件）',
+    met: '按所填信息符合单项条件', failed: '按所填信息不符合单项条件',
+    reported_result: '已记录用户转述，仍待受理单位核验',
     context_recorded: '已提供办理信息',
     unknown: '信息尚不明确', official_required: '需要官方认定', policy_unverified: '政策依据待核实'
   };
