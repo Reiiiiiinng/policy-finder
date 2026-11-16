@@ -1,0 +1,37 @@
+ frontend/analysis.html                    |   3 +-
+ frontend/assets/ai-flow-polish.css        | 165 ++++++++++++++
+ frontend/assets/brand-mark.svg            |   1 +
+ frontend/assets/consult-guide.css         |  77 +++++++
+ frontend/assets/family-records-polish.css |  82 +++++++
+ frontend/assets/followup-page.js          | 120 +++++++---
+ frontend/assets/history-polish.css        |  60 +++++
+ frontend/assets/home-hifi.css             |   2 +-
+ frontend/assets/home-hifi.js              |  23 +-
+ frontend/assets/household-analysis.css    |   9 +-
+ frontend/assets/household-analysis.js     |  89 +++++---
+ frontend/assets/mine-business.js          |  11 +-
+ frontend/assets/navigation-policy.js      |   2 +-
+ frontend/assets/plan-family-v2.webp       | Bin 0 -> 60110 bytes
+ frontend/assets/plan-overview.css         | 135 +++++++++++
+ frontend/assets/policy-actionability.js   |  50 -----
+ frontend/assets/policy-detail-polish.css  | 357 ++++++++++++++++++++++++++++++
+ frontend/assets/policy-search.js          |  20 +-
+ frontend/assets/query-history-page.js     | 107 +++++++--
+ frontend/assets/ui-foundation.css         |  26 +++
+ frontend/consult.html                     |  69 +++---
+ frontend/discover.html                    |   2 +-
+ frontend/discovery-c.html                 |   2 +-
+ frontend/find.html                        |  59 ++++-
+ frontend/follow-up.html                   |   4 +-
+ frontend/index.html                       |   7 +-
+ frontend/mine.html                        |   2 +-
+ frontend/original-home.html               |   2 +-
+ frontend/plan.html                        |   2 +-
+ frontend/policy.html                      | 153 +++++++++----
+ frontend/query-history.html               |  29 ++-
+ frontend/records.html                     |   2 +-
+ frontend/search.html                      |   2 +-
+ frontend/self.html                        |   2 +-
+ frontend/services.html                    |   2 +-
+ frontend/verify-list.html                 |   2 +-
+ 36 files changed, 1413 insertions(+), 267 deletions(-)

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="assets/household-analysis.css">
   <link rel="stylesheet" href="assets/v32-discovery.css">
   <link rel="stylesheet" href="assets/navigation.css">
+  <link rel="stylesheet" href="assets/ui-foundation.css">
+  <link rel="stylesheet" href="assets/ai-flow-polish.css">
   <script src="assets/navigation-policy.js"></script>
 </head>
 <body class="v32-flow discovery-entry">
@@ -48,10 +50,11 @@
     <section id="chooseMember" hidden>
       <a class="entry-back" href="find.html">‹ 返回发现</a>
       <div class="entry-member">
-        <h1 tabindex="-1">为谁查找权益？</h1>
-        <p>先选择一位家人，再描述最近的情况。</p>
+        <p class="entry-step">01 · 选择成员</p>
+        <h1>为谁查找权益？</h1>
+        <p>选择一位成员，再描述最近的情况。</p>
         <form action="analysis.html">
-          <fieldset aria-label="家庭成员"></fieldset>
+          <fieldset aria-label="选择本次查询的家庭成员"><legend class="flow-sr-only">选择本次查询的家庭成员</legend></fieldset>
           <p role="status">正在读取家庭成员…</p>
           <button class="primary" type="submit" disabled>继续填写情况 <span aria-hidden="true">→</span></button>
         </form>
@@ -64,12 +67,45 @@
       document.getElementById('discoveryLanding').hidden = true;
       const chooser = document.getElementById('chooseMember');
       chooser.hidden = false;
-      chooser.querySelector('h1').focus();
       const form = chooser.querySelector('form');
       const status = form.querySelector('[role=status]');
       const next = form.querySelector('button');
       const fieldset = form.querySelector('fieldset');
+      const returnCandidate = PFNavigation.returnTarget('');
+      const policyReturn = returnCandidate && PFNavigation.route(returnCandidate).name === 'policy.html'
+        ? returnCandidate : '';
+      if (policyReturn) {
+        document.title = '选择收藏成员 · 政策找人';
+        fieldset.setAttribute('aria-label', '选择收藏政策的家庭成员');
+        chooser.querySelector('.entry-step').textContent = '选择收藏成员';
+        chooser.querySelector('h1').textContent = '为谁收藏政策？';
+        chooser.querySelector('.entry-member > p:not(.entry-step)').textContent = '选好成员后，回到政策详情继续收藏。';
+        const back = chooser.querySelector('.entry-back');
+        back.href = policyReturn;
+        back.textContent = '‹ 返回政策详情';
+        next.firstChild.textContent = '返回政策详情 ';
+        document.querySelector('.entry-header > span').hidden = true;
+        chooser.querySelector('.entry-manage').href = PFNavigation.withParams('follow-up.html',
+          {view:'members',from:PFNavigation.current()});
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('.pf-global-nav [aria-current]').forEach(link => link.removeAttribute('aria-current'));
+          const section = PFNavigation.route(policyReturn).section;
+          document.querySelector('.pf-global-nav [data-tab="' + section + '"]')?.setAttribute('aria-current','page');
+        }, {once:true});
+      }
+      form.addEventListener('submit', event => {
+        if (!policyReturn) return;
+        event.preventDefault();
+        location.assign(PFNavigation.withParams(policyReturn, {member:form.elements.member.value}));
+      });
       const key = 'pf-v32-discovery-member';
+      function avatarRole(member) {
+        if (member.relation === '本人') return 'self';
+        if (['父亲','爷爷','外公'].includes(member.relation)) return 'elder-male';
+        if (['母亲','奶奶','外婆'].includes(member.relation)) return 'elder-female';
+        if (member.relation === '配偶') return 'couple';
+        return 'neutral';
+      }
       function selected(id) {
         next.disabled = !id;
         try { if (id) sessionStorage.setItem(key, id); } catch {}
@@ -77,6 +113,8 @@
       form.addEventListener('change', () => selected(form.elements.member.value));
       async function loadMembers() {
         try {
+          form.setAttribute('aria-busy', 'true');
+          next.disabled = true;
           const response = await fetch('/api/followup/members');
           if (!response.ok) throw Error();
           const {members} = await response.json();
@@ -85,18 +123,25 @@
           const active = members.filter(member => !member.archivedAt);
           fieldset.replaceChildren(...active.map(member => {
             const card = document.createElement('label');
-            card.innerHTML = '<input type="radio" name="member" required><span><strong></strong><small></small></span>';
+            card.innerHTML = '<input type="radio" name="member" required><span class="entry-avatar" aria-hidden="true"><picture><source type="image/webp"><img alt="" width="48" height="48"></picture></span><span class="entry-member-copy"><strong></strong><small></small></span>';
+            const imageBase = 'assets/avatars/' + avatarRole(member);
+            card.querySelector('source').srcset = imageBase + '.webp';
+            card.querySelector('img').src = imageBase + '.png';
             const radio = card.querySelector('input');
             radio.value = member.id;
             radio.checked = member.id === previous || active.length === 1;
             card.querySelector('strong').textContent = member.name;
-            card.querySelector('small').textContent = member.relation;
+            const relation = card.querySelector('small');
+            relation.textContent = member.relation;
+            relation.hidden = member.name === member.relation;
             return card;
           }));
           selected(fieldset.querySelector(':checked')?.value);
           status.textContent = active.length ? '' : '请先添加一位家庭成员。';
         } catch {
           status.textContent = '家庭成员暂不可读取，请刷新重试。';
+        } finally {
+          form.setAttribute('aria-busy', 'false');
         }
       }
       loadMembers();

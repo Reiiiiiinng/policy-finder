@@ -64,7 +64,7 @@ body{background:#fdfaf5}.app{max-width:480px;padding:0 0 110px;background:#fdfaf
 }
 #homeHighFidelity .choice{min-height:150px;padding:12px 10px 14px}
 #homeHighFidelity .choice .person{margin-bottom:10px}
-#homeHighFidelity .choice small{font-size:14px;line-height:1.65;white-space:normal}
+#homeHighFidelity .choice small{font-size:14px;line-height:1.65;white-space:normal;text-wrap:balance}
 #homeHighFidelity .panel h1{font-size:21px;line-height:1.5}
 #homeHighFidelity .how{margin-top:16px;margin-bottom:24px}
 .app.has-tabbar{padding-bottom:calc(100px + env(safe-area-inset-bottom))}

@@ -1,0 +1,1771 @@
+diff --git a/frontend/analysis.html b/frontend/analysis.html
+index ea1549c..4a82e48 100644
+--- a/frontend/analysis.html
++++ b/frontend/analysis.html
+@@ -11,0 +12,2 @@
++  <link rel="stylesheet" href="assets/ui-foundation.css">
++  <link rel="stylesheet" href="assets/ai-flow-polish.css">
+diff --git a/frontend/assets/ai-flow-polish.css b/frontend/assets/ai-flow-polish.css
+new file mode 100644
+index 0000000..d243624
+--- /dev/null
++++ b/frontend/assets/ai-flow-polish.css
+@@ -0,0 +1,165 @@
++/* Keep the original discovery palette and decoration; refine layout and controls. */
++body.v32-flow {
++  background: var(--surface);
++  color: var(--text);
++  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
++  line-height: 1.6;
++}
++.v32-flow h1, .v32-flow h2, .v32-flow h3 { color: #06492f; letter-spacing: 0; overflow-wrap: anywhere; }
++.v32-flow h1 { font-size: clamp(24px, 6.15vw, 29px); line-height: 1.4; font-weight: 750; }
++.v32-flow h2 { font-size: 20px; line-height: 1.5; }
++.v32-flow h3 { font-size: 17px; line-height: 1.55; }
++.v32-flow #app { padding: 18px 16px 16px; }
++.v32-flow .flow-hero {
++  padding: 18px;
++  margin-bottom: 16px;
++  border-radius: 19px;
++}
++.v32-flow .flow-hero p { font-size: 14px; line-height: 1.7; margin-top: 8px; }
++.v32-flow .panel, .v32-flow .card {
++  border: 1px solid #fff;
++  border-radius: 22px;
++  box-shadow: 0 4px 14px #7555250a;
++  background: var(--paper);
++}
++.v32-flow button, .v32-flow .button { min-height: 46px; border-color: #c5d0be; font-weight: 650; line-height: 1.5; }
++.v32-flow .primary {
++  min-height: 50px;
++  border-color: var(--green);
++  border-radius: 999px;
++  color: #fffef8;
++  font-weight: 700;
++  box-shadow: 0 4px 12px #315b3710;
++}
++.v32-flow button:disabled { cursor: default; }
++.v32-flow input:not([type=radio],[type=checkbox]), .v32-flow textarea, .v32-flow select {
++  border-color: #cbd2c2;
++  background: var(--paper);
++  border-radius: 13px;
++  min-height: 48px;
++  padding: 11px 12px;
++  font-size: 16px;
++  font-weight: 400;
++  line-height: 1.6;
++}
++.v32-flow textarea::placeholder { color: #7c8477; opacity: 1; }
++.v32-flow label { font-size: 16px; font-weight: 650; }
++.v32-flow label small { color: var(--muted); font-size: 13px; }
++.v32-flow .fields { gap: 10px 14px; }
++.v32-flow #intake .description-field { margin-top: 17px; margin-bottom: 16px; }
++.v32-flow #intake textarea[name=description] { min-height: 140px; margin-top: 8px; }
++.v32-flow #intake > .muted { font-size: 13px; margin: 9px 0; }
++.v32-flow #intake > .primary { margin-top: 7px; }
++.v32-flow .optional { border-color: var(--line); margin-top: 14px; }
++.v32-flow summary { min-height: 48px; padding-block: 12px; font-size: 15px; line-height: 1.6; font-weight: 650; }
++.v32-flow details[open] > summary { margin-bottom: 4px; }
++.v32-flow .member-note, .v32-flow .flow-note { background: var(--soft); border: 1px solid #e3e9db; border-radius: 15px; }
++.v32-flow .member-context { display: flex; gap: 10px; align-items: center; padding: 10px 12px; }
++.v32-flow .member-context > img { flex: none; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
++.v32-flow .member-context > span { min-width: 0; }
++.v32-flow .member-context small { display: block; margin-bottom: 1px; color: var(--muted); font-size: 12px; }
++.v32-flow .member-context strong { font-size: 15px; }
++.v32-flow .member-relation { margin-left: 8px; font-size: 13px; color: var(--muted); }
++.v32-flow .member-context a { margin-left: auto; min-height: 44px; display: inline-flex; align-items: center; flex: none; font-size: 14px; text-underline-offset: 3px; }
++.v32-flow .history { gap: 0; padding-bottom: 5px; }
++.v32-flow .history a { min-height: 48px; padding: 12px 0; font-size: 14px; line-height: 1.65; text-decoration: none; }
++.v32-flow .history a:last-child { border-bottom: 0; }
++.v32-flow .result-scroll,
++.v32-flow .result-scroll:has(#recommendations .policy-card, .policy-card[data-excluded]) { background: var(--surface); padding: 18px 16px 22px; }
++.v32-flow .result-scroll > .meta { margin: 0 2px 14px; font-size: 13px; }
++.v32-flow #recommendations, .v32-flow .recommendation-list { gap: 14px; }
++.v32-flow :is(#recommendations, .recommendation-list) .policy-card {
++  border: 2px solid #42a35a;
++  border-radius: 22px;
++  padding: 19px;
++  background: #fffefb;
++  box-shadow: 0 4px 16px #1c3e2d0b, 0 1px 3px #1c3e2d06;
++  color: #173d30;
++}
++.v32-flow :is(#recommendations, .recommendation-list) .policy-card.is-selected {
++  border-color: #287d50;
++  box-shadow: inset 3px 0 #287d50, 0 4px 16px #1c3e2d0b;
++}
++.v32-flow .recommendation-heading { grid-template-columns: 38px minmax(0, 1fr); align-items: start; gap: 5px 10px; margin-bottom: 14px; }
++.v32-flow .recommendation-icon { width: 38px; height: 38px; border-radius: 12px; color: #086a38; background: #e4f5df; }
++.v32-flow .policy-card .recommendation-icon svg { width: 24px; height: 24px; }
++.v32-flow .policy-card h3 { font-size: 18px; line-height: 1.5; font-weight: 750; margin: 0 0 3px; }
++.v32-flow .policy-card .policy-meta { font-size: 13px; color: var(--muted); }
++.v32-flow .recommendation-heading > .tag { grid-column: 2; }
++.v32-flow .policy-card .tag { background: #fbeed1; color: #6e4b12; padding: 3px 9px; font-size: 12px; }
++.v32-flow .policy-card .policy-reason { grid-template-columns: 102px minmax(0, 1fr); gap: 8px; margin-top: 10px; font-size: 14px; line-height: 1.7; }
++.v32-flow .policy-card .policy-reason strong { align-self: start; padding: 6px 7px; background: #f1f7eb; color: #075b38; font-size: 13px; line-height: 1.7; }
++.v32-flow .policy-card .policy-reason > span { align-self: start; }
++.v32-flow .policy-card .optional { margin-top: 14px; }
++.v32-flow .policy-card .optional > summary { font-size: 14px; color: #4f6549; }
++.v32-flow .policy-card .card-links { gap: 5px 13px; padding-top: 9px; border-color: var(--line); }
++.v32-flow .policy-card .card-links > a { font-size: 14px; min-height: 40px; }
++.v32-flow .policy-card .save-policy { margin-left: auto; background: #f3f8ee; border-color: #7ab28a; border-radius: 999px; min-height: 44px; font-size: 14px; padding-inline: 14px; }
++.v32-flow .policy-card .save-policy[aria-pressed=true] { border-color: #6ba77b; background: #dff2db; color: var(--green); }
++.v32-flow .policy-card .favorite-status { font-size: 12px; color: var(--muted); }
++.v32-flow .result-scroll > .actions { gap: 4px 18px; margin: 18px 2px 12px; }
++.v32-flow .result-scroll > .actions a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; text-underline-offset: 3px; }
++.v32-flow .selection-bar { padding: 9px 12px; gap: 7px; border-top: 1px solid var(--line); background: var(--paper); }
++.v32-flow .selection-status { font-size: 13px; font-weight: 650; }
++.v32-flow .selection-status small { font-size: 11px; }
++.v32-flow .selection-bar button { min-height: 46px; font-size: 13px; padding: 7px 10px; }
++.v32-flow #app:has(#recommendations .policy-card) .selection-bar .ask-ai { background: var(--paper); border-color: #aebe9f; }
++.v32-flow .ai-conversation { border-color: var(--line); }
++.v32-flow .chat-answer { background: #f5f3e9; }
++.v32-flow .chat-user { background: var(--soft); }
++.v32-flow .selected-conditions { padding-inline: 15px; border-radius: 20px; }
++.v32-flow .selected-condition summary { font-size: 15px; }
++.v32-flow .selected-condition summary strong { font-weight: 650; }
++.v32-flow .selected-condition summary span { background: #f5edda; color: #80632f; font-weight: 500; }
++.v32-flow .fact-options { gap: 8px; padding: 4px 0 8px; }
++.v32-flow .fact-options label { border-radius: 12px; font-size: 14px; }
++.v32-flow .rights-focus { padding: 20px; }
++.v32-flow .rights-focus h2 { line-height: 1.55; }
++.v32-flow .completion-actions { padding: 10px 16px 0; border-color: var(--line); background: var(--paper); }
++.v32-flow .center-action a { font-size: 14px; text-underline-offset: 3px; }
++.v32-flow .analysis-progress { border-color: var(--line); background: var(--paper); box-shadow: 0 5px 18px #34442d06; }
++.v32-flow .analysis-steps [aria-current] { background: var(--soft); }
++.v32-flow .pf-global-nav { width: min(100%, var(--width)); }
++.discovery-entry .entry-header { min-height: 56px; padding: 10px 20px; border-color: var(--line); }
++.discovery-entry .entry-header a { font-size: 16px; font-weight: 700; }
++.discovery-entry main { padding: 20px 16px; }
++.discovery-entry .entry-hero { border-color: #dce5d3; border-radius: 24px; padding: 22px 20px; }
++.discovery-entry .entry-hero h1 { font-size: 26px; line-height: 1.45; }
++.discovery-entry .entry-hero p { line-height: 1.75; margin: 13px 0 20px; }
++.discovery-entry .entry-hero .primary { width: 100%; border-radius: 999px; gap: 14px; }
++.discovery-entry .entry-links { margin-top: 14px; gap: 12px; }
++.discovery-entry .entry-links a { min-height: 58px; padding: 9px 13px; border-radius: 18px; background: var(--paper); border-color: var(--line); font-weight: 650; }
++.discovery-entry .entry-back { margin: -6px 0 8px; text-underline-offset: 3px; }
++.discovery-entry .entry-member { padding: 22px 18px; border-radius: 24px; border-color: #dce5d3; box-shadow: 0 5px 18px #34442d06; }
++.discovery-entry .entry-step { margin: 0 0 7px; font-size: 12px; font-weight: 650; color: #6b7e60; }
++.discovery-entry .entry-member h1 { font-size: 26px; line-height: 1.4; }
++.discovery-entry .entry-member > p:not(.entry-step) { margin: 8px 0 20px; font-size: 14px; }
++.discovery-entry .entry-member fieldset { gap: 10px; margin: 0 0 20px; min-inline-size: 0; }
++.discovery-entry .entry-member label { min-height: 76px; gap: 12px; border-radius: 17px; padding: 12px; background: #fffdf6; border-color: var(--line); }
++.discovery-entry .entry-member label:has(:checked) { border-color: #659079; background: #e9f0df; box-shadow: inset 0 0 0 1px #b4c9a6; }
++.discovery-entry .entry-member input { order: 1; margin-left: auto; width: 20px; height: 20px; flex: none; accent-color: var(--green); }
++.discovery-entry .entry-avatar { width: 48px; height: 48px; display: block; flex: none; border-radius: 50%; overflow: hidden; background: #e8efdf; }
++.discovery-entry .entry-avatar :is(picture, img) { display: block; width: 100%; height: 100%; object-fit: cover; }
++.discovery-entry .entry-member-copy { min-width: 0; }
++.discovery-entry .entry-member-copy strong { font-size: 17px; line-height: 1.5; }
++.discovery-entry .entry-member-copy small { margin-top: 2px; font-size: 13px; font-weight: 400; }
++.discovery-entry .entry-member .primary { border-radius: 999px; }
++.discovery-entry .entry-manage { justify-content: center; width: 100%; margin-top: 8px; font-size: 14px; text-underline-offset: 3px; }
++.discovery-entry .entry-member [role=status] { font-size: 13px; }
++.flow-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
++@media (max-width: 350px) {
++  .v32-flow #app { padding-inline: 12px; }
++  .v32-flow .flow-hero { padding: 16px; }
++  .v32-flow .result-scroll, .v32-flow .result-scroll:has(#recommendations .policy-card, .policy-card[data-excluded]) { padding-inline: 12px; }
++  .v32-flow :is(#recommendations, .recommendation-list) .policy-card { padding: 16px; }
++  .v32-flow .policy-card .policy-reason { display: block; }
++  .v32-flow .policy-card .policy-reason strong { display: inline-flex; margin: 0 0 4px; }
++  .v32-flow .policy-card .policy-reason > span { display: block; }
++  .v32-flow .selection-bar { gap: 5px; padding-inline: 8px; }
++  .v32-flow .selection-bar button { font-size: 12px; padding-inline: 8px; }
++  .discovery-entry .entry-member { padding-inline: 15px; }
++}
++@media (min-width: 520px) {
++  .discovery-entry .entry-art { position: static; transform: none; width: 112px; height: 106px; margin: -5px 0 7px auto; }
++  .discovery-entry .entry-hero { padding-right: 20px; }
++}
+diff --git a/frontend/assets/brand-mark.svg b/frontend/assets/brand-mark.svg
+new file mode 100644
+index 0000000..1c4e0a9
+--- /dev/null
++++ b/frontend/assets/brand-mark.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none"><circle cx="20" cy="20" r="15" stroke="#245f3d" stroke-width="4"/><circle cx="20" cy="16" r="4" stroke="#245f3d" stroke-width="2.5"/><path d="M11 29c2-7 16-7 18 0M31 31l13 13" stroke="#245f3d" stroke-width="4" stroke-linecap="round"/></svg>
+diff --git a/frontend/assets/consult-guide.css b/frontend/assets/consult-guide.css
+new file mode 100644
+index 0000000..524ad78
+--- /dev/null
++++ b/frontend/assets/consult-guide.css
+@@ -0,0 +1,77 @@
++/* Consultation guide: a compact preparation step, followed by real official sources. */
++.consult-page { background: #fdfaf5; }
++.consult-app { background: #fdfaf5; color: #214630; }
++.consult-page .topbar { display: flex; align-items: center; gap: 10px; padding: calc(7px + env(safe-area-inset-top)) 18px 7px; border-bottom: 1px solid #e6e9dd; }
++.consult-page .topbar .brand-row { flex: 1; min-width: 0; align-items: center; gap: 10px; flex-wrap: nowrap; }
++.consult-page .topbar > .brand-row + div { flex: none; order: -1; margin-top: 0 !important; }
++.consult-page .topbar .brand-heading { flex: 1; min-width: 0; }
++.consult-page .topbar h1 { font-size: 16px; line-height: 1.5; letter-spacing: 0; }
++.consult-page .topbar .sub { display: none; }
++.consult-page .topbar .back-link { min-height: 44px; white-space: nowrap; font-size: 13px; }
++.consult-page .topbar .tag-col { margin-left: 0; }
++.consult-page .topbar .theme-tag { border: 0; padding: 4px 8px; background: #edf2e5; color: #52664d; font-size: 11px; }
++.consult-hero { padding: 25px 22px 19px; background: #f0f3e4; }
++.consult-eyebrow { display: block; margin: 0 0 8px; color: #64735a; font-size: 12px; font-weight: 550; line-height: 1.5; letter-spacing: .06em; }
++.consult-hero h2 { margin: 0; color: #214e32; font-size: 28px; font-weight: 750; line-height: 1.4; letter-spacing: -.025em; }
++.consult-hero-copy { margin: 10px 0 18px; color: #53634b; font-size: 15px; line-height: 1.8; }
++.consult-hero-actions { display: flex; align-items: center; gap: 17px; }
++.consult-primary { display: inline-flex; justify-content: center; align-items: center; min-height: 48px; padding: 10px 26px; border-radius: 28px; background: #315e3d; color: #fff; font-size: 16px; font-weight: 650; line-height: 1.5; text-decoration: none; }
++.consult-primary:visited { color: #fff; }
++.consult-primary:hover { background: #244d30; }
++.consult-record-link { display: inline-flex; align-items: center; min-height: 44px; color: #3f6147; font-size: 13px; font-weight: 550; text-decoration: underline; text-underline-offset: 4px; }
++.consult-boundary { margin: 11px 0 0; color: #68745e; font-size: 12px; line-height: 1.6; }
++.consult-page .section { padding: 20px 18px 0; }
++.consult-questions { border: 1px solid #e3e7d8; border-radius: 20px; background: #fffefa; overflow: hidden; }
++.consult-questions summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 84px; padding: 15px 17px; cursor: pointer; list-style: none; }
++.consult-questions summary::-webkit-details-marker { display: none; }
++.consult-questions summary strong { display: block; color: #315539; font-size: 15px; line-height: 1.6; font-weight: 650; }
++.consult-questions summary small { display: block; margin-top: 3px; color: #78806d; font-size: 12px; line-height: 1.6; }
++.consult-expand { flex: none; color: #54704c; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
++.consult-page .where-list { padding: 0 17px 17px; gap: 0; }
++.consult-page .where-row { padding: 13px 0; gap: 5px; border: 0; border-top: 1px solid #eaedde; border-radius: 0; background: transparent; }
++.consult-page .where-row:last-child { padding-bottom: 0; }
++.consult-page .wr-k { color: #42673f; font-size: 13px; letter-spacing: 0; }
++.consult-page .wr-v { color: #5a6653; font-size: 14px; line-height: 1.8; }
++.consult-page .consult-sources { padding-top: 26px; scroll-margin-top: 74px; }
++.consult-section-heading { margin-bottom: 15px; }
++.consult-section-heading .consult-eyebrow { margin-bottom: 6px; }
++.consult-section-heading h2 { margin: 0; color: #254d32; font-size: 20px; font-weight: 700; line-height: 1.5; }
++.consult-section-heading > p:last-child { margin: 7px 0 0; color: #727b68; font-size: 13px; line-height: 1.8; }
++.consult-page .consult-summary { margin-bottom: 14px; color: #727b68; font-size: 12px; }
++.consult-page .consult-summary b { color: #426440; font-weight: 650; }
++.consult-page .consult-depts { gap: 14px; }
++.consult-page .consult-dept { padding: 18px; border: 1px solid #e3e7d9; border-radius: 22px; background: #fffefa; box-shadow: 0 4px 14px #3f4a2d04; }
++.consult-page .consult-dept-head { align-items: center; gap: 10px; }
++.consult-page .consult-dept-name { color: #2e5135; font-size: 17px; font-weight: 700; line-height: 1.6; }
++.consult-page .consult-dept-count { padding: 2px 8px; border-radius: 8px; background: #edf3e4; color: #5c714f; font-size: 12px; font-weight: 550; }
++.consult-page .consult-dept-sub { margin-top: 4px; color: #7b8271; font-size: 12px; line-height: 1.7; }
++.consult-page .consult-policy-list { margin-top: 15px; }
++.consult-page .consult-policy { padding: 15px 0; border-top: 1px solid #edf0e5; }
++.consult-page .consult-policy-head { display: block; }
++.consult-page .consult-policy-name { display: block; color: #3c523b; font-size: 15px; font-weight: 600; line-height: 1.7; }
++.consult-page .consult-policy-head .badge { display: inline-flex; margin-top: 7px; max-width: 100%; padding: 3px 7px; border-radius: 7px; font-size: 11px; line-height: 1.6; }
++.consult-page .consult-policy-head .badge.verified { border-color: #d8e4cb; background: #edf4e5; color: #486b3c; }
++.consult-page .consult-policy-head .badge.pending { border-color: #ecdfc2; background: #faf0dc; color: #8a6738; }
++.consult-page .consult-official-link { min-height: 44px; margin-top: 6px; padding: 7px 12px; border: 1px solid #d8e2ce; border-radius: 12px; color: #3d653f; background: #f5f8ed; font-size: 13px; text-decoration: none; }
++.consult-page .consult-official-link:hover { border-color: #79966e; background: #edf3e3; }
++.consult-page .consult-link-missing { color: #8d653f; font-size: 12px; }
++.consult-page .consult-records { padding-top: 24px; scroll-margin-top: 74px; }
++.consult-record-card { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px; border: 1px solid #e1e7d7; border-radius: 20px; background: #eef3e6; color: #33573a; text-decoration: none; }
++.consult-record-card > span:first-child { min-width: 0; }
++.consult-record-card .consult-eyebrow { margin-bottom: 5px; color: #6a785f; }
++.consult-record-card strong { display: block; font-size: 16px; line-height: 1.6; }
++.consult-record-card small { display: block; margin-top: 5px; color: #6b7760; font-size: 12px; line-height: 1.8; }
++.consult-record-cta { flex: none; color: #446b42; font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
++.consult-page .footnote { padding: 20px 22px 0; color: #7b826f; font-size: 11px; line-height: 1.9; }
++.consult-page a:focus-visible, .consult-page summary:focus-visible { outline: 3px solid #a47a3a; outline-offset: 4px; }
++@media (max-width: 360px) {
++  .consult-page .topbar { padding-inline: 14px; }
++  .consult-page .topbar .theme-tag { display: none; }
++  .consult-hero { padding-inline: 19px; }
++  .consult-hero-actions { gap: 13px; }
++  .consult-primary { padding-inline: 21px; }
++  .consult-page .section { padding-inline: 15px; }
++  .consult-questions summary { padding-inline: 14px; }
++  .consult-questions summary strong { font-size: 14px; }
++  .consult-record-card { padding: 16px; gap: 10px; }
++}
+diff --git a/frontend/assets/family-records-polish.css b/frontend/assets/family-records-polish.css
+new file mode 100644
+index 0000000..7a8b501
+--- /dev/null
++++ b/frontend/assets/family-records-polish.css
+@@ -0,0 +1,82 @@
++/* Family and follow-up screens share the home's visual language. */
++#businessMine { gap: 20px; padding-top: 4px; }
++#businessMine h1, #businessMine h2, .mine-greeting strong, .mine-title span { font-family: inherit; }
++.mine-title { min-height: 62px; }
++.mine-title h1 { font-size: 23px; }
++.mine-title a { font-size: 14px; gap: 7px; color: #245f3d; }
++.mine-title img { flex: none; }
++.mine-greeting { margin-top: 0; padding: 15px; border: 1px solid #fffdf8; border-radius: 22px; }
++.mine-greeting strong { font-size: 21px; line-height: 1.5; }
++.mine-greeting small { margin-top: 2px; color: #64715f; font-size: 12px; }
++.mine-greeting .mine-avatar { width: 52px; height: 52px; }
++.mine-section-heading h2 { font-size: 18px; font-weight: 700; }
++.mine-people { gap: 9px; }
++.mine-person { min-height: 114px; gap: 6px; border: 1px solid #fffdf8; border-radius: 19px; padding: 12px 5px; }
++.mine-person .mine-avatar { width: 44px; height: 44px; }
++.mine-person[aria-current] { border-color: #53865e; background: #ebf0de; }
++.mine-person strong { font-weight: 650; }
++.mine-plan { padding: 16px; border-radius: 23px; }
++.mine-plan h2 { padding: 0 0 12px; font-size: 20px; font-weight: 700; }
++.mine-plan-inset { padding: 15px; border-radius: 17px; }
++#mineNext { margin: 10px 0 4px; font-size: 13px; line-height: 1.75; }
++#businessMine .mine-primary { padding: 0 16px; font-size: 14px; }
++.mine-services { gap: 10px; }
++.mine-service { min-height: 92px; padding: 12px 10px; border-color: #fffdf8; border-radius: 18px; gap: 8px; }
++.mine-service-icon { width: 32px; height: 36px; border-radius: 11px; }
++.mine-service strong { font-weight: 650; font-size: 13px; line-height: 1.6; }
++.mine-service small { font-size: 11px; line-height: 1.55; color: #64715f; }
++.mine-quick { margin-top: 8px; }
++.mine-help { border: 1px solid #fffdf8; border-radius: 19px; }
++.followup:not(:has(.plan-overview)) { max-width: 480px; padding: 0 16px calc(var(--pf-nav-height) + 28px); background: #fdfaf5; box-shadow: none; }
++.followup:not(:has(.plan-overview)) .fu-header { padding: 6px 0 16px; margin: 0; }
++.followup:not(:has(.plan-overview)) .fu-header .fu-button { font-size: 13px; min-height: 48px; padding-inline: 0; border: 0; background: transparent; border-radius: 0; }
++.followup:not(:has(.plan-overview)) .fu-header h1 { font-size: 25px; line-height: 1.5; margin: 7px 0 4px; color: #193f2b; }
++.followup:not(:has(.plan-overview)) .fu-header p { margin: 3px 0 0; font-size: 13px; color: #64715f; }
++.followup:not(:has(.plan-overview)) .fu-panel { border-radius: 21px; border-color: #e3e8dc; background: #fffefa; padding: 18px; box-shadow: none; }
++.followup:not(:has(.plan-overview)) .fu-panel h2 { font-size: 18px; line-height: 1.6; }
++.followup:not(:has(.plan-overview)) p, .followup:not(:has(.plan-overview)) li { font-size: 14px; line-height: 1.85; }
++.followup:not(:has(.plan-overview)) label { font-size: 14px; font-weight: 600; line-height: 1.65; }
++.followup:not(:has(.plan-overview)) :is(input,select,textarea) { font-size: 16px; border-color: #c8d4c2; border-radius: 13px; background: #fffefa; padding: 10px 12px; }
++.followup:not(:has(.plan-overview)) .fu-button { font-size: 14px; border-radius: 24px; border-color: #cbd9c3; }
++.followup:not(:has(.plan-overview)) .fu-primary { border-color: #286640; background: #286640; font-weight: 650; }
++.followup:not(:has(.plan-overview)) .fu-badge { font-size: 12px; padding: 4px 9px; }
++.followup:not(:has(.plan-overview)) .fu-subject { margin-top: 14px; background: #eff4e7; }
++.followup:not(:has(.plan-overview)) .fu-subject h2 { font-size: 16px; }
++.followup:not(:has(.plan-overview)) .fu-steps { gap: 5px; }
++.followup:not(:has(.plan-overview)) .fu-steps a { border: 0; border-radius: 12px; background: #f0f3e9; font-size: 12px; min-height: 48px; }
++.followup:not(:has(.plan-overview)) .fu-steps [aria-current] { background: #deecd4; }
++.followup .fu-page-intro { margin: 0 0 20px; color: #64715f; }
++.followup:not(:has(.plan-overview)) .fu-member-card { margin: 10px 0; padding: 0 16px; }
++.fu-member-card > summary { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 12px; align-items: center; min-height: 96px; padding: 13px 0; list-style: none; }
++.fu-member-card > summary::-webkit-details-marker { display: none; }
++.fu-member-avatar, .fu-member-avatar img { display: block; width: 52px; height: 52px; border-radius: 50%; }
++.fu-member-caption strong { display: block; font-size: 17px; font-weight: 650; color: #245032; }
++.fu-member-caption small { display: block; font-size: 12px; font-weight: 400; color: #64715f; margin-top: 4px; }
++.fu-member-edit { font-size: 12px; font-weight: 500; color: #4d724b; }
++.fu-member-edit .when-open { display: none; }
++.fu-member-card[open] .when-open { display: inline; }
++.fu-member-card[open] .when-closed { display: none; }
++.fu-member-card .fu-member { border-top: 1px solid #e5e9df; padding: 5px 0 18px; }
++.fu-member-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
++.followup:not(:has(.plan-overview)) .fu-add-member { margin: 18px 0 0; padding: 3px 18px; background: #eff4e7; }
++.fu-add-member > summary { position: relative; padding: 14px 42px 14px 0; list-style: none; }
++.fu-add-member > summary::-webkit-details-marker { display: none; }
++.fu-add-member > summary::after { content: "展开"; position: absolute; right: 0; top: 27px; color: #4d724b; font-size: 12px; font-weight: 500; }
++.fu-add-member[open] > summary::after { content: "收起"; }
++.fu-add-member > summary strong { display: block; font-size: 16px; }
++.fu-add-member > summary small { display: block; font-size: 12px; font-weight: 400; color: #64715f; margin-top: 3px; }
++.fu-add-member form { padding-bottom: 18px; }
++@media (max-width: 350px) {
++  #businessMine { padding-inline: 12px; }
++  .mine-title a { font-size: 12px; gap: 4px; }
++  .mine-title img { width: 22px; height: 22px; }
++  .mine-title h1 { font-size: 22px; }
++  .mine-greeting { gap: 10px; }
++  .mine-greeting strong { font-size: 19px; }
++  .mine-services { gap: 8px; }
++  .mine-service { grid-template-columns: minmax(0,1fr); gap: 7px; }
++  .mine-service small { font-size: 11px; }
++  .followup:not(:has(.plan-overview)) { padding-inline: 12px; }
++  .fu-member-card > summary { grid-template-columns: 44px minmax(0,1fr) auto; gap: 9px; }
++  .fu-member-avatar, .fu-member-avatar img { width: 44px; height: 44px; }
++}
+diff --git a/frontend/assets/followup-page.js b/frontend/assets/followup-page.js
+index 1ff34f0..f2798bf 100644
+--- a/frontend/assets/followup-page.js
++++ b/frontend/assets/followup-page.js
+@@ -127 +127,10 @@
+-    return header('家庭成员','services.html') + memberRows.map(row=>panel(esc(row.name),`
++    const avatar = row => {
++      const role=({'本人':'self','父亲':'elder-male','爷爷':'elder-male','外公':'elder-male',
++        '母亲':'elder-female','奶奶':'elder-female','外婆':'elder-female','配偶':'couple'})[row.relation] || 'neutral';
++      return `<img src="assets/avatars/${role}.webp" alt="" width="52" height="52" decoding="async">`;
++    };
++    return header('家庭成员','services.html') + '<p class="fu-page-intro">每位家人的权益和办理记录，分别整理。</p>' +
++      `<div class="fu-member-list">${memberRows.map(row=>`<details class="fu-panel fu-member-card">
++      <summary><span class="fu-member-avatar">${avatar(row)}</span><span class="fu-member-caption"><strong>${esc(row.name)}</strong>
++        ${row.name!==row.relation?`<small>${esc(row.relation)}</small>`:''}${row.archivedAt?'<small>已归档</small>':''}</span>
++        <span class="fu-member-edit"><span class="when-closed">编辑资料</span><span class="when-open">收起</span></span></summary>
+@@ -132 +141 @@
+-        <button class="fu-button" type="submit">保存成员资料</button>
++        <div class="fu-member-actions"><button class="fu-button fu-primary" type="submit">保存成员资料</button>
+@@ -134 +143,2 @@
+-      </form>`)).join('')+panel('添加家庭成员',`<form id="fuAddMember">
++        </div></form></details>`).join('')}</div>
++      <details class="fu-panel fu-add-member"><summary><strong>添加家庭成员</strong><small>为家人建立一份权益记录</small></summary><form id="fuAddMember">
+@@ -139 +149 @@
+-    </form>`);
++    </form></details>`;
+@@ -237 +247 @@
+-  function actionLink(plan, task) {
++  function taskAction(task) {
+@@ -243,0 +254,5 @@
++    return {label,next};
++  }
++
++  function actionLink(plan, task) {
++    const {label,next}=taskAction(task);
+@@ -327,21 +342,58 @@
+-    return header('家庭少跑腿计划',route('plans'),'‹ 我的计划')+
+-      panel('办理对象',`<p>${esc(current.label)}${plan.region?' · '+esc(plan.region):''}</p><p>已选择 ${tasks.length} 项权益</p>`)+
+-      (current.memberArchived?'<p>该家庭成员已归档，计划可查阅。</p>':
+-        panel('计划状态',`<form id="planPauseForm">${plan.pausedAt?
+-          `<p>已暂停${plan.pauseReason?' · '+esc(plan.pauseReason):''}</p>`:
+-          '<label>暂停原因（选填）<input name="reason" maxlength="500"></label>'}
+-          <button type="submit" class="fu-button">${plan.pausedAt?'恢复计划':'暂停计划'}</button></form>`))+
+-      (task?`<section class="fu-panel fu-lead"><h2>${task===suggested?'建议先处理':'当前事项'}</h2>
+-        <h3>${esc(task.name)}</h3>${badge(stageOf(task),task.stage)}
+-        ${submissionDates(task)}
+-        <p>${esc(task.awaitingConsultation && ['pending','preparing'].includes(task.stage) ? '已记录咨询，等待答复。' :
+-          task.stage==='pending' && hasPreparedMaterials(task) ? '已记录材料准备情况，可继续整理。' : task.nextAction?.reason)}</p>
+-        <div class="fu-row">${!canEdit(plan)?link('查看办理记录',taskLink(plan,task),true):actionLink(plan,task)}
+-        ${link('查看办理渠道',taskLink(plan,task,'review'))}</div></section>`:'')+
+-      panel('已选权益',tasks.map(row=>`<a class="fu-entry" data-plan-policy="${esc(row.policyId)}"
+-        href="${esc(planReturn(plan,row.policyId))}" ${row===task?'aria-current="true"':''}>
+-        <span>${esc(row.name)}</span>${badge(stageOf(row),row.stage)}</a>`).join('') ||
+-        '<p>从 AI 发现或待核实清单选择想跟进的权益。</p>')+
+-      (ids.length>1?disclosure('怎么办更省跑腿',renderAdvice(plan)+
+-        (!canEdit(plan)?'':'<button type="button" class="fu-button" data-analyze>核对协同安排</button>')):'')+
+-      disclosure('管理计划与历史',`<div class="fu-row">
++    const completed=tasks.filter(row=>row.stage==='completed').length;
++    const planState=current.memberArchived?'成员已归档':plan.pausedAt?'计划已暂停':
++      !tasks.length?'尚未选择权益':completed===tasks.length?'已全部办结':'逐项准备中';
++    const pauseForm=current.memberArchived?'':`<form id="planPauseForm">${plan.pausedAt?
++      `<p>${plan.pauseReason?esc(plan.pauseReason):'原有进度已保留，方便时可以继续。'}</p>`:
++      '<label>暂停原因（选填）<input name="reason" maxlength="500" placeholder="需要时再暂停，进度会保留"></label>'}
++      <button type="submit" class="fu-button${plan.pausedAt?' fu-primary':''}">${plan.pausedAt?'恢复计划':'暂停计划'}</button></form>`;
++    const steps=[['conditions','核实条件','先问清'],['prepare','准备材料','再整理'],
++      ['review','确认渠道','去哪里'],['task','记录进度','留记录']];
++    // Use the same destination as the primary action; never infer completed steps.
++    const routeStep=task ? steps.findIndex(([next])=>next===taskAction(task).next) : -1;
++    return `<div class="plan-overview">
++      <div class="plan-topline">${link('‹ 我的计划',route('plans'))}</div>
++      <header class="plan-hero" aria-labelledby="plan-title">
++        <p class="plan-eyebrow">为家人，把准备做在前面</p>
++        <h1 id="plan-title">家庭少跑腿计划</h1>
++        <p class="plan-hero-copy">问清条件，备好材料。<br>每一步，都更有准备。</p>
++        <img class="plan-family-art" src="assets/plan-family-v2.webp" alt="" aria-hidden="true" width="720" height="540">
++        <div class="plan-family-line"><span>正在为 <strong>${esc(current.label)}</strong> 跟进</span>
++          ${plan.region?`<span class="plan-region">${esc(plan.region)}</span>`:''}</div>
++      </header>
++      <div class="plan-body">
++        <section class="plan-progress" aria-label="计划办理进度">
++          <div><span>共 <strong>${tasks.length}</strong> 项权益</span><span>已办结 <strong>${completed}</strong> 项</span></div>
++          <progress value="${completed}" max="${Math.max(tasks.length,1)}" aria-label="已办结 ${completed} 项，共 ${tasks.length} 项权益"></progress>
++          <p>${esc(planState)}<span>办理结果以实际记录为准</span></p>
++        </section>
++        ${current.memberArchived?'<p class="plan-state-note">该家庭成员已归档，计划仅供查阅。</p>':
++          plan.pausedAt?`<section class="plan-state-note"><h2>计划已暂停</h2>${pauseForm}</section>`:''}
++        ${task?`<section class="fu-panel fu-lead plan-next" aria-labelledby="plan-next-title">
++          <div class="plan-section-heading"><h2>${task===suggested?'建议先处理':'当前事项'}</h2>${badge(stageOf(task),task.stage)}</div>
++          <h3 id="plan-next-title">${esc(task.name)}</h3>
++          <p class="plan-next-reason">${esc(task.awaitingConsultation && ['pending','preparing'].includes(task.stage) ? '已记录咨询，等待答复。' :
++            task.stage==='pending' && hasPreparedMaterials(task) ? '已记录材料准备情况，可继续整理。' : task.nextAction?.reason)}</p>
++          ${submissionDates(task)}
++          <div class="plan-next-actions">${!canEdit(plan)?link('查看办理记录',taskLink(plan,task),true):actionLink(plan,task)}
++            <a class="plan-channel-link" href="${esc(taskLink(plan,task,'review'))}">查看办理渠道</a></div>
++        </section>`:`<section class="fu-panel plan-next"><h2>从一项权益开始</h2>
++          <p>从 AI 发现或待核实清单选择想跟进的权益。</p>${link('查找可能相关的权益',PFNavigation.withParams('find.html',{member:current.memberId}),true)}</section>`}
++        ${task?`<section class="plan-route" aria-labelledby="plan-route-title">
++          <div class="plan-section-heading"><h2 id="plan-route-title">这件事，分步准备</h2><span>当前事项</span></div>
++          <nav class="plan-route-steps" aria-label="当前事项办理路线">${steps.map(([next,label,hint],index)=>
++            `<a href="${esc(taskLink(plan,task,next))}" ${index===routeStep?'aria-current="step"':''}>
++              <span class="plan-step-number" aria-hidden="true">0${index+1}</span><strong>${label}</strong>
++              <small>${index===routeStep?'当前建议':hint}</small></a>`).join('')}</nav>
++          <p class="plan-green-note">先在线核对，问清再出门，减少重复奔波。</p>
++        </section>`:''}
++        <section class="plan-rights" aria-labelledby="plan-rights-title">
++          <div class="plan-section-heading"><h2 id="plan-rights-title">已选权益</h2><span>${tasks.length} 项</span></div>
++          <div class="plan-rights-list">${tasks.map((row,index)=>`<a class="fu-entry" data-plan-policy="${esc(row.policyId)}"
++            href="${esc(planReturn(plan,row.policyId))}" ${row===task?'aria-current="true"':''}>
++            <span class="plan-right-number" aria-hidden="true">${String(index+1).padStart(2,'0')}</span>
++            <span class="plan-right-name">${esc(row.name)}<small>${row===suggested?'建议先处理':'点击查看当前事项'}</small></span>
++            ${badge(stageOf(row),row.stage)}</a>`).join('') || '<p class="fu-muted">暂未选择权益。</p>'}</div>
++        </section>
++        ${ids.length>1?disclosure('怎么办更省跑腿',renderAdvice(plan)+
++          (!canEdit(plan)?'':'<button type="button" class="fu-button" data-analyze>核对协同安排</button>')):''}
++        ${disclosure('管理计划与历史',`<div class="fu-row">
+@@ -355 +407,5 @@
+-        ],'没有其他可加入或恢复的事项。'):''));
++        ],'没有其他可加入或恢复的事项。'):'')+
++        (!plan.pausedAt&&pauseForm?`<section class="plan-pause-controls"><h3>需要晚点再办？</h3><p>暂停后，已核对的信息和办理记录都会保留。</p>${pauseForm}</section>`:''))}
++        <p class="plan-footnote">线上先理清，线下更从容。具体受理要求以主管部门答复为准。</p>
++      </div>
++    </div>`;
+diff --git a/frontend/assets/history-polish.css b/frontend/assets/history-polish.css
+new file mode 100644
+index 0000000..0927efc
+--- /dev/null
++++ b/frontend/assets/history-polish.css
+@@ -0,0 +1,60 @@
++/* Query history shares the warm forest-green family service language. */
++.history-page { background: #f8f4eb; }
++.history-app.q-app { padding: 0 18px calc(85px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, #f3f5e8 0%, #fbf7ee 50%, #f8f4eb 100%); color: #25472f; }
++.history-top.q-head { min-height: calc(72px + env(safe-area-inset-top)); margin: 0 -18px; padding: calc(6px + env(safe-area-inset-top)) 19px 18px; gap: 12px; border: 0; background: linear-gradient(125deg, #29734f, #075b38); font-weight: 400; }
++.history-top .q-back { display: inline-flex; align-items: center; width: auto; min-width: 72px; height: 44px; padding: 0; color: #fffef8; font-size: 14px; font-weight: 550; line-height: 1.5; text-decoration: none; }
++.history-intro { position: relative; isolation: isolate; overflow: hidden; margin: -14px -18px 22px; padding: 24px 22px 22px; border: 1px solid #fffdf6; border-radius: 22px 22px 24px 24px; background: radial-gradient(ellipse at 100% 0%, #e1ebd7 0%, transparent 66%), linear-gradient(145deg, #fffdf4, #edf2e3); box-shadow: 0 5px 18px #3f4a2d05; }
++.history-intro::after { content: ""; position: absolute; inset: 0 -18px 0 32%; z-index: 0; background: url("policy-search-skyline.svg") top right / auto 100% no-repeat; opacity: .63; mask-image: linear-gradient(90deg, transparent, black 55%), linear-gradient(black 62%, transparent); mask-composite: intersect; pointer-events: none; }
++.history-intro > * { position: relative; z-index: 1; }
++.history-eyebrow { margin: 0 0 8px; color: #6c785f; font-size: 12px; line-height: 1.7; }
++.history-app .history-intro h1 { margin: 0; color: #214e32; font-size: 28px; font-weight: 750; line-height: 1.45; letter-spacing: -.025em; }
++.history-intro .q-sub { margin: 9px 0 0; color: #66735d; font-size: 14px; line-height: 1.8; }
++.history-status { margin: 0 0 18px; padding: 14px 16px; border: 1px solid #e4e8d9; border-radius: 16px; background: #f4f6ed; color: #627355; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
++.history-status:empty { display: none; }
++.history-status[data-state="error"] { border-color: #eadcc5; background: #faf2e5; color: #7e603b; }
++.history-filter { padding: 18px; border: 1px solid #fffdf8; border-radius: 22px; background: linear-gradient(135deg, #fffef9, #f2f5e8); box-shadow: 0 7px 20px #3f4a2d08; }
++.history-filter .q-label { margin: 0 0 11px; color: #36583a; font-size: 15px; font-weight: 650; line-height: 1.7; }
++.history-app select { min-height: 52px; padding: 12px 14px; border: 1px solid #d4dfc7; border-radius: 13px; background: #fffef8; color: #36583a; font-size: 16px; }
++.history-filter > p { margin: 9px 0 0; color: #858a78; font-size: 12px; line-height: 1.7; }
++.history-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 2px 12px; }
++.history-app .history-results-heading h2 { margin: 0; color: #4a6549; font-size: 15px; font-weight: 650; line-height: 1.6; }
++.history-results-heading > span { padding: 3px 9px; border-radius: 10px; background: #e8f0dc; color: #50714a; font-size: 12px; }
++.history-results-heading > span:empty { display: none; }
++.history-app .history-card.q-section { margin: 0 0 14px; padding: 19px 18px 16px; border: 1px solid #dce5d1; border-radius: 23px; background: linear-gradient(145deg, #fffefb, #fffdf7); box-shadow: 0 7px 20px #3149300a; }
++.history-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
++.history-card h3 { margin: 0; color: #2e5035; font-size: 20px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
++.history-version { flex: none; display: inline-flex; margin-top: 3px; padding: 3px 8px; border-radius: 8px; background: #e7efda; color: #526b47; font-size: 11px; line-height: 1.65; }
++.history-time { margin: 7px 0 0; color: #78806d; font-size: 13px; line-height: 1.8; }
++.history-snapshot-note { margin: 8px 0 0; color: #8a795c; font-size: 12px; line-height: 1.7; }
++.history-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 17px; padding-top: 15px; border-top: 1px solid #edf0e6; }
++.history-open { display: inline-flex; align-items: center; justify-content: center; min-height: 45px; padding: 10px 23px; border-radius: 24px; background: linear-gradient(130deg, #287d50, #075b38); color: #fff; font-size: 14px; font-weight: 650; line-height: 1.5; text-decoration: none; }
++.history-open:visited { color: #fff; }
++.history-open:hover { background: linear-gradient(130deg, #1c6b43, #06492f); }
++.history-delete.q-clear { flex: none; min-width: 52px; min-height: 44px; padding: 8px 5px; border-radius: 10px; color: #8b7967; font-size: 13px; text-decoration: none; }
++.history-delete.q-clear:hover { background: #f9f0e5; color: #84583f; }
++.history-delete.q-clear:disabled { opacity: .5; cursor: wait; }
++.history-delete-confirm { margin-top: 14px; padding: 15px; border: 1px solid #eadcc1; border-radius: 15px; background: #fbf5e8; }
++.history-delete-confirm[hidden] { display: none; }
++.history-confirm-message { margin: 0; color: #7d633c; font-size: 13px; line-height: 1.9; }
++.history-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 13px; }
++.history-confirm-actions button { min-height: 44px; padding: 9px 15px; border: 1px solid #dedfd3; border-radius: 12px; background: #fffefa; color: #69715f; font: inherit; font-size: 13px; font-weight: 550; line-height: 1.6; cursor: pointer; }
++.history-confirm-actions .history-confirm-remove { border-color: #dbc69c; background: #f3e3c4; color: #7c5b30; }
++.history-confirm-actions button:disabled { opacity: .55; cursor: wait; }
++.history-confirm-status { margin: 10px 0 0; color: #8c7047; font-size: 12px; line-height: 1.8; }
++.history-confirm-status:empty { display: none; }
++.history-retention { margin: 17px 5px 0; color: #888d7c; font-size: 11px; line-height: 1.9; }
++.history-app #historyUnlock { padding: 18px; border-color: #e1e6d6; border-radius: 22px; background: #fffefa; }
++.history-app #historyUnlock .q-label { margin-top: 0; font-size: 15px; }
++.history-app #historyToken { width: 100%; min-height: 50px; padding: 12px; border: 1px solid #dce4d2; border-radius: 13px; color: #36583a; background: #f8faf2; font: inherit; }
++.history-app #historyUnlock .q-actions { margin: 16px 0 0; }
++.history-app #historyUnlock .q-primary { min-height: 48px; border: 0; background: #315e3d; font-size: 16px; }
++.history-app :focus-visible { outline: 3px solid #a47a3a; outline-offset: 4px; }
++@media (max-width: 360px) {
++  .history-app.q-app { padding-inline: 15px; }
++  .history-top.q-head { margin-inline: -15px; padding-inline: 16px; }
++  .history-intro { margin-inline: -15px; padding-inline: 19px; }
++  .history-filter { padding: 16px; }
++  .history-app .history-card.q-section { padding-inline: 16px; }
++  .history-open { padding-inline: 20px; }
++  .history-card-actions { gap: 12px; }
++}
+diff --git a/frontend/assets/home-hifi.css b/frontend/assets/home-hifi.css
+index e64381d..5225efd 100644
+--- a/frontend/assets/home-hifi.css
++++ b/frontend/assets/home-hifi.css
+@@ -67 +67 @@ body{background:#fdfaf5}.app{max-width:480px;padding:0 0 110px;background:#fdfaf
+-#homeHighFidelity .choice small{font-size:14px;line-height:1.65;white-space:normal}
++#homeHighFidelity .choice small{font-size:14px;line-height:1.65;white-space:normal;text-wrap:balance}
+diff --git a/frontend/assets/home-hifi.js b/frontend/assets/home-hifi.js
+index 6906bd8..d637f61 100644
+--- a/frontend/assets/home-hifi.js
++++ b/frontend/assets/home-hifi.js
+@@ -1 +1,22 @@
+-(() => {const family=document.getElementById('family'),self=document.getElementById('self'),go=document.getElementById('go');let mode='family';function select(m){mode=m;family.setAttribute('aria-pressed',String(m==='family'));self.setAttribute('aria-pressed',String(m==='self'));go.textContent=(m==='family'?'开始家庭协助':'开始查询我的政策')+' →';}family.addEventListener('click',()=>select('family'));self.addEventListener('click',()=>select('self'));go.addEventListener('click',()=>{if(mode==='family')goFamilyEntry();else document.querySelector('.hp-self-link').click();});})();
+\ No newline at end of file
++(() => {
++  const family = document.getElementById('family');
++  const self = document.getElementById('self');
++  const go = document.getElementById('go');
++  if (!family || !self || !go) return;
++  let mode = 'family';
++  function select(value) {
++    mode = value;
++    family.setAttribute('aria-pressed', String(value === 'family'));
++    self.setAttribute('aria-pressed', String(value === 'self'));
++    go.textContent = (value === 'family' ? '开始家庭协助' : '开始查询我的政策') + ' →';
++  }
++  family.addEventListener('click', () => select('family'));
++  self.addEventListener('click', () => select('self'));
++  go.addEventListener('click', () => {
++    if (mode === 'family') {
++      goFamilyEntry();
++    } else {
++      document.querySelector('.hp-self-link').click();
++    }
++  });
++})();
+diff --git a/frontend/assets/household-analysis.js b/frontend/assets/household-analysis.js
+index 8b82345..b38643a 100644
+--- a/frontend/assets/household-analysis.js
++++ b/frontend/assets/household-analysis.js
+@@ -55,0 +56,10 @@
++  const currentMember = () => members.find(person => person.id === memberId);
++  const isSelf = () => currentMember()?.relation === '本人';
++  function memberContext() {
++    const member = currentMember();
++    const role = isSelf() ? 'self' : ['父亲','爷爷','外公'].includes(member?.relation) ? 'elder-male' :
++      ['母亲','奶奶','外婆'].includes(member?.relation) ? 'elder-female' : member?.relation === '配偶' ? 'couple' : 'neutral';
++    return `<div class="member-note member-context"><img src="assets/avatars/${role}.webp" alt="" width="40" height="40">
++      <span><small>本次查询对象</small><strong>${escape(member?.name)}</strong>${member?.name === member?.relation ? '' : `<span class="member-relation">${escape(member?.relation)}</span>`}</span>
++      <a href="find.html?choose=1">更换</a></div>`;
++  }
+@@ -119,0 +130,3 @@
++    if (params.has('self') && !params.has('id') && (!first || (memberId && memberId !== first.id))) {
++      throw Error('无法读取本人资料，请返回首页或在「我的」核对成员。');
++    }
+@@ -140,3 +153,3 @@
+-    header(historyOnly ? '查询历史' : '家庭情况', historyOnly ? 'find.html' : 'find.html?choose=1');
+-    app.innerHTML = `${hero(historyOnly ? '查询历史' : '家里最近有什么变化？',
+-      historyOnly ? '' : '说说家里的近况，AI 会帮你查找可能相关的政策。')}${demoLabel()}
++    header(historyOnly ? '查询历史' : isSelf() ? '我的情况' : '家庭情况', historyOnly ? 'find.html' : isSelf() ? 'index.html' : 'find.html?choose=1');
++    app.innerHTML = `${hero(historyOnly ? '查询历史' : isSelf() ? '你最近有什么变化？' : '家里最近有什么变化？',
++      historyOnly ? '' : isSelf() ? '说说你的近况，AI 会帮你查找可能相关的政策。' : '说说家里的近况，AI 会帮你查找可能相关的政策。')}${demoLabel()}
+@@ -144 +157 @@
+-        `<p class="member-note">为 <strong>${escape(members.find(person=>person.id===memberId)?.name)}</strong> 查找权益</p>`}
++        memberContext()}
+@@ -147 +160 @@
+-        <label class="description-field">描述家庭情况<textarea name="description" required rows="5" maxlength="4000" placeholder="例如，妈妈最近走路不方便，做饭和外出都需要人帮忙。">${escape(saved.description)}</textarea></label>
++        <label class="description-field">${isSelf() ? '描述你的情况' : '描述家庭情况'}<textarea name="description" required rows="5" maxlength="4000" placeholder="${isSelf() ? '例如，我最近住院，报销后仍有一笔自费支出，想了解有哪些政策可以进一步咨询。' : '例如，妈妈最近走路不方便，做饭和外出都需要人帮忙。'}">${escape(saved.description)}</textarea></label>
+@@ -378,0 +392 @@
++    button.closest('.policy-card')?.classList.toggle('is-selected', saved);
+@@ -447 +461 @@
+-      '根据这次家庭情况，看看哪些权益值得进一步了解。', true)}
++      isSelf() ? '根据你的近况，看看哪些权益值得进一步了解。' : '根据这次家庭情况，看看哪些权益值得进一步了解。', true)}
+@@ -457 +471,2 @@
+-        <a href="${escape(route({member:memberId}))}">查询历史 / 新查询</a>
++        <a href="${escape(route({member:memberId,view:'history'}))}">查询历史</a>
++        <a href="${escape(route({member:memberId,new:1}))}">新建查询</a>
+diff --git a/frontend/assets/mine-business.js b/frontend/assets/mine-business.js
+index 137e3f1..c9d9b3c 100644
+--- a/frontend/assets/mine-business.js
++++ b/frontend/assets/mine-business.js
+@@ -3 +2,0 @@ window.PFMine = (() => {
+-  const leaf = '<svg viewBox="0 0 28 28" aria-hidden="true"><path fill="#5b8058" stroke="none" d="M3 24C7 8 16 5 26 3c0 14-8 22-23 21Z"/><path stroke="#fffdf6" d="M4 24 20 10M10 19l1-7"/></svg>';
+@@ -26 +25 @@ window.PFMine = (() => {
+-      <header class="mine-title"><a href="index.html">${leaf}<span>政策找人</span></a><h1>我的</h1></header>
++      <header class="mine-title"><a href="index.html"><img src="assets/brand-mark.svg" alt="" width="26" height="26"><span>政策找人</span></a><h1>我的</h1></header>
+@@ -53,0 +53 @@ window.PFMine = (() => {
++          ${service('minePending', '待核实清单', '需要继续确认的事项', icon('check-circle'))}
+@@ -56 +56 @@ window.PFMine = (() => {
+-        <div class="mine-quick"><a data-mine-route="saved">先记下来的政策</a><a data-mine-route="list">待核实清单</a></div>
++        <div class="mine-quick"><a data-mine-route="saved">先记下来的政策</a></div>
+@@ -104,0 +105 @@ window.PFMine = (() => {
++    find('#minePending').href = follow('list');
+@@ -109 +110,3 @@ window.PFMine = (() => {
+-    aiHistory.textContent = '家庭权益分析记录';
++    aiHistory.querySelector('strong').textContent = 'AI 发现记录';
++    aiHistory.querySelector('small').textContent = '查看家庭分析与追问';
++    aiHistory.querySelector('.mine-service-icon').innerHTML = icon('compass');
+diff --git a/frontend/assets/navigation-policy.js b/frontend/assets/navigation-policy.js
+index 3465ad4..7715dc7 100644
+--- a/frontend/assets/navigation-policy.js
++++ b/frontend/assets/navigation-policy.js
+@@ -5 +5 @@ window.PFNavigation=(()=>{
+- const allowed=new Set([...Object.values(destinations),'analysis.html','discovery-c.html','family.html','self.html','discover.html','records.html','verify-list.html','plan.html','follow-up.html','original-home.html','query-history.html']);
++ const allowed=new Set([...Object.values(destinations),'analysis.html','policy.html','discovery-c.html','family.html','self.html','discover.html','records.html','verify-list.html','plan.html','follow-up.html','original-home.html','query-history.html']);
+diff --git a/frontend/assets/plan-family-v2.webp b/frontend/assets/plan-family-v2.webp
+new file mode 100644
+index 0000000..012d6c2
+Binary files /dev/null and b/frontend/assets/plan-family-v2.webp differ
+diff --git a/frontend/assets/plan-overview.css b/frontend/assets/plan-overview.css
+new file mode 100644
+index 0000000..8f76a81
+--- /dev/null
++++ b/frontend/assets/plan-overview.css
+@@ -0,0 +1,135 @@
++/* Plan overview: reuse the home illustration and its forest / cream palette.
++   All rules are scoped to the overview; task forms keep their existing styles. */
++.followup:has(.plan-overview) {
++  --fu-green: #245f3d;
++  --fu-ink: #193f2b;
++  --fu-paper: #fffefa;
++  --fu-border: #e7eade;
++  max-width: 480px;
++  padding: 0;
++  background: #fdfaf5;
++  box-shadow: none;
++}
++.plan-overview { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
++.plan-topline {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  min-height: 56px;
++  padding: 0 20px;
++  background: #fdfaf5;
++}
++.plan-topline .fu-button { padding: 0; border: 0; background: transparent; font-size: 14px; }
++.plan-hero {
++  position: relative;
++  overflow: hidden;
++  min-height: 222px;
++  padding: 18px 22px 64px;
++  background: #f0f4e4;
++}
++.followup .plan-eyebrow { position: relative; z-index: 1; margin: 0 0 9px; font-size: 12px; color: #5b7359; letter-spacing: .06em; }
++.followup .plan-hero h1 { position: relative; z-index: 1; margin: 0; color: #174c31; font-size: 26px; line-height: 1.4; font-weight: 750; letter-spacing: -.04em; }
++.followup .plan-hero-copy { position: relative; z-index: 1; max-width: 172px; margin: 13px 0 0; color: #4f654e; font-size: 14px; line-height: 1.85; }
++.plan-family-art {
++  position: absolute;
++  right: -5px;
++  bottom: 39px;
++  width: 180px;
++  height: auto;
++}
++.plan-family-line {
++  position: absolute;
++  inset: auto 16px 12px;
++  z-index: 1;
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  justify-content: space-between;
++  gap: 4px 12px;
++  min-height: 38px;
++  padding: 8px 12px;
++  border: 1px solid #e4e9da;
++  border-radius: 12px;
++  background: #fffefa;
++  color: #48624b;
++  font-size: 12px;
++  line-height: 1.5;
++}
++.plan-family-line strong { font-weight: 700; color: #1d4f33; }
++.plan-region { white-space: nowrap; color: #64735d; }
++.plan-body { padding: 0 16px 20px; }
++.plan-progress { padding: 17px 3px 8px; }
++.plan-progress > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; color: #62725e; }
++.plan-progress strong { font-size: 17px; font-weight: 700; color: #275d39; }
++.followup .plan-progress progress { display: block; height: 5px; margin: 7px 0; border: 0; border-radius: 6px; overflow: hidden; background: #e8eddf; }
++.plan-progress progress::-webkit-progress-bar { background: #e8eddf; border-radius: 6px; }
++.plan-progress progress::-webkit-progress-value { background: #3d8056; border-radius: 6px; }
++.plan-progress progress::-moz-progress-bar { background: #3d8056; }
++.followup .plan-progress p { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; margin: 0; color: #4e6f51; font-size: 11px; }
++.plan-progress p span { color: #68756c; }
++.plan-overview .plan-next {
++  margin: 9px 0 0;
++  padding: 20px;
++  border: 1px solid #dfe8d9;
++  border-radius: 24px;
++  background: #fffefa;
++  box-shadow: 0 7px 22px #254b2e08;
++}
++.plan-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
++.followup .plan-section-heading h2 { margin: 0; font-size: 14px; font-weight: 700; color: #406b49; }
++.plan-section-heading > span:not(.fu-badge) { color: #64715c; font-size: 11px; white-space: nowrap; }
++.plan-overview .fu-badge { padding: 3px 8px; font-size: 11px; line-height: 1.6; }
++.followup .plan-next h3 { margin: 12px 0 8px; color: #193f2b; font-size: 21px; line-height: 1.55; font-weight: 750; }
++.followup .plan-next-reason { margin: 0; font-size: 14px; line-height: 1.8; color: #63715e; }
++.plan-next > p:not(.plan-next-reason) { font-size: 12px; color: #63715e; }
++.plan-next-actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
++.plan-next-actions .fu-primary { flex: 1; min-width: 0; min-height: 50px; border: 0; border-radius: 28px; background: #286640; font-size: 16px; font-weight: 700; box-shadow: 0 4px 9px #245f3d15; }
++.plan-channel-link { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; max-width: 7em; color: #4b6a4d; font-size: 13px; text-decoration: none; text-underline-offset: 4px; }
++.plan-channel-link:hover { text-decoration: underline; }
++.plan-route { padding: 22px 3px 16px; }
++.plan-route-steps { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; margin-top: 13px; }
++.plan-route-steps a { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 10px 2px; border: 1px solid transparent; border-radius: 13px; color: #697760; text-decoration: none; text-align: center; }
++.plan-step-number { display: grid; place-items: center; min-height: 30px; margin-bottom: 3px; font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; color: #8d9a82; }
++.plan-route-steps strong { font-size: 12px; font-weight: 650; line-height: 1.6; white-space: nowrap; }
++.plan-route-steps small { margin-top: 3px; font-size: 11px; line-height: 1.5; color: #65715d; }
++.plan-route-steps [aria-current] { border-color: #d3e3ca; background: #eaf2e1; color: #245f3d; }
++.plan-route-steps [aria-current] .plan-step-number { color: #286640; }
++.plan-route-steps [aria-current] small { color: #406b49; }
++.followup .plan-green-note { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #e7ebdf; font-size: 12px; line-height: 1.75; color: #64805b; }
++.plan-rights { padding: 8px 3px 0; }
++.plan-rights-list { margin-top: 8px; }
++.plan-rights .fu-entry { grid-template-columns: 24px minmax(0,1fr) auto; gap: 8px; min-height: 86px; padding: 14px 0; border-color: #e5eadd; }
++.plan-rights .fu-entry[aria-current=true] { background: transparent; border-radius: 0; }
++.plan-right-number { align-self: start; padding-top: 3px; color: #91a084; font-size: 12px; font-weight: 650; }
++.plan-right-name { color: #254a32; font-size: 14px; font-weight: 650; line-height: 1.7; }
++.plan-right-name small { display: block; margin-top: 3px; color: #68756c; font-size: 11px; font-weight: 400; }
++.plan-overview > .plan-body > .fu-disclosure { margin: 12px 0 0; padding: 2px 16px; border-radius: 17px; background: #f6f7ee; border-color: #e5e9dc; }
++.plan-overview > .plan-body > .fu-disclosure > summary { display: list-item; padding: 13px 0; color: #4e6f4a; font-size: 13px; font-weight: 600; }
++.plan-overview .fu-disclosure .fu-row { gap: 7px; }
++.plan-overview .fu-disclosure .fu-button { border-radius: 12px; min-height: 44px; font-size: 13px; }
++.plan-overview .fu-disclosure p, .plan-overview .fu-disclosure li { font-size: 13px; }
++.plan-pause-controls { padding-top: 12px; border-top: 1px solid #e2e7da; margin: 16px 0; }
++.followup .plan-pause-controls h3 { font-size: 14px; }
++.followup .plan-pause-controls p, .followup .plan-pause-controls label { font-size: 12px; color: #6b7862; }
++.plan-overview .plan-state-note { margin: 12px 0; padding: 16px; border: 1px solid #e8ddbd; border-radius: 16px; background: #fbf3df; font-size: 13px; }
++.plan-state-note .fu-button { min-height: 44px; }
++.followup .plan-state-note h2 { font-size: 16px; }
++.followup .plan-footnote { margin: 22px 8px 5px; color: #68756c; font-size: 11px; text-align: center; line-height: 1.85; }
++@media (max-width: 350px) {
++  .plan-topline { padding-inline: 16px; }
++  .plan-hero { padding-inline: 18px; min-height: 218px; }
++  .followup .plan-hero h1 { font-size: 23px; }
++  .followup .plan-hero-copy { max-width: 155px; font-size: 13px; }
++  .plan-family-art { width: 149px; right: -5px; }
++  .plan-body { padding-inline: 12px; }
++  .plan-overview .plan-next { padding: 17px; border-radius: 21px; }
++  .followup .plan-next h3 { font-size: 19px; }
++  .plan-next-actions { gap: 10px; }
++  .plan-channel-link { font-size: 12px; }
++  .plan-route-steps { gap: 2px; }
++  .plan-route-steps strong { font-size: 11px; }
++}
++@media (min-width: 768px) {
++  .followup:has(.plan-overview) { margin-top: 12px; border-radius: 20px 20px 0 0; overflow: clip; }
++}
+diff --git a/frontend/assets/policy-detail-polish.css b/frontend/assets/policy-detail-polish.css
+new file mode 100644
+index 0000000..487e632
+--- /dev/null
++++ b/frontend/assets/policy-detail-polish.css
+@@ -0,0 +1,357 @@
++/* Shared reading layout for catalog, semantic, and analysis policy details. */
++body.policy-detail {
++  --brand: #286640;
++  --brand-dark: #245f3d;
++  --brand-deep: #193f2b;
++  --brand-soft: #eaf2e1;
++  --brand-line: #dce6d4;
++  --green: #286640;
++  --ink: #193f2b;
++  --text: #193f2b;
++  --ink-2: #3e5143;
++  --muted: #63715e;
++  --line: #e5e9dd;
++  --paper: #fffefa;
++  --surface: #fdfaf5;
++  --soft: #edf3e5;
++  --trust: #f2f5eb;
++  --trust-ink: #406b49;
++  --trust-line: #dde6d5;
++  --warn: #805b25;
++  --warn-soft: #fbf3df;
++  --warn-line: #e9dfc5;
++  max-width: none;
++  margin: 0;
++  padding: 0;
++  background: #fdfaf5;
++  color: var(--ink);
++  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
++  line-height: 1.75;
++}
++
++.policy-detail .app {
++  width: 100%;
++  max-width: 480px;
++  margin: 0 auto;
++  background: var(--surface);
++  box-shadow: none;
++}
++.policy-detail.v32-flow.has-global-nav { padding-bottom: 0; }
++.policy-detail .topbar {
++  position: relative;
++  min-height: 56px;
++  padding: calc(6px + env(safe-area-inset-top)) 20px 6px;
++  border: 0;
++  border-bottom: 1px solid #e9ecdf;
++  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 55%, #f2f8f5 100%);
++}
++.policy-detail .topbar .detail-topbar-row {
++  display: grid;
++  grid-template-columns: 70px minmax(0, 1fr) 70px;
++  align-items: center;
++  gap: 8px;
++}
++.policy-detail .detail-topbar-title { color: #245f3d; font-size: 16px; font-weight: 700; text-align: center; }
++.policy-detail .topbar .back-link {
++  display: inline-flex;
++  flex: none;
++  align-items: center;
++  min-height: 44px;
++  margin: 0;
++  padding: 0;
++  border: 0;
++  background: transparent;
++  color: #3e653c;
++  font-size: 14px;
++  font-weight: 500;
++  text-decoration: none;
++}
++.policy-detail #content,
++.policy-detail #v32-detail {
++  margin: 0;
++  padding: 0 16px;
++  border-radius: 0;
++  background: transparent;
++  overflow-wrap: anywhere;
++}
++.policy-detail .loading { padding: 28px 10px; color: var(--muted); font-size: 14px; }
++.policy-detail .detail-hero.card {
++  margin: 0 0 20px;
++  padding: 21px 22px 18px;
++  border: 1px solid #fff;
++  border-radius: 19px;
++  background: radial-gradient(ellipse at 100% 0%,#dbeacd 0%,transparent 66%),linear-gradient(130deg,#fffcf5,#f1f2e4);
++  box-shadow: none;
++}
++.policy-detail .detail-hero .detail-eyebrow {
++  margin: 0 0 8px;
++  color: #5b7359;
++  font-size: 12px;
++  letter-spacing: .06em;
++}
++.policy-detail .detail-hero h1 {
++  margin: 0;
++  color: #174c31;
++  font-size: 24px;
++  font-weight: 750;
++  line-height: 1.5;
++  letter-spacing: -.035em;
++  overflow-wrap: anywhere;
++}
++.policy-detail .detail-hero .detail-region { margin: 9px 0 0; color: #536b50; font-size: 13px; line-height: 1.7; }
++.policy-detail .detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 12px; margin-top: 12px; }
++.policy-detail .detail-meta .rp-status,
++.policy-detail .badge {
++  display: inline-flex;
++  align-items: center;
++  width: auto;
++  padding: 3px 9px;
++  border: 0;
++  border-radius: 7px;
++  background: #e1ecd6;
++  color: #3c6845;
++  font-size: 11px;
++  font-weight: 500;
++  line-height: 1.6;
++}
++.policy-detail .detail-meta .pending,
++.policy-detail .badge.pending { background: #f5edda; color: #806336; }
++.policy-detail .detail-validity { color: #63715e; font-size: 11px; }
++.policy-detail .detail-save-bar {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  flex-wrap: wrap;
++  gap: 4px 12px;
++  margin-top: 16px;
++  padding-top: 12px;
++  border-top: 1px solid #dce5d2;
++}
++.policy-detail .detail-save-control,
++.policy-detail .detail-member-link {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  flex: none;
++  width: auto;
++  height: auto;
++  min-height: 44px;
++  margin: 0;
++  padding: 7px 15px;
++  border: 1px solid #a6b99a;
++  border-radius: 24px;
++  background: var(--paper);
++  color: #315f3d;
++  font-family: inherit;
++  font-size: 13px;
++  font-weight: 600;
++  line-height: 1.6;
++  text-decoration: none;
++  cursor: pointer;
++}
++.policy-detail .detail-save-control[hidden] { display: none; }
++.policy-detail .detail-save-control.is-on { background: #286640; border-color: #286640; color: white; }
++.policy-detail .detail-save-control:disabled { opacity: .65; cursor: default; }
++.policy-detail .detail-save-bar .detail-save-context { flex: 1; min-width: 120px; margin: 0; color: #64735d; font-size: 11px; line-height: 1.8; }
++.policy-detail .detail-member-link { order: -1; }
++
++.policy-detail .detail-reading.section { margin: 0; padding: 0; }
++.policy-detail .detail-block,
++.policy-detail .trust-card {
++  margin: 14px 0;
++  padding: 20px;
++  border: 1px solid #e5e9dd;
++  border-radius: 22px;
++  background: #fffefa;
++  box-shadow: 0 4px 14px #254b2e04;
++  scroll-margin-top: 18px;
++}
++.policy-detail .detail-block > h2,
++.policy-detail .trust-card > h2 {
++  display: flex;
++  align-items: baseline;
++  gap: 9px;
++  margin: 0 0 13px;
++  color: #275d39;
++  font-size: 17px;
++  font-weight: 700;
++  line-height: 1.6;
++}
++.policy-detail .q-title { color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
++.policy-detail .q-num {
++  display: inline-block;
++  flex: none;
++  width: auto;
++  height: auto;
++  border: 0;
++  border-radius: 0;
++  background: transparent;
++  color: #91a084;
++  font-size: 12px;
++  font-weight: 600;
++  line-height: inherit;
++  font-variant-numeric: tabular-nums;
++}
++.policy-detail .detail-block p,
++.policy-detail .detail-block li {
++  margin: 0 0 11px;
++  color: #3e5143;
++  font-size: 15px;
++  font-weight: 400;
++  line-height: 1.95;
++}
++.policy-detail .detail-block p + p { margin-top: 13px; }
++.policy-detail .detail-block ul,
++.policy-detail .detail-block ol { margin: 0; padding-left: 20px; }
++.policy-detail .detail-block li:last-child,
++.policy-detail .detail-block > :last-child { margin-bottom: 0; }
++.policy-detail .detail-block h3,
++.policy-detail .detail-block h4 { margin: 14px 0 8px; color: #4d6c48; font-size: 13px; font-weight: 650; line-height: 1.7; }
++.policy-detail .detail-block .detail-muted,
++.policy-detail .detail-block .q-lead { color: #69755f; font-size: 13px; line-height: 1.8; }
++.policy-detail .detail-block.is-warm { border-color: #e9dfc5; background: #fffaf0; }
++.policy-detail .detail-block.is-warm h2 { color: #805b25; }
++.policy-detail .detail-block.is-warm .q-num { background: transparent; color: #a18b65; }
++.policy-detail .missing-list > li { padding: 11px 0; border-bottom-color: #e9dfc5; }
++.policy-detail .missing-list .mi-q { color: #5c503a; font-size: 14px; line-height: 1.85; }
++.policy-detail .missing-list .mi-why { color: #7d745f; font-size: 12px; line-height: 1.85; }
++.policy-detail .detail-block.svc-focus { border-color: #86a47a; background: #eef4e6; }
++.policy-detail .detail-block.svc-focus .q-num { background: transparent; color: #52724a; }
++.policy-detail .ev-item,
++.policy-detail .ev-cond { font-size: 13px; }
++.policy-detail .ev-section { margin-top: 14px; }
++
++.policy-detail .trust-card { background: #f2f5eb; border-color: #dde6d5; }
++.policy-detail .tc-status { padding: 11px 12px; border-color: #dce6d4; background: #fffefa; font-size: 12px; line-height: 1.85; }
++.policy-detail .tc-row { gap: 10px; padding: 11px 0; border-bottom: 1px solid #dfe6d6; font-size: 13px; }
++.policy-detail .tc-row .k { width: 64px; color: #68805d; font-size: 12px; }
++.policy-detail .tc-row .v { color: #3e5143; font-weight: 500; word-break: normal; overflow-wrap: anywhere; }
++.policy-detail .tc-link {
++  align-items: center;
++  min-height: 52px;
++  margin-top: 13px;
++  padding: 11px 14px;
++  border-color: #d3dfca;
++  border-radius: 14px;
++  background: #fffefa;
++  color: #315f3d;
++  font-size: 14px;
++  font-weight: 600;
++  line-height: 1.6;
++  word-break: normal;
++  overflow-wrap: anywhere;
++}
++.policy-detail .tc-link small { display: block; margin-top: 2px; color: #76816c; font-size: 11px; font-weight: 400; }
++.policy-detail .tc-note,
++.policy-detail .tc-none { margin: 10px 0 0; color: #64735d; font-size: 12px; font-weight: 400; line-height: 1.85; }
++.policy-detail .detail-disclaimer.notice {
++  position: static;
++  inset: auto;
++  transform: none;
++  z-index: auto;
++  width: auto;
++  min-width: 0;
++  max-width: none;
++  margin: 18px 4px;
++  padding: 0;
++  border: 0;
++  border-radius: 0;
++  background: transparent;
++  box-shadow: none;
++  color: #76816c;
++  font-size: 12px;
++  line-height: 1.85;
++}
++.policy-detail .demo-note { margin: -4px 5px 16px; color: #75806b; font-size: 11px; }
++
++.policy-detail .pa-panel,
++.policy-detail .detail-next-panel {
++  margin: 22px 0 16px;
++  padding: 20px;
++  border: 1px solid #dfe7d7;
++  border-radius: 22px;
++  background: #f0f4e6;
++}
++.policy-detail .pa-panel h2,
++.policy-detail .detail-next-panel h2 { margin: 0 0 8px; color: #275d39; font-size: 17px; font-weight: 700; line-height: 1.7; }
++.policy-detail .pa-panel > p,
++.policy-detail .detail-next-panel > p { margin: 7px 0 15px; color: #69755f; font-size: 12px; line-height: 1.85; }
++.policy-detail .pa-buttons { gap: 9px; }
++.policy-detail .pa-buttons button { min-height: 66px; padding: 12px 15px; border-color: #d7e2cc; border-radius: 15px; background: #fffefa; }
++.policy-detail .pa-buttons button b { color: #315c3c; font-size: 15px; font-weight: 650; line-height: 1.65; }
++.policy-detail .pa-buttons button span { margin-top: 3px; color: #69755f; font-size: 12px; line-height: 1.7; }
++.policy-detail .pa-buttons button[aria-pressed=true] { border-color: #7a9e6b; background: #e5eedb; }
++.policy-detail .pa-buttons button:disabled { opacity: .6; }
++.policy-detail .pa-links { gap: 0 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #dce5d2; }
++.policy-detail .pa-links a { color: #4e704a; font-size: 12px; }
++.policy-detail #policyActionStatus:empty { display: none; }
++.policy-detail .detail-return-section.section { margin: 0; padding: 0; }
++.policy-detail .detail-return {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 100%;
++  min-height: 49px;
++  padding: 10px 18px;
++  border: 1px solid #b5c6a7;
++  border-radius: 26px;
++  background: #fffefa;
++  color: #315f3d;
++  font-family: inherit;
++  font-size: 14px;
++  font-weight: 600;
++  line-height: 1.7;
++  text-decoration: none;
++  cursor: pointer;
++}
++.policy-detail .detail-next-panel .detail-return { border-color: #286640; background: #286640; color: white; }
++.policy-detail .footnote { margin: 22px 24px 0; padding: 0; color: #77816d; font-size: 11px; text-align: center; line-height: 1.85; }
++
++@media (max-width: 350px) {
++  .policy-detail .topbar { padding-inline: 16px; }
++  .policy-detail #content,
++  .policy-detail #v32-detail { padding-inline: 12px; }
++  .policy-detail .detail-hero.card { padding-inline: 18px; }
++  .policy-detail .detail-hero h1 { font-size: 22px; }
++  .policy-detail .detail-block,
++  .policy-detail .trust-card,
++  .policy-detail .pa-panel,
++  .policy-detail .detail-next-panel { padding: 17px; border-radius: 20px; }
++  .policy-detail .detail-block p,
++  .policy-detail .detail-block li { font-size: 14px; }
++  .policy-detail .tc-row .k { width: 58px; }
++}
++
++/* Analysis details retain the original full-width green header and leaf motif. */
++.policy-detail.v32-flow {
++  --green: #075b38;
++  --ink: #153629;
++  --text: #153629;
++  --muted: #4c5d54;
++  --paper: #fffcf6;
++  --surface: #faf5eb;
++  --soft: #ebf2df;
++  --line: #e0e5d8;
++  --width: 600px;
++  max-width: var(--width);
++  margin: 0 auto;
++  background: var(--surface);
++}
++.policy-detail.v32-flow .app { max-width: none; margin: 0; border-radius: 0; overflow: visible; }
++.policy-detail.v32-flow .pf-global-nav { width: min(100%, var(--width)); }
++.policy-detail.v32-flow .topbar {
++  min-height: 72px;
++  padding: 6px 12px 18px;
++  border: 0;
++  background: linear-gradient(125deg,#29734f,#075b38);
++}
++.policy-detail.v32-flow .topbar .back-link,
++.policy-detail.v32-flow .detail-topbar-title { color: white; }
++.policy-detail.v32-flow #v32-detail { margin-top: -14px; padding-top: 18px; border-radius: 22px 22px 0 0; background: var(--surface); }
++.policy-detail.v32-flow .detail-hero.card { padding: 19px 16px; }
++.policy-detail.v32-flow .detail-hero h1 { color: #06492f; }
++.policy-detail.v32-flow .detail-block,
++.policy-detail.v32-flow .trust-card { border-color: white; background: var(--paper); box-shadow: 0 4px 14px #7555250a; }
++.policy-detail.v32-flow .detail-block > h2 { color: #06492f; }
++.policy-detail.v32-flow .detail-save-control.is-on,
++.policy-detail.v32-flow .detail-next-panel .detail-return { border-color: #075b38; background: linear-gradient(130deg,#287d50,#075b38); }
+diff --git a/frontend/assets/query-history-page.js b/frontend/assets/query-history-page.js
+index ab1b26a..5e1fc2c 100644
+--- a/frontend/assets/query-history-page.js
++++ b/frontend/assets/query-history-page.js
+@@ -6,0 +7,2 @@
++  const count = document.querySelector('#historyCount');
++  const back = document.querySelector('.history-top .q-back');
+@@ -8,0 +11,7 @@
++  function syncHistoryReturn(member = picker.value) {
++    const fallback = PFNavigation.withParams('services.html', member ? {member} : {});
++    back.href = PFNavigation.returnTarget(fallback);
++    const mine = document.querySelector('.pf-global-nav [data-tab="mine"]');
++    if (mine) mine.href = fallback;
++  }
++
+@@ -10,0 +20 @@
++    status.dataset.state = 'error';
+@@ -19,0 +30 @@
++    syncHistoryReturn(member);
+@@ -20,0 +32,2 @@
++    count.textContent = '';
++    status.dataset.state = 'info';
+@@ -30,5 +43,18 @@
+-      for (const row of data.queries) {
+-        const card = document.createElement('section');
+-        card.className = 'q-section';
+-        const title = document.createElement('h2');
+-        title.textContent = row.region + ' · ' + new Date(row.createdAt).toLocaleString('zh-CN');
++      count.textContent = data.queries.length + ' 次查询';
++      for (const [index, row] of data.queries.entries()) {
++        const card = document.createElement('article');
++        card.className = 'q-section history-card';
++        const head = document.createElement('div');
++        head.className = 'history-card-head';
++        const title = document.createElement('h3');
++        title.textContent = row.region;
++        const version = document.createElement('span');
++        version.className = 'history-version';
++        version.textContent = row.version === 1 ? '原始查询' : '编辑版本 ' + row.version;
++        head.append(title, version);
++        const created = document.createElement('p');
++        created.className = 'history-time';
++        const time = document.createElement('time');
++        time.dateTime = new Date(row.createdAt).toISOString();
++        time.textContent = new Date(row.createdAt).toLocaleString('zh-CN');
++        created.append(time);
+@@ -36,2 +62,5 @@
+-        info.textContent = (row.version === 1 ? '原始查询' : '编辑版本 ' + row.version) +
+-          (row.hasSnapshot ? '' : ' · 仅有提交资料');
++        info.className = 'history-snapshot-note';
++        info.textContent = row.hasSnapshot ? '' : '本次仅保存了提交资料';
++        info.hidden = !!row.hasSnapshot;
++        const actions = document.createElement('div');
++        actions.className = 'history-card-actions';
+@@ -38,0 +68 @@
++        open.className = 'history-open';
+@@ -40,2 +70,3 @@
+-          {member, entry: PFNavigation.withParams('query-history.html', {member})});
+-        open.textContent = '查看本次结果';
++          {member, entry: PFNavigation.withParams('query-history.html',
++            {member, from: PFNavigation.returnTarget('') || undefined})});
++        open.textContent = row.hasSnapshot ? '查看本次结果' : '查看提交资料';
+@@ -44,4 +75,45 @@
+-        remove.className = 'q-clear';
+-        remove.textContent = '删除查询历史';
+-        remove.onclick = async () => {
+-          if (!confirm('从查询历史中移除本次查询及其版本？已保存的咨询、计划和处理记录仍会保留。')) return;
++        remove.className = 'q-clear history-delete';
++        remove.textContent = '删除';
++        remove.setAttribute('aria-label', '删除' + row.region + '本次查询历史');
++        remove.setAttribute('aria-expanded', 'false');
++        const confirmation = document.createElement('div');
++        confirmation.className = 'history-delete-confirm';
++        confirmation.id = 'historyRemoveConfirm-' + index;
++        confirmation.hidden = true;
++        confirmation.setAttribute('role', 'group');
++        const confirmationText = document.createElement('p');
++        confirmationText.className = 'history-confirm-message';
++        confirmationText.id = 'historyRemovePrompt-' + index;
++        confirmationText.textContent = '从查询历史中移除本次查询及其版本？已保存的咨询、计划和处理记录仍会保留。';
++        confirmation.setAttribute('aria-labelledby', confirmationText.id);
++        remove.setAttribute('aria-controls', confirmation.id);
++        const confirmationActions = document.createElement('div');
++        confirmationActions.className = 'history-confirm-actions';
++        const cancel = document.createElement('button');
++        cancel.type = 'button';
++        cancel.className = 'history-confirm-cancel';
++        cancel.textContent = '取消';
++        const confirmRemove = document.createElement('button');
++        confirmRemove.type = 'button';
++        confirmRemove.className = 'history-confirm-remove';
++        confirmRemove.textContent = '确认移除';
++        const confirmationStatus = document.createElement('p');
++        confirmationStatus.className = 'history-confirm-status';
++        confirmationStatus.setAttribute('role', 'status');
++        confirmationActions.append(cancel, confirmRemove);
++        confirmation.append(confirmationText, confirmationActions, confirmationStatus);
++        remove.onclick = () => {
++          confirmation.hidden = false;
++          confirmationStatus.textContent = '';
++          remove.setAttribute('aria-expanded', 'true');
++          cancel.focus();
++        };
++        cancel.onclick = () => {
++          confirmation.hidden = true;
++          remove.setAttribute('aria-expanded', 'false');
++          remove.focus();
++        };
++        confirmRemove.onclick = async () => {
++          if (confirmation.hidden || confirmRemove.disabled) return;
++          confirmRemove.disabled = true;
++          cancel.disabled = true;
+@@ -48,0 +121 @@
++          confirmationStatus.textContent = '正在从查询历史中移除…';
+@@ -53,0 +127,3 @@
++            confirmationStatus.textContent = '未能移除：' + error.message;
++            confirmRemove.disabled = false;
++            cancel.disabled = false;
+@@ -57 +133,2 @@
+-        card.append(title, info, open, remove);
++        actions.append(open, remove);
++        card.append(head, created, info, actions, confirmation);
+@@ -65,0 +143 @@
++    syncHistoryReturn(new URLSearchParams(location.search).get('member'));
+@@ -77,0 +156 @@
++      syncHistoryReturn();
+diff --git a/frontend/assets/ui-foundation.css b/frontend/assets/ui-foundation.css
+new file mode 100644
+index 0000000..8b885d0
+--- /dev/null
++++ b/frontend/assets/ui-foundation.css
+@@ -0,0 +1,26 @@
++/* Shared visual baseline, grounded in the existing home and plan screens. */
++:root {
++  --ui-forest: #245f3d;
++  --ui-ink: #193f2b;
++  --ui-paper: #fdfaf5;
++  --ui-muted: #64715f;
++  --ui-line: #e3e8dc;
++}
++body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif; }
++button, input, select, textarea { font-family: inherit; }
++button, summary, a { -webkit-tap-highlight-color: transparent; }
++a:not([class]) { color: var(--ui-forest); text-underline-offset: 4px; }
++a:not([class]):hover { text-decoration-thickness: 2px; }
++a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
++  outline: 2px solid #7f6029;
++  outline-offset: 3px;
++}
++input[type="radio"], input[type="checkbox"] { accent-color: var(--ui-forest); }
++img { max-width: 100%; }
++button:not([class]) { min-height: 44px; padding: 8px 14px; border: 1px solid #ccd9c5; border-radius: 14px; background: #fffefa; color: var(--ui-forest); font: inherit; cursor: pointer; }
++#pfToast { width: max-content; max-width: min(420px, calc(100vw - 32px)); }
++.has-global-nav #pfToast { bottom: calc(var(--pf-nav-height) + 14px); }
++@media (prefers-reduced-motion: reduce) {
++  html { scroll-behavior: auto !important; }
++  .animate-in { animation: none !important; opacity: 1 !important; transform: none !important; }
++}
+diff --git a/frontend/consult.html b/frontend/consult.html
+index 2e9dd13..5aaa5a4 100644
+--- a/frontend/consult.html
++++ b/frontend/consult.html
+@@ -12,3 +12,6 @@
+-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
+-<body>
+-<div class="app">
++<link rel="stylesheet" href="assets/navigation.css">
++<link rel="stylesheet" href="assets/ui-foundation.css">
++<link rel="stylesheet" href="assets/consult-guide.css">
++<script src="assets/navigation-policy.js"></script></head>
++<body class="consult-page">
++<div class="app consult-app">
+@@ -17,8 +20,7 @@
+-  <section class="section">
+-    <div class="card consult-intro">
+-      <h2 class="consult-title">咨询与办理指引</h2>
+-      <p class="consult-sub">把「去哪问、问什么」整理好，具体答复由主管部门给出。</p>
+-      <p><a href="follow-up.html?view=logs&amp;from=consult.html">查看已记录的咨询</a></p>
+-      <ul class="consult-rules">
+-        <li>本页<b>不提供在线咨询、不代办、不代填</b>；部门、政策名称与官方链接读取自正式政策库，不补造信息。</li>
+-      </ul>
++  <section class="consult-hero" aria-labelledby="consultPreparationTitle">
++    <p class="consult-eyebrow">咨询准备</p>
++    <h2 id="consultPreparationTitle">先问清，再准备</h2>
++    <p class="consult-hero-copy">找到主管部门，带着问题去核实。</p>
++    <div class="consult-hero-actions">
++      <a class="consult-primary" href="#consultSources">找官方依据</a>
++      <a class="consult-record-link" href="follow-up.html?view=logs&amp;from=consult.html">已有咨询记录</a>
+@@ -25,0 +28 @@
++    <p class="consult-boundary">本页不提供在线咨询、不代办、不代填。</p>
+@@ -28,3 +31,6 @@
+-  <section class="section">
+-    <h2 class="section-title">咨询时建议问清这四件事</h2>
+-    <div class="card">
++  <section class="section consult-preparation">
++    <details class="consult-questions">
++      <summary>
++        <span><strong>咨询前，准备好这四个问题</strong><small>覆盖范围 · 申请入口 · 材料 · 标准</small></span>
++        <span class="consult-expand">展开</span>
++      </summary>
+@@ -32,4 +38,4 @@
+-        <div class="where-row"><span class="wr-k">① 覆盖范围</span><span class="wr-v">本人是否在服务覆盖范围内；街道、镇与社区可能有差异。</span></div>
+-        <div class="where-row"><span class="wr-k">② 申请入口</span><span class="wr-v">线上申请入口在哪里，或应去哪个线下窗口。</span></div>
+-        <div class="where-row"><span class="wr-k">③ 所需材料</span><span class="wr-v">需要哪些证件与凭证，是否要先完成评估。</span></div>
+-        <div class="where-row"><span class="wr-k">④ 适用标准</span><span class="wr-v">本人适用的具体标准与发放方式是什么。</span></div>
++        <div class="where-row"><span class="wr-k">01 覆盖范围</span><span class="wr-v">本人是否在服务覆盖范围内？街道、镇与社区可能有差异。</span></div>
++        <div class="where-row"><span class="wr-k">02 申请入口</span><span class="wr-v">线上申请入口在哪里，或应去哪个线下窗口？</span></div>
++        <div class="where-row"><span class="wr-k">03 所需材料</span><span class="wr-v">需要哪些证件与凭证，是否要先完成评估？</span></div>
++        <div class="where-row"><span class="wr-k">04 适用标准</span><span class="wr-v">本人适用的具体标准与发放方式是什么？</span></div>
+@@ -37 +43 @@
+-    </div>
++    </details>
+@@ -40,2 +46,6 @@
+-  <section class="section">
+-    <h2 class="section-title">按主管部门查看</h2>
++  <section class="section consult-sources" id="consultSources" aria-labelledby="consultSourcesTitle">
++    <div class="consult-section-heading">
++      <p class="consult-eyebrow">去哪里问</p>
++      <h2 id="consultSourcesTitle">按主管部门找官方依据</h2>
++      <p>先确认责任部门与政策原文，具体咨询或办理入口请再向该部门核实。</p>
++    </div>
+@@ -46,0 +57,7 @@
++  <section class="section consult-records" id="consultRecords" aria-labelledby="consultRecordsTitle">
++    <a class="consult-record-card" href="follow-up.html?view=logs&amp;from=consult.html">
++      <span><span class="consult-eyebrow">已有记录</span><strong id="consultRecordsTitle">回看已记录的咨询</strong><small>把问到的答复和后续安排接着往下做。</small></span>
++      <span class="consult-record-cta">查看记录</span>
++    </a>
++  </section>
++
+@@ -49 +66 @@
+-    <span>本页仅为核实指引，不构成政策解释或资格认定；最终以主管部门答复为准。</span>
++    <span>部门、政策名称与链接均读取自正式政策库。来源链接不代表在线办理入口；本页不构成政策解释或资格认定，最终以主管部门答复为准。</span>
+@@ -60,0 +78,7 @@
++  const consultQuestions = document.querySelector('.consult-questions');
++  const updateConsultQuestionsLabel = () => {
++    consultQuestions.querySelector('.consult-expand').textContent = consultQuestions.open ? '收起' : '展开';
++  };
++  consultQuestions.addEventListener('toggle', updateConsultQuestionsLabel);
++  updateConsultQuestionsLabel();
++
+diff --git a/frontend/discover.html b/frontend/discover.html
+index 50ac93c..89e4c72 100644
+--- a/frontend/discover.html
++++ b/frontend/discover.html
+@@ -11 +11 @@
+-<link rel="stylesheet" href="assets/structured-result.css"><script src="assets/query-fields.js"></script><script src="assets/structured-result.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/result-presentation.js"></script><script src="assets/policy-actions.js"></script><script src="assets/followup-service.js"></script><script src="assets/policy-batch.js"></script><script src="assets/semantic-result.js"></script></head>
++<link rel="stylesheet" href="assets/structured-result.css"><script src="assets/query-fields.js"></script><script src="assets/structured-result.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/result-presentation.js"></script><script src="assets/policy-actions.js"></script><script src="assets/followup-service.js"></script><script src="assets/policy-batch.js"></script><script src="assets/semantic-result.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/discovery-c.html b/frontend/discovery-c.html
+index cacafbc..ac1f4a9 100644
+--- a/frontend/discovery-c.html
++++ b/frontend/discovery-c.html
+@@ -1 +1 @@
+-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fdfaf5"><title>发现 · 政策找人</title><link rel="stylesheet" href="assets/tcb.css"><link rel="stylesheet" href="discovery-c/discovery.css"><script src="assets/pf-service-v3-activation.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head><body><main class="app dc-app"><header class="dc-hero"><div class="dc-leaves" aria-hidden="true"><i></i><i></i><i></i></div><h1>发现</h1><p>浏览已收录政策，了解可能与你相关的权益。</p><label class="dc-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg><input id="search" type="search" placeholder="搜索政策名称、关键词" aria-label="搜索政策名称、关键词" autocomplete="off"></label></header><aside class="dc-guide"><h2>不知道哪些政策适合自己？</h2><p>结合年龄、地区和生活情况，寻找可能相关的政策。</p><div><button id="selfEntry" class="dc-primary">为自己看看 →</button><button id="familyEntry">帮家人看看 →</button></div></aside><div class="dc-error" id="entryError" role="alert"></div><section class="dc-region" aria-label="政策地区"><h2>政策地区</h2><div id="regions"><button type="button" data-region="guangzhou" aria-pressed="true">广州 <span id="gzCount">—</span></button><button type="button" data-region="foshan" aria-pressed="false">佛山 <span id="fsCount">—</span></button></div></section><section class="dc-topics" aria-label="政策主题"><div class="dc-heading"><h2>政策主题</h2><span>按实际收录分类展示</span></div><div id="topics" class="dc-chips"></div></section><section aria-labelledby="listTitle"><div class="dc-heading dc-list-heading"><h2 id="listTitle">已收录政策</h2><span id="count" role="status" aria-live="polite"></span></div><div id="list" aria-busy="true"></div></section><p class="dc-disclaimer">收录与来源核验不代表符合申请资格，具体条件以主管部门核实为准。</p></main><script src="assets/app.js"></script><script src="assets/followup-client.js"></script><script src="assets/tcb-ui.js"></script><script src="discovery-c/discovery.js"></script></body></html>
++<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fdfaf5"><title>发现 · 政策找人</title><link rel="stylesheet" href="assets/tcb.css"><link rel="stylesheet" href="discovery-c/discovery.css"><script src="assets/pf-service-v3-activation.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head><body><main class="app dc-app"><header class="dc-hero"><div class="dc-leaves" aria-hidden="true"><i></i><i></i><i></i></div><h1>发现</h1><p>浏览已收录政策，了解可能与你相关的权益。</p><label class="dc-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg><input id="search" type="search" placeholder="搜索政策名称、关键词" aria-label="搜索政策名称、关键词" autocomplete="off"></label></header><aside class="dc-guide"><h2>不知道哪些政策适合自己？</h2><p>结合年龄、地区和生活情况，寻找可能相关的政策。</p><div><button id="selfEntry" class="dc-primary">为自己看看 →</button><button id="familyEntry">帮家人看看 →</button></div></aside><div class="dc-error" id="entryError" role="alert"></div><section class="dc-region" aria-label="政策地区"><h2>政策地区</h2><div id="regions"><button type="button" data-region="guangzhou" aria-pressed="true">广州 <span id="gzCount">—</span></button><button type="button" data-region="foshan" aria-pressed="false">佛山 <span id="fsCount">—</span></button></div></section><section class="dc-topics" aria-label="政策主题"><div class="dc-heading"><h2>政策主题</h2><span>按实际收录分类展示</span></div><div id="topics" class="dc-chips"></div></section><section aria-labelledby="listTitle"><div class="dc-heading dc-list-heading"><h2 id="listTitle">已收录政策</h2><span id="count" role="status" aria-live="polite"></span></div><div id="list" aria-busy="true"></div></section><p class="dc-disclaimer">收录与来源核验不代表符合申请资格，具体条件以主管部门核实为准。</p></main><script src="assets/app.js"></script><script src="assets/followup-client.js"></script><script src="assets/tcb-ui.js"></script><script src="discovery-c/discovery.js"></script></body></html>
+diff --git a/frontend/find.html b/frontend/find.html
+index 4f74e07..5b35b48 100644
+--- a/frontend/find.html
++++ b/frontend/find.html
+@@ -10,0 +11,2 @@
++  <link rel="stylesheet" href="assets/ui-foundation.css">
++  <link rel="stylesheet" href="assets/ai-flow-polish.css">
+@@ -51,2 +53,3 @@
+-        <h1 tabindex="-1">为谁查找权益？</h1>
+-        <p>先选择一位家人，再描述最近的情况。</p>
++        <p class="entry-step">01 · 选择成员</p>
++        <h1>为谁查找权益？</h1>
++        <p>选择一位成员，再描述最近的情况。</p>
+@@ -54 +57 @@
+-          <fieldset aria-label="家庭成员"></fieldset>
++          <fieldset aria-label="选择本次查询的家庭成员"><legend class="flow-sr-only">选择本次查询的家庭成员</legend></fieldset>
+@@ -67 +69,0 @@
+-      chooser.querySelector('h1').focus();
+@@ -71,0 +74,27 @@
++      const returnCandidate = PFNavigation.returnTarget('');
++      const policyReturn = returnCandidate && PFNavigation.route(returnCandidate).name === 'policy.html'
++        ? returnCandidate : '';
++      if (policyReturn) {
++        document.title = '选择收藏成员 · 政策找人';
++        fieldset.setAttribute('aria-label', '选择收藏政策的家庭成员');
++        chooser.querySelector('.entry-step').textContent = '选择收藏成员';
++        chooser.querySelector('h1').textContent = '为谁收藏政策？';
++        chooser.querySelector('.entry-member > p:not(.entry-step)').textContent = '选好成员后，回到政策详情继续收藏。';
++        const back = chooser.querySelector('.entry-back');
++        back.href = policyReturn;
++        back.textContent = '‹ 返回政策详情';
++        next.firstChild.textContent = '返回政策详情 ';
++        document.querySelector('.entry-header > span').hidden = true;
++        chooser.querySelector('.entry-manage').href = PFNavigation.withParams('follow-up.html',
++          {view:'members',from:PFNavigation.current()});
++        document.addEventListener('DOMContentLoaded', () => {
++          document.querySelectorAll('.pf-global-nav [aria-current]').forEach(link => link.removeAttribute('aria-current'));
++          const section = PFNavigation.route(policyReturn).section;
++          document.querySelector('.pf-global-nav [data-tab="' + section + '"]')?.setAttribute('aria-current','page');
++        }, {once:true});
++      }
++      form.addEventListener('submit', event => {
++        if (!policyReturn) return;
++        event.preventDefault();
++        location.assign(PFNavigation.withParams(policyReturn, {member:form.elements.member.value}));
++      });
+@@ -72,0 +102,7 @@
++      function avatarRole(member) {
++        if (member.relation === '本人') return 'self';
++        if (['父亲','爷爷','外公'].includes(member.relation)) return 'elder-male';
++        if (['母亲','奶奶','外婆'].includes(member.relation)) return 'elder-female';
++        if (member.relation === '配偶') return 'couple';
++        return 'neutral';
++      }
+@@ -79,0 +116,2 @@
++          form.setAttribute('aria-busy', 'true');
++          next.disabled = true;
+@@ -88 +126,4 @@
+-            card.innerHTML = '<input type="radio" name="member" required><span><strong></strong><small></small></span>';
++            card.innerHTML = '<input type="radio" name="member" required><span class="entry-avatar" aria-hidden="true"><picture><source type="image/webp"><img alt="" width="48" height="48"></picture></span><span class="entry-member-copy"><strong></strong><small></small></span>';
++            const imageBase = 'assets/avatars/' + avatarRole(member);
++            card.querySelector('source').srcset = imageBase + '.webp';
++            card.querySelector('img').src = imageBase + '.png';
+@@ -93 +134,3 @@
+-            card.querySelector('small').textContent = member.relation;
++            const relation = card.querySelector('small');
++            relation.textContent = member.relation;
++            relation.hidden = member.name === member.relation;
+@@ -99,0 +143,2 @@
++        } finally {
++          form.setAttribute('aria-busy', 'false');
+diff --git a/frontend/follow-up.html b/frontend/follow-up.html
+index 3aa13f9..c2f10c2 100644
+--- a/frontend/follow-up.html
++++ b/frontend/follow-up.html
+@@ -9,0 +10 @@
++  <link rel="stylesheet" href="assets/plan-overview.css">
+@@ -12 +13 @@
+-</head>
++<link rel="stylesheet" href="assets/ui-foundation.css"><link rel="stylesheet" href="assets/family-records-polish.css"></head>
+diff --git a/frontend/index.html b/frontend/index.html
+index 91f3eee..4d0b09c 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -12 +12 @@
+-<link rel="stylesheet" href="assets/home-hifi.css"><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
++<link rel="stylesheet" href="assets/home-hifi.css"><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
+@@ -204,2 +204 @@
+-  // 家庭入口：target 沿用上次（parents/family），首次默认 parents；
+-  // 「我的长辈」语义由 family.html 的「其他关系」折叠区完整承接，跳转契约不变。
++  // 家庭入口保留原 target 约定，直接进入成员选择。
+@@ -209 +208 @@
+-    location.href = 'find.html';
++    location.href = 'find.html?choose=1';
+diff --git a/frontend/mine.html b/frontend/mine.html
+index 34001fd..9e2039d 100644
+--- a/frontend/mine.html
++++ b/frontend/mine.html
+@@ -10 +10 @@
+-</head>
++<link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/original-home.html b/frontend/original-home.html
+index 90907bd..886ec67 100644
+--- a/frontend/original-home.html
++++ b/frontend/original-home.html
+@@ -14 +14 @@
+-</head>
++<link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/plan.html b/frontend/plan.html
+index 3e5bc29..8bbdd9b 100644
+--- a/frontend/plan.html
++++ b/frontend/plan.html
+@@ -12 +12 @@
+-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
++<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/policy.html b/frontend/policy.html
+index 14f8e23..fb99caf 100644
+--- a/frontend/policy.html
++++ b/frontend/policy.html
+@@ -22,2 +22,5 @@
+-</script></head>
+-<body class="detail-v1">
++</script>
++<link rel="stylesheet" href="assets/ui-foundation.css">
++<link rel="stylesheet" href="assets/policy-detail-polish.css">
++</head>
++<body class="detail-v1 policy-detail">
+@@ -26 +29 @@
+-  <div id="content">
++  <main id="content">
+@@ -28 +31 @@
+-  </div>
++  </main>
+@@ -53,0 +57 @@
++    compactPolicyHeader();
+@@ -65,0 +70,45 @@
++  function compactPolicyHeader() {
++    const topbar = document.querySelector('.topbar');
++    if (!topbar) return;
++    // Keep the rendered link node so its href, data-back, and listeners survive
++    // both the app.js header and the tcb-ui.js header adapter.
++    const back = topbar.querySelector('[data-back]') || topbar.querySelector('.back-link');
++    const row = document.createElement('div');
++    row.className = 'brand-row has-back detail-topbar-row';
++    if (back) {
++      back.textContent = '返回上页';
++      row.append(back);
++    }
++    const title = document.createElement('span');
++    title.className = 'detail-topbar-title';
++    title.textContent = '政策依据';
++    row.append(title);
++    topbar.replaceChildren(row);
++  }
++
++  // Only split the existing prose at sentence boundaries; do not summarize policy content.
++  function policyProse(value) {
++    return String(value || '').split(/\n+/).filter(text => text.trim()).flatMap(paragraph => {
++      if (paragraph.length < 150) return [paragraph];
++      const sentences = paragraph.match(/[^。！？]*[。！？]+|[^。！？]+$/g) || [paragraph];
++      const groups = [];
++      let current = '';
++      for (const sentence of sentences) {
++        current += sentence;
++        if (current.length >= 90) { groups.push(current); current = ''; }
++      }
++      if (current) groups.push(current);
++      return groups;
++    }).map(text => '<p>' + escapeHtml(text) + '</p>').join('');
++  }
++
++  function policyHero({name, region, category, sourceLabel, pending, validity, saveId}) {
++    return `<section class="card policy-overview detail-hero${analysisDetail ? ' flow-hero with-art' : ''}">
++      <p class="detail-eyebrow">政策解读</p>
++      <h1>${escapeHtml(name)}</h1>
++      <p class="detail-region">${escapeHtml([region,category].filter(Boolean).join(' · ') || '地区暂缺')}</p>
++      <div class="detail-meta"><span class="rp-status ${pending ? 'pending' : ''}">${escapeHtml(sourceLabel)}</span>${validity ? '<span class="detail-validity">目录效力：'+escapeHtml(validity)+'</span>' : ''}</div>
++      ${saveId ? `<div class="detail-save-bar"><button type="button" class="dhead-save detail-save-control" data-save="${escapeHtml(saveId)}" aria-label="收藏这条政策" aria-pressed="false">收藏政策</button><p class="detail-save-context" data-save-context aria-live="polite">按成员保存，方便下次查看</p></div>` : ''}
++    </section>`;
++  }
++
+@@ -69,3 +118,6 @@
+-    document.body.className = 'v32-flow';
+-    document.body.innerHTML = `<header class="top"><a href="${escapeHtml(_policyParent)}" aria-label="返回">‹</a><span>政策找人</span></header>
+-      <main id="v32-detail"><p role="status">正在读取政策依据…</p></main>`;
++    document.body.className = 'v32-flow policy-detail';
++    document.body.innerHTML = `<div class="app"><header class="topbar"></header>
++      <main id="v32-detail"><p class="loading" role="status">正在读取政策依据…</p></main>
++      <p class="footnote">政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。</p></div>`;
++    renderTopbar('政策依据', _policyParent);
++    compactPolicyHeader();
+@@ -98,3 +150 @@
+-      const firstSentence = description.match(/^.+?[。！？]/)?.[0] || description;
+-      const intro = firstSentence.length > 92 ? firstSentence.slice(0,91)+'…' : firstSentence;
+-      const basis = original ? `<a class="button" href="${escapeHtml(original)}" target="_blank" rel="noopener noreferrer">查看官方原文 ↗</a>` : '';
++      const basis = original ? `<a class="tc-link" href="${escapeHtml(original)}" target="_blank" rel="noopener noreferrer"><span>查看官方原文<small>${escapeHtml(new URL(original).hostname)}</small></span></a>` : '<p class="tc-note">原文链接待核实，请向发布部门核实。</p>';
+@@ -102,3 +152,6 @@
+-      target.innerHTML = `<section class="flow-hero with-art"><h1>${escapeHtml(item.name)}</h1>
+-        <p>${escapeHtml(recorded.region?.scope || item.region)} · ${escapeHtml(recorded.category || item.category)}</p>
+-        <p class="policy-meta"><span>${verified ? '来源已核验' : '来源待核实'}</span><span>目录效力：${validity}</span></p></section>
++      const conditions = item.conditions || [];
++      const currentVersion = version === state.result?.version;
++      const conditionList = conditions.filter(row=>!row.is_threshold).map(row=>[row.requirement || row.label,row.state === 'unknown' ? '待核实' : row.state === 'failed' ? '条件不满足' : '规则已核验'].join(' · '));
++      const missing = (item.missing_information || []).filter(text=>!conditions.some(row=>row.label===text || row.requirement===text));
++      const sourceRows = [['责任部门',src.department],['政策文件',src.document],['文号',src.document_no],['生效时间',policy.validity?.effective_from]].filter(row=>row[1]);
++      target.innerHTML = `${policyHero({name:item.name,region:recorded.region?.scope || item.region,category:recorded.category || item.category,sourceLabel:verified ? '来源已核验' : '来源待核实',pending:!verified,validity,saveId:currentVersion ? item.id : ''})}
+@@ -106,14 +159,14 @@
+-        <section class="panel"><h2>这项政策是做什么的</h2><p>${escapeHtml(intro)}</p></section>
+-        <section class="panel"><h2>为什么与你可能相关</h2><p>${escapeHtml(item.reason)}</p><p class="meta">适用资格由主管部门核实。</p></section>
+-        <details class="panel"><summary>查看适用条件与待核实项</summary>${list(item.conditions.filter(row=>!row.is_threshold)
+-          .map(row=>[row.requirement || row.label,row.state === 'unknown' ? '待核实' : row.state === 'failed' ? '条件不满足' : '规则已核验'].join(' · '))) ||
+-          '<p>具体条件请查看政策依据。</p>'}${list(item.missing_information.filter(text=>!item.conditions.some(row=>row.label===text || row.requirement===text)))}</details>
+-        <details class="panel"><summary>查看政策依据与办理说明</summary>
+-          ${intro !== description ? '<p>'+escapeHtml(description)+'</p>' : ''}
+-          ${list([src.department,src.document_no,policy.validity?.effective_from].filter(Boolean))}
+-          ${list((recorded.application_process || []).map(row=>typeof row==='string' ? row : row.step + (row.to_verify ? ' · 待核实' : '')))}
+-          ${list((recorded.materials || []).map(row=>typeof row==='string' ? row : row.item + (row.to_verify ? ' · 待核实' : '')))}</details>
+-        <div class="detail-actions">${basis || '<p class="meta">原文链接待核实</p>'}
+-          ${version===state.result?.version ? `<button type="button" data-save="${escapeHtml(item.id)}">收藏到权益清单</button>` : ''}
+-          <a class="button primary" href="${escapeHtml(_policyParent)}">${backLabel}</a></div>`;
+-      if (version===state.result?.version) bindSave({policy_id:item.id,region:{scope:item.region}});
++        <div class="detail-reading">
++          ${qBlock(1,'政策简介',policyProse(description))}
++          ${qBlock(2,'为什么与你可能相关',policyProse(item.reason)+'<p class="detail-muted">适用资格由主管部门核实。</p>')}
++          ${qBlock(3,'适用条件',list(conditionList) || '<p>具体条件请查看政策依据。</p>')}
++          ${missing.length ? qBlock(4,'待确认条件',list(missing),'is-warm') : ''}
++          ${(recorded.application_process?.length || recorded.materials?.length) ? qBlock(missing.length ? 5 : 4,'办理材料及办理方式',
++            (recorded.materials?.length ? '<h4>办理材料</h4>'+list(recorded.materials.map(row=>typeof row==='string' ? row : row.item + (row.to_verify ? ' · 待核实' : ''))) : '')+
++            (recorded.application_process?.length ? '<h4>办理方式</h4>'+list(recorded.application_process.map(row=>typeof row==='string' ? row : row.step + (row.to_verify ? ' · 待核实' : ''))) : '')) : ''}
++          <section class="trust-card" id="policySource"><h2>政策依据和官方来源</h2><p class="tc-note">${verified ? '政策来源已核验，具体适用条件仍需主管部门确认。' : '来源尚待核实，请以主管部门公开文件为准。'}</p>
++            <div class="tc-rows">${sourceRows.map(([key,value])=>'<div class="tc-row"><span class="k">'+escapeHtml(key)+'</span><span class="v">'+escapeHtml(value)+'</span></div>').join('')}</div>${basis}</section>
++          <p class="notice warn detail-disclaimer">AI 推荐与政策收录不代表符合申请资格，最终由主管部门核实。</p>
++        </div>
++        <section class="detail-next-panel"><h2>看完依据，接下来怎么做？</h2><p>${currentVersion ? '可先收藏这项政策，再回到推荐结果继续了解。' : '当前为历史版本，可返回原页面查看查询记录。'}</p><a class="button primary detail-return" href="${escapeHtml(_policyParent)}">${backLabel}</a></section>`;
++      if (currentVersion) bindSave({policy_id:item.id,region:{scope:item.region}});
+@@ -134 +187 @@
+-      <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
++      <h2><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h2>
+@@ -140,2 +193,2 @@
+-  // 滚动到并高亮对应区块——解读看 ①这是什么 ②为什么推荐（q1/q2），
+-  // 办理看 ④去哪里核实 ⑤怎么办理（q4/q5）。参数随 URL 保留，刷新后高亮仍在；
++  // 滚动到并高亮对应区块——解读看政策简介与适用对象（q1/q2），
++  // 办理看材料、办理方式与官方来源（q6/policySource）。参数随 URL 保留，刷新后高亮仍在；
+@@ -145 +198 @@
+-    const map = { detail: ['q1', 'q2'], guide: ['q4', 'q5'] };
++    const map = { detail: ['q1', 'q2'], guide: ['q6', 'policySource'] };
+@@ -308 +361 @@
+-           <span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span>${escapeHtml(url)}</span></a>`
++           <span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span>查看官方原文<small>${escapeHtml((()=>{try{return new URL(url).hostname;}catch{return url;}})())}</small></span></a>`
+@@ -360,2 +413,2 @@
+-      <div class="trust-card">
+-        <h3><span class="q-title">政策依据和官方来源</span></h3>
++      <div class="trust-card" id="policySource">
++        <h2>政策依据和官方来源</h2>
+@@ -396,3 +449,3 @@
+-      <section class="card policy-overview"><div class="tc-title-row"><h2>${escapeHtml(p.policy_name)}</h2><button type="button" class="dhead-save" data-save="${escapeHtml(p.policy_id)}" aria-label="收藏这条政策">☆</button></div><p>${escapeHtml(p.region?.scope||'地区暂缺')}</p><span class="rp-status ${pending?'pending':ver.status==='verified'?'':'unknown'}">${pending?'来源待核验':ver.status==='verified'?'来源已核验':'来源状态暂缺'}</span></section>
+-      <section class="section">
+-        ${qBlock(1,'政策简介','<p>'+escapeHtml(p.description||'政策简介暂缺')+'</p>')}
++      ${policyHero({name:p.policy_name,region:p.region?.scope,category:p.category,sourceLabel:pending?'来源待核验':ver.status==='verified'?'来源已核验':'来源状态暂缺',pending:pending || ver.status!=='verified',saveId:p.policy_id})}
++      <section class="section detail-reading">
++        ${qBlock(1,'政策简介',policyProse(p.description||'政策简介暂缺'))}
+@@ -405 +458 @@
+-        <p class="notice warn">政策收录和初步匹配不代表符合申请资格，最终由主管部门核实。</p>
++        <p class="notice warn detail-disclaimer">政策收录和初步匹配不代表符合申请资格，最终由主管部门核实。</p>
+@@ -408 +461 @@
+-      <section class="section"><button class="btn ghost" id="returnOriginalList">返回原政策列表</button></section>`;
++      <section class="section detail-return-section"><button class="btn ghost detail-return" id="returnOriginalList">返回原政策列表</button></section>`;
+@@ -419,0 +473 @@
++    const contextNote = document.querySelector('[data-save-context]');
+@@ -429 +483 @@
+-      if (analysisDetail) btn.textContent = on ? '已加入权益清单' : '收藏到权益清单';
++      btn.textContent = on ? '已收藏' : '收藏政策';
+@@ -435,0 +490 @@
++        if (contextNote) contextNote.textContent = '历史收藏仅供查看';
+@@ -446,0 +502,2 @@
++        btn.hidden = true;
++        if (contextNote) contextNote.textContent = '先选择成员，再保存这项政策';
+@@ -448 +505 @@
+-        choose.href = 'services.html';
++        choose.href = PFNavigation.withParams('find.html', {choose:1, from:PFNavigation.current()});
+@@ -449,0 +507 @@
++        choose.className = 'detail-member-link';
+@@ -457,0 +516 @@
++        if (contextNote) contextNote.textContent = '收藏对象：' + state.member.name;
+@@ -460,0 +520 @@
++      if (contextNote) contextNote.textContent = '收藏对象：' + state.member.name + (state.member.archivedAt ? ' · 已归档，仅供查看' : '');
+@@ -485,0 +546 @@
++      if (contextNote) contextNote.textContent = '暂时无法读取收藏状态，请稍后重试';
+diff --git a/frontend/query-history.html b/frontend/query-history.html
+index 3305b81..7fc080e 100644
+--- a/frontend/query-history.html
++++ b/frontend/query-history.html
+@@ -6,0 +7 @@
++  <meta name="theme-color" content="#29734f">
+@@ -8,0 +10,3 @@
++  <link rel="stylesheet" href="assets/navigation.css">
++  <link rel="stylesheet" href="assets/ui-foundation.css">
++  <link rel="stylesheet" href="assets/history-polish.css">
+@@ -11,5 +15,9 @@
+-<body>
+-<main class="app q-app">
+-  <header class="q-head"><a class="q-back" href="services.html" aria-label="返回我的">←</a>查询历史</header>
+-  <h1>查询历史</h1>
+-  <p id="historyStatus" role="status"></p>
++<body class="history-page">
++<main class="app q-app history-app">
++  <header class="q-head history-top"><a class="q-back" href="services.html">返回我的</a></header>
++  <div class="history-intro">
++    <p class="history-eyebrow">每一次查询，都可以回看</p>
++    <h1>查询历史</h1>
++    <p class="q-sub">按成员查看历次查询，接着处理关心的政策。</p>
++  </div>
++  <p id="historyStatus" class="history-status" role="status" aria-live="polite"></p>
+@@ -22,3 +30,8 @@
+-    <label class="q-label" for="historyMember">查看哪位成员的查询？</label>
+-    <select id="historyMember"></select>
+-    <div id="historyList"></div>
++    <div class="history-filter">
++      <label class="q-label" for="historyMember">查看哪位成员的查询？</label>
++      <select id="historyMember" aria-describedby="historyMemberHelp"></select>
++      <p id="historyMemberHelp">只展示所选成员的查询记录。</p>
++    </div>
++    <div class="history-results-heading"><h2>历史记录</h2><span id="historyCount"></span></div>
++    <div id="historyList" aria-live="polite"></div>
++    <p class="history-retention">从历史中删除查询，已保存的咨询、计划和处理记录仍会保留。</p>
+diff --git a/frontend/records.html b/frontend/records.html
+index e7fd2de..2ed0173 100644
+--- a/frontend/records.html
++++ b/frontend/records.html
+@@ -17 +17 @@
+-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
++<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/search.html b/frontend/search.html
+index e5da733..b0ed942 100644
+--- a/frontend/search.html
++++ b/frontend/search.html
+@@ -12 +12 @@
+-</head>
++<link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/self.html b/frontend/self.html
+index 4840037..5aa8b10 100644
+--- a/frontend/self.html
++++ b/frontend/self.html
+@@ -12 +12 @@
+-  <link rel="stylesheet" href="assets/query-flow.css"><link rel="stylesheet" href="assets/structured-result.css"><script src="assets/query-fields.js"></script><script src="assets/structured-result.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/result-presentation.js"></script><script src="assets/policy-actions.js"></script><script src="assets/followup-service.js"></script><script src="assets/policy-batch.js"></script><script src="assets/semantic-result.js"></script></head>
++  <link rel="stylesheet" href="assets/query-flow.css"><link rel="stylesheet" href="assets/structured-result.css"><script src="assets/query-fields.js"></script><script src="assets/structured-result.js"></script><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/result-v1.css"><script src="assets/result-presentation.js"></script><script src="assets/policy-actions.js"></script><script src="assets/followup-service.js"></script><script src="assets/policy-batch.js"></script><script src="assets/semantic-result.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
+diff --git a/frontend/services.html b/frontend/services.html
+index 3ae4a37..8c4ae83 100644
+--- a/frontend/services.html
++++ b/frontend/services.html
+@@ -31 +31 @@
+-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
++<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"><link rel="stylesheet" href="assets/family-records-polish.css"></head>
+diff --git a/frontend/verify-list.html b/frontend/verify-list.html
+index 5090bde..0d1f9c1 100644
+--- a/frontend/verify-list.html
++++ b/frontend/verify-list.html
+@@ -12 +12 @@
+-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
++<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>

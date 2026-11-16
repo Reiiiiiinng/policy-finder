@@ -1,0 +1,26 @@
+/* Shared visual baseline, grounded in the existing home and plan screens. */
+:root {
+  --ui-forest: #245f3d;
+  --ui-ink: #193f2b;
+  --ui-paper: #fdfaf5;
+  --ui-muted: #64715f;
+  --ui-line: #e3e8dc;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif; }
+button, input, select, textarea { font-family: inherit; }
+button, summary, a { -webkit-tap-highlight-color: transparent; }
+a:not([class]) { color: var(--ui-forest); text-underline-offset: 4px; }
+a:not([class]):hover { text-decoration-thickness: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #7f6029;
+  outline-offset: 3px;
+}
+input[type="radio"], input[type="checkbox"] { accent-color: var(--ui-forest); }
+img { max-width: 100%; }
+button:not([class]) { min-height: 44px; padding: 8px 14px; border: 1px solid #ccd9c5; border-radius: 14px; background: #fffefa; color: var(--ui-forest); font: inherit; cursor: pointer; }
+#pfToast { width: max-content; max-width: min(420px, calc(100vw - 32px)); }
+.has-global-nav #pfToast { bottom: calc(var(--pf-nav-height) + 14px); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  .animate-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

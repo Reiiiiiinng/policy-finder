@@ -57,6 +57,16 @@
   const getState = () => request('v32/state?' + stateQuery());
   const analysisRoute = (view = '') => route({id:state.id, member:memberId, ...(view ? {view} : {})});
   const currentView = () => new URLSearchParams(location.search).get('view');
+  const currentMember = () => members.find(person => person.id === memberId);
+  const isSelf = () => currentMember()?.relation === '本人';
+  function memberContext() {
+    const member = currentMember();
+    const role = isSelf() ? 'self' : ['父亲','爷爷','外公'].includes(member?.relation) ? 'elder-male' :
+      ['母亲','奶奶','外婆'].includes(member?.relation) ? 'elder-female' : member?.relation === '配偶' ? 'couple' : 'neutral';
+    return `<div class="member-note member-context"><img src="assets/avatars/${role}.webp" alt="" width="40" height="40">
+      <span><small>本次查询对象</small><strong>${escape(member?.name)}</strong>${member?.name === member?.relation ? '' : `<span class="member-relation">${escape(member?.relation)}</span>`}</span>
+      <a href="find.html?choose=1">更换</a></div>`;
+  }
   let draftTimer, draftWrite=Promise.resolve(), draftRevision=0;
   function rememberDraft(form) {
     clearTimeout(draftTimer);
@@ -121,6 +131,9 @@
     if (memberId && !params.has('id') && !members.some(person => person.id === memberId)) {
       throw Error('无法读取指定家庭成员，请返回发现重新选择。');
     }
+    if (params.has('self') && !params.has('id') && (!first || (memberId && memberId !== first.id))) {
+      throw Error('无法读取本人资料，请返回首页或在「我的」核对成员。');
+    }
     if (!memberId) memberId = (first || members[0])?.id;
     if (!memberId) throw Error('请先在「我的」添加家庭成员。');
     state = params.has('id') ? await getState() : null;
@@ -141,14 +154,14 @@
       ...demoCases[demo], ...priorDraft};
     const choices = members.map(person => `<option value="${escape(person.id)}" ${person.id === memberId ? 'selected' : ''}>${escape(person.name)}</option>`);
     const historyOnly = params.get('view') === 'history';
-    header(historyOnly ? '查询历史' : '家庭情况', historyOnly ? 'find.html' : 'find.html?choose=1');
-    app.innerHTML = `${hero(historyOnly ? '查询历史' : '家里最近有什么变化？',
-      historyOnly ? '' : '说说家里的近况，AI 会帮你查找可能相关的政策。')}${demoLabel()}
+    header(historyOnly ? '查询历史' : isSelf() ? '我的情况' : '家庭情况', historyOnly ? 'find.html' : isSelf() ? 'index.html' : 'find.html?choose=1');
+    app.innerHTML = `${hero(historyOnly ? '查询历史' : isSelf() ? '你最近有什么变化？' : '家里最近有什么变化？',
+      historyOnly ? '' : isSelf() ? '说说你的近况，AI 会帮你查找可能相关的政策。' : '说说家里的近况，AI 会帮你查找可能相关的政策。')}${demoLabel()}
       ${historyOnly ? `<label class="member-field">家庭成员<select id="member">${choices.join('')}</select></label>` :
-        `<p class="member-note">为 <strong>${escape(members.find(person=>person.id===memberId)?.name)}</strong> 查找权益</p>`}
+        memberContext()}
       ${historyOnly ? `<a class="button" href="${route({member:memberId,new:1})}">新建查询</a>` :
       `<form id="intake" data-id="${escape(saved.id || crypto.randomUUID())}">
-        <label class="description-field">描述家庭情况<textarea name="description" required rows="5" maxlength="4000" placeholder="例如，妈妈最近走路不方便，做饭和外出都需要人帮忙。">${escape(saved.description)}</textarea></label>
+        <label class="description-field">${isSelf() ? '描述你的情况' : '描述家庭情况'}<textarea name="description" required rows="5" maxlength="4000" placeholder="${isSelf() ? '例如，我最近住院，报销后仍有一笔自费支出，想了解有哪些政策可以进一步咨询。' : '例如，妈妈最近走路不方便，做饭和外出都需要人帮忙。'}">${escape(saved.description)}</textarea></label>
         ${basics(saved)}
         <details class="optional"><summary>补充生活情况（选填）</summary>
           <label>生活变化、身体或照护情况<textarea name="supplement" rows="2" maxlength="2000">${escape(saved.supplement)}</textarea></label>
@@ -365,6 +378,7 @@
 
   function favoriteState(button, saved) {
     button.setAttribute('aria-pressed', String(saved));
+    button.closest('.policy-card')?.classList.toggle('is-selected', saved);
     button.textContent = saved ? '✓ 已选 · 取消' : '选择此政策';
     button.disabled = false;
     updateNext();
@@ -433,7 +447,7 @@
     const plans = Object.keys(state.plans || {}).map(id => `<a class="button" href="${escape(planLink(id))}">恢复少跑腿计划</a>`).join('');
     header('政策找人', route({member:memberId,view:'history'}));
     app.innerHTML = `${historical ? '' : '<div class="result-scroll">'}${hero(result.mode === 'rules' ? '基础规则查询结果' : 'AI 政策推荐',
-      '根据这次家庭情况，看看哪些权益值得进一步了解。', true)}
+      isSelf() ? '根据你的近况，看看哪些权益值得进一步了解。' : '根据这次家庭情况，看看哪些权益值得进一步了解。', true)}
       <p class="meta">${escape(state.memberLabel)} · 第 ${result.version} 版 · ${items.length} 项相关政策</p>${demoLabel()}
       ${state.planWarning ? `<p role="status">${escape(state.planWarning)}</p>` : ''}
       <div id="recommendations">${first}${others}</div>
@@ -443,7 +457,8 @@
           ${recommendationLine('判断依据', item.reasons.join('；'), 'checkList')}
         </article>`).join('')}</div></details>` : ''}
       ${historical ? '<button data-action="current">返回当前分析</button>' : `<div class="actions">
-        <a href="${escape(route({member:memberId}))}">查询历史 / 新查询</a>
+        <a href="${escape(route({member:memberId,view:'history'}))}">查询历史</a>
+        <a href="${escape(route({member:memberId,new:1}))}">新建查询</a>
         <a href="services.html?${query({member:memberId})}#mineFavorites">该成员的权益清单</a>
         ${result.public_search_query ? `<a href="search.html?${query({web:result.public_search_query})}">联网查找官方政策与渠道</a>` : ''}
         ${result.mode === 'rules' ? '<button data-action="analyze">重试 AI 分析</button>' : ''}

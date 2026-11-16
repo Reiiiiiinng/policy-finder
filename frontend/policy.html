@@ -20,13 +20,16 @@
       document.head.append(link);
     }
   }
-</script></head>
-<body class="detail-v1">
+</script>
+<link rel="stylesheet" href="assets/ui-foundation.css">
+<link rel="stylesheet" href="assets/policy-detail-polish.css">
+</head>
+<body class="detail-v1 policy-detail">
 <div class="app">
   <div class="topbar"></div>
-  <div id="content">
+  <main id="content">
     <div class="loading">正在加载政策依据…</div>
-  </div>
+  </main>
   <div class="footnote">
     政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。
   </div>
@@ -52,6 +55,7 @@
   // 进度由主流程条第 3 步高亮承担，顶部不再重复
   if (!analysisDetail) {
     renderTopbar('政策依据', _policyParent);
+    compactPolicyHeader();
     mountDemoBanner();
     mountFlow(3);
     mountRelationStrip();
@@ -64,12 +68,60 @@
   const id = query('id');
   const content = document.getElementById('content');
 
+  function compactPolicyHeader() {
+    const topbar = document.querySelector('.topbar');
+    if (!topbar) return;
+    // Keep the rendered link node so its href, data-back, and listeners survive
+    // both the app.js header and the tcb-ui.js header adapter.
+    const back = topbar.querySelector('[data-back]') || topbar.querySelector('.back-link');
+    const row = document.createElement('div');
+    row.className = 'brand-row has-back detail-topbar-row';
+    if (back) {
+      back.textContent = '返回上页';
+      row.append(back);
+    }
+    const title = document.createElement('span');
+    title.className = 'detail-topbar-title';
+    title.textContent = '政策依据';
+    row.append(title);
+    topbar.replaceChildren(row);
+  }
+
+  // Only split the existing prose at sentence boundaries; do not summarize policy content.
+  function policyProse(value) {
+    return String(value || '').split(/\n+/).filter(text => text.trim()).flatMap(paragraph => {
+      if (paragraph.length < 150) return [paragraph];
+      const sentences = paragraph.match(/[^。！？]*[。！？]+|[^。！？]+$/g) || [paragraph];
+      const groups = [];
+      let current = '';
+      for (const sentence of sentences) {
+        current += sentence;
+        if (current.length >= 90) { groups.push(current); current = ''; }
+      }
+      if (current) groups.push(current);
+      return groups;
+    }).map(text => '<p>' + escapeHtml(text) + '</p>').join('');
+  }
+
+  function policyHero({name, region, category, sourceLabel, pending, validity, saveId}) {
+    return `<section class="card policy-overview detail-hero${analysisDetail ? ' flow-hero with-art' : ''}">
+      <p class="detail-eyebrow">政策解读</p>
+      <h1>${escapeHtml(name)}</h1>
+      <p class="detail-region">${escapeHtml([region,category].filter(Boolean).join(' · ') || '地区暂缺')}</p>
+      <div class="detail-meta"><span class="rp-status ${pending ? 'pending' : ''}">${escapeHtml(sourceLabel)}</span>${validity ? '<span class="detail-validity">目录效力：'+escapeHtml(validity)+'</span>' : ''}</div>
+      ${saveId ? `<div class="detail-save-bar"><button type="button" class="dhead-save detail-save-control" data-save="${escapeHtml(saveId)}" aria-label="收藏这条政策" aria-pressed="false">收藏政策</button><p class="detail-save-context" data-save-context aria-live="polite">按成员保存，方便下次查看</p></div>` : ''}
+    </section>`;
+  }
+
   async function loadAnalysisDetail() {
     const member = analysisParams.get('member');
     const parameters = new URLSearchParams({id:analysisParams.get('analysis'),memberId:member});
-    document.body.className = 'v32-flow';
-    document.body.innerHTML = `<header class="top"><a href="${escapeHtml(_policyParent)}" aria-label="返回">‹</a><span>政策找人</span></header>
-      <main id="v32-detail"><p role="status">正在读取政策依据…</p></main>`;
+    document.body.className = 'v32-flow policy-detail';
+    document.body.innerHTML = `<div class="app"><header class="topbar"></header>
+      <main id="v32-detail"><p class="loading" role="status">正在读取政策依据…</p></main>
+      <p class="footnote">政策内容以主管部门公开发布的文件为准。页面仅提示可能相关的权益，不代表已符合资格。</p></div>`;
+    renderTopbar('政策依据', _policyParent);
+    compactPolicyHeader();
     PFNavigation.mount();
     const target = document.getElementById('v32-detail');
     try {
@@ -96,31 +148,35 @@
       const verified = recorded.verification?.status === 'verified' && original && src.department && (src.document || src.document_no);
       const list = values => values.length ? '<ul>' + values.map(value=>'<li>'+escapeHtml(value)+'</li>').join('') + '</ul>' : '';
       const description = item.benefit || recorded.description || recorded.service_note || '政策简介待核实。';
-      const firstSentence = description.match(/^.+?[。！？]/)?.[0] || description;
-      const intro = firstSentence.length > 92 ? firstSentence.slice(0,91)+'…' : firstSentence;
-      const basis = original ? `<a class="button" href="${escapeHtml(original)}" target="_blank" rel="noopener noreferrer">查看官方原文 ↗</a>` : '';
+      const basis = original ? `<a class="tc-link" href="${escapeHtml(original)}" target="_blank" rel="noopener noreferrer"><span>查看官方原文<small>${escapeHtml(new URL(original).hostname)}</small></span></a>` : '<p class="tc-note">原文链接待核实，请向发布部门核实。</p>';
       const backLabel = new URL(_policyParent,location.href).searchParams.has('view') ? '返回原页面' : '返回推荐结果';
-      target.innerHTML = `<section class="flow-hero with-art"><h1>${escapeHtml(item.name)}</h1>
-        <p>${escapeHtml(recorded.region?.scope || item.region)} · ${escapeHtml(recorded.category || item.category)}</p>
-        <p class="policy-meta"><span>${verified ? '来源已核验' : '来源待核实'}</span><span>目录效力：${validity}</span></p></section>
+      const conditions = item.conditions || [];
+      const currentVersion = version === state.result?.version;
+      const conditionList = conditions.map(row=>PFActionability.conditionLabel(row,item));
+      const canUseChannels = ['active','expiring'].includes(policy.validity?.status);
+      const next = ['expired','superseded','repealed','historical','not_yet_effective'].includes(policy.validity?.status)
+        ? '先查找当前有效的政策依据。' : PFActionability.next(item);
+      const missing = (item.missing_information || []).filter(text=>!conditions.some(row=>row.label===text || row.requirement===text));
+      const sourceRows = [['责任部门',src.department],['政策文件',src.document],['文号',src.document_no],['生效时间',policy.validity?.effective_from]].filter(row=>row[1]);
+      target.innerHTML = `${policyHero({name:item.name,region:recorded.region?.scope || item.region,category:recorded.category || item.category,sourceLabel:verified ? '来源已核验' : '来源待核实',pending:!verified,validity,saveId:currentVersion ? item.id : ''})}
         ${stateResponse.headers.get('X-PF-Preview-AI') === 'fixture' ? '<p class="demo-note">合成验收 · AI 模拟结果</p>' :
           state.demo ? '<p class="demo-note">合成家庭演示</p>' : ''}
-        <section class="panel"><h2>这项政策是做什么的</h2><p>${escapeHtml(intro)}</p></section>
-        <section class="panel"><h2>为什么与你可能相关</h2><p>${escapeHtml(item.reason)}</p><p class="meta">适用资格由主管部门核实。</p></section>
-        <section class="panel flow-note"><h2>下一步</h2><p>${escapeHtml(['expired','superseded','repealed','historical','not_yet_effective'].includes(policy.validity?.status) ? '先查找当前有效的政策依据。' : PFActionability.next(item))}</p></section>
-        <details class="panel"><summary>查看适用条件与待核实项</summary>${list(item.conditions.map(row=>PFActionability.conditionLabel(row,item))) ||
-          '<p>具体条件请查看政策依据。</p>'}${list(item.missing_information.filter(text=>!item.conditions.some(row=>row.label===text || row.requirement===text)))}</details>
-        <details class="panel"><summary>查看官方办理渠道</summary><p>政策发布机关 ${escapeHtml(src.department || '待核实')}</p>
-          ${PFActionability.channels(['active','expiring'].includes(policy.validity?.status) ? item.channels : [],escapeHtml)}</details>
-        <details class="panel"><summary>查看政策依据与办理说明</summary>
-          ${intro !== description ? '<p>'+escapeHtml(description)+'</p>' : ''}
-          ${list([src.department,src.document_no,policy.validity?.effective_from].filter(Boolean))}
-          ${list((recorded.application_process || []).map(row=>typeof row==='string' ? row : row.step + (row.to_verify ? ' · 待核实' : '')))}
-          ${list((recorded.materials || []).map(row=>typeof row==='string' ? row : row.item + (row.to_verify ? ' · 待核实' : '')))}</details>
-        <div class="detail-actions">${basis || '<p class="meta">原文链接待核实</p>'}
-          ${version===state.result?.version ? `<button type="button" data-save="${escapeHtml(item.id)}">收藏到权益清单</button>` : ''}
-          <a class="button primary" href="${escapeHtml(_policyParent)}">${backLabel}</a></div>`;
-      if (version===state.result?.version) bindSave({policy_id:item.id,region:{scope:item.region}});
+        <div class="detail-reading">
+          ${qBlock(1,'政策简介',policyProse(description))}
+          ${qBlock(2,'为什么与你可能相关',policyProse(item.reason)+'<p class="detail-muted">适用资格由主管部门核实。</p>')}
+          ${qBlock(3,'适用条件',list(conditionList) || '<p>具体条件请查看政策依据。</p>')}
+          ${missing.length ? qBlock(4,'待确认条件',list(missing),'is-warm') : ''}
+          ${(recorded.application_process?.length || recorded.materials?.length) ? qBlock(missing.length ? 5 : 4,'办理材料及办理方式',
+            (recorded.materials?.length ? '<h4>办理材料</h4>'+list(recorded.materials.map(row=>typeof row==='string' ? row : row.item + (row.to_verify ? ' · 待核实' : ''))) : '')+
+            (recorded.application_process?.length ? '<h4>办理方式</h4>'+list(recorded.application_process.map(row=>typeof row==='string' ? row : row.step + (row.to_verify ? ' · 待核实' : ''))) : '')) : ''}
+          <section class="trust-card"><h2>官方办理渠道</h2><p class="tc-note">政策发布机关 ${escapeHtml(src.department || '待核实')}</p>
+            ${PFActionability.channels(canUseChannels ? item.channels : [],escapeHtml)}</section>
+          <section class="trust-card" id="policySource"><h2>政策依据和官方来源</h2><p class="tc-note">${verified ? '政策来源已核验，具体适用条件仍需主管部门确认。' : '来源尚待核实，请以主管部门公开文件为准。'}</p>
+            <div class="tc-rows">${sourceRows.map(([key,value])=>'<div class="tc-row"><span class="k">'+escapeHtml(key)+'</span><span class="v">'+escapeHtml(value)+'</span></div>').join('')}</div>${basis}</section>
+          <p class="notice warn detail-disclaimer">AI 推荐与政策收录不代表符合申请资格，最终由主管部门核实。</p>
+        </div>
+        <section class="detail-next-panel"><h2>看完依据，接下来怎么做？</h2><p>${escapeHtml(next)}</p><p>${currentVersion ? '可先收藏这项政策，再回到推荐结果继续了解。' : '当前为历史版本，可返回原页面查看查询记录。'}</p><a class="button primary detail-return" href="${escapeHtml(_policyParent)}">${backLabel}</a></section>`;
+      if (currentVersion) bindSave({policy_id:item.id,region:{scope:item.region}});
     } catch {
       target.innerHTML = '<p role="status">暂时无法读取这次查询的政策依据，请返回后重试。</p>';
     }
@@ -135,18 +191,18 @@
   // 详情页统一分块
   function qBlock(n, title, inner, cls) {
     return `<div class="detail-block ${cls || ''}" id="q${n}">
-      <h3><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h3>
+      <h2><span class="q-num">${n}</span><span class="q-title">${escapeHtml(title)}</span></h2>
       ${inner}
     </div>`;
   }
 
   // 首页「政策解读 / 办理指引」入口带来的聚焦意图（?svc=detail|guide）：
-  // 滚动到并高亮对应区块——解读看 ①这是什么 ②为什么推荐（q1/q2），
-  // 办理看 ④去哪里核实 ⑤怎么办理（q4/q5）。参数随 URL 保留，刷新后高亮仍在；
+  // 滚动到并高亮对应区块——解读看政策简介与适用对象（q1/q2），
+  // 办理看材料、办理方式与官方来源（q6/policySource）。参数随 URL 保留，刷新后高亮仍在；
   // 直接打开（无参数）或参数异常时什么都不做，行为与从前完全一致。
   function applySvcFocus() {
     const svc = query('svc');
-    const map = { detail: ['q1', 'q2'], guide: ['q4', 'q5'] };
+    const map = { detail: ['q1', 'q2'], guide: ['q6', 'policySource'] };
     const ids = map[svc];
     if (!ids) return;
     const blocks = ids.map((x) => document.getElementById(x)).filter(Boolean);
@@ -309,7 +365,7 @@
     const url = clean(src.official_url);
     const linkHtml = url
       ? `<a class="tc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
-           <span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span>${escapeHtml(url)}</span></a>`
+           <span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span>查看官方原文<small>${escapeHtml((()=>{try{return new URL(url).hostname;}catch{return url;}})())}</small></span></a>`
       : `<div class="tc-none"><span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
            <span>官方链接：尚未核到一手文件来源，暂不提供链接，避免指向错误页面。</span></div>`;
 
@@ -361,8 +417,8 @@
     }
 
     const sourceCard = `
-      <div class="trust-card">
-        <h3><span class="q-title">政策依据和官方来源</span></h3>
+      <div class="trust-card" id="policySource">
+        <h2>政策依据和官方来源</h2>
         ${tcStatus}
         <div class="tc-rows">${rowsHtml}</div>
         ${linkHtml}
@@ -397,19 +453,19 @@
     const materials=(p.materials||[]).filter(x=>typeof x==='string'||x?.item);
     const materialHTML=materials.length?'<h3>办理材料</h3><ul>'+materials.map(x=>'<li>'+escapeHtml(typeof x==='string'?x:x.item)+(x.source_ref?'（'+escapeHtml(x.source_ref)+'）':'')+(x.to_verify?'（材料要求待核实）':'')+'</li>').join('')+'</ul>':'';
     content.innerHTML = `
-      <section class="card policy-overview"><div class="tc-title-row"><h2>${escapeHtml(p.policy_name)}</h2><button type="button" class="dhead-save" data-save="${escapeHtml(p.policy_id)}" aria-label="收藏这条政策">☆</button></div><p>${escapeHtml(p.region?.scope||'地区暂缺')}</p><span class="rp-status ${pending?'pending':ver.status==='verified'?'':'unknown'}">${pending?'来源待核验':ver.status==='verified'?'来源已核验':'来源状态暂缺'}</span></section>
-      <section class="section">
-        ${qBlock(1,'政策简介','<p>'+escapeHtml(p.description||'政策简介暂缺')+'</p>')}
+      ${policyHero({name:p.policy_name,region:p.region?.scope,category:p.category,sourceLabel:pending?'来源待核验':ver.status==='verified'?'来源已核验':'来源状态暂缺',pending:pending || ver.status!=='verified',saveId:p.policy_id})}
+      <section class="section detail-reading">
+        ${qBlock(1,'政策简介',policyProse(p.description||'政策简介暂缺'))}
         ${qBlock(2,'适用对象','<ul>'+(targets||'<li>暂未提供</li>')+'</ul>')}
         ${qBlock(3,'适用条件',conditionHTML)}
         ${qBlock(4,'本次匹配理由',why)}
         ${qBlock(5,'待确认条件',needConfirm,'is-warm')}
         ${(materials.length||steps.length)?qBlock(6,'办理材料及办理方式',materialHTML+(steps.length?needProcess:'')):''}
         ${sourceCard}
-        <p class="notice warn">政策收录和初步匹配不代表符合申请资格，最终由主管部门核实。</p>
+        <p class="notice warn detail-disclaimer">政策收录和初步匹配不代表符合申请资格，最终由主管部门核实。</p>
       </section>
       ${PFPolicyActions.render()}
-      <section class="section"><button class="btn ghost" id="returnOriginalList">返回原政策列表</button></section>`;
+      <section class="section detail-return-section"><button class="btn ghost detail-return" id="returnOriginalList">返回原政策列表</button></section>`;
     document.getElementById('returnOriginalList').onclick=()=>location.assign(_policyParent);
     PFPolicyActions.bind(p);
 
@@ -421,6 +477,7 @@
   async function bindSave(pol) {
     const btn = document.querySelector('[data-save]');
     if (!btn) return;
+    const contextNote = document.querySelector('[data-save-context]');
     const pid = String((pol && pol.policy_id) || '').trim();
     const region = pol?.region?.scope;
     btn.disabled = true;
@@ -430,13 +487,14 @@
       btn.classList.toggle('is-on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       btn.setAttribute('aria-label', on ? '取消收藏这条政策' : '收藏这条政策');
-      if (analysisDetail) btn.textContent = on ? '已加入权益清单' : '收藏到权益清单';
+      btn.textContent = on ? '已收藏' : '收藏政策';
     };
 
     try {
       if (!await PFBusiness.enabled()) {
         paint(PFServices.isFavorite(pid));
         btn.title = '旧收藏仅供查看';
+        if (contextNote) contextNote.textContent = '历史收藏仅供查看';
         return;
       }
       const params = new URLSearchParams(location.search);
@@ -448,9 +506,12 @@
       if (!memberId) {
         btn.disabled = true;
         btn.title = '请先在「我的」选择成员，或从成员的查询结果打开。';
+        btn.hidden = true;
+        if (contextNote) contextNote.textContent = '先选择成员，再保存这项政策';
         const choose = document.createElement('a');
-        choose.href = 'services.html';
+        choose.href = PFNavigation.withParams('find.html', {choose:1, from:PFNavigation.current()});
         choose.textContent = '选择收藏成员';
+        choose.className = 'detail-member-link';
         btn.after(choose);
         return;
       }
@@ -459,9 +520,11 @@
         state = await PFBusiness.favorites(state.member.id, pid, region);
         paint(state.favorite.saved);
         btn.title = '收藏对象：' + state.member.name;
+        if (contextNote) contextNote.textContent = '收藏对象：' + state.member.name;
       };
       paint(state.favorite.saved);
       btn.title = '收藏对象：' + state.member.name;
+      if (contextNote) contextNote.textContent = '收藏对象：' + state.member.name + (state.member.archivedAt ? ' · 已归档，仅供查看' : '');
       btn.disabled = Boolean(state.member.archivedAt);
       window.addEventListener('pageshow', event => {
         if (event.persisted && btn.isConnected && !btn.disabled) refresh().catch(error => showToast(error.message));
@@ -487,6 +550,7 @@
       });
     } catch (error) {
       btn.title = '收藏暂不可读取';
+      if (contextNote) contextNote.textContent = '暂时无法读取收藏状态，请稍后重试';
       showToast('收藏暂不可读取：' + error.message);
     }
   }
