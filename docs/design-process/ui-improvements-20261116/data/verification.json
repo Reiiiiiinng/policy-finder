@@ -1,0 +1,13 @@
+{
+  "html_scripts": "passed",
+  "relative_resource_check": "passed",
+  "comparison_image_files": 131,
+  "embedded_offline_images": 67,
+  "comparison_states": 32,
+  "image_open_and_zoom_preview": "passed",
+  "mobile_width": 390,
+  "preview_protocol": "HTTP",
+  "self_contained_resource_check": "passed",
+  "report_framing": "implemented changes and their purpose",
+  "interface_code_changed_by_report_delivery": false
+}

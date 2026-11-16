@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/Reiiiiiinng/policy-finder",
+  "original_branch": "feature/v3.3-latest",
+  "original_commit": "85718fec0b1a55a71b95275435f1d609afba0149",
+  "current_ui_commit": "97744415001b3ef688bb9d77423f693c0e9afd5a",
+  "original_frontend_blobs_verified": 87,
+  "modified_html_files": 17,
+  "comparison_states": 32,
+  "screenshot_size": {
+    "width": 390,
+    "height": 844
+  },
+  "image_files": 131,
+  "data": "相同的隔离合成演示数据；AI与联网功能使用预览模式",
+  "date": "2026-11-16"
+}
