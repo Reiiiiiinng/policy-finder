@@ -92,7 +92,10 @@ class V32(unittest.TestCase):
         )
         for name, policy_id, description, age, action, condition in scenarios:
             with self.subTest(name=name):
-                state = self.run_ai(Model([policy_id]), description, "佛山市", age)
+                requested = [policy_id]
+                if name in ("养老", "信息不足"):
+                    requested.extend(("fs_med_004", "fs_med_005"))
+                state = self.run_ai(Model(requested), description, "佛山市", age)
                 result = state["result"]
                 self.assertEqual(result["confirmed"]["basic"]["age"], age)
                 self.assertIn(description, result["confirmed"]["facts"])

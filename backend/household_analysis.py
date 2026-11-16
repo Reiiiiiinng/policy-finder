@@ -386,6 +386,16 @@ def judge(data, progress, mode, confirmed):
     progress("verify")
     pool, excluded = vetted(rows, base, needs, facts)
     profile = profile_for(base, needs, facts)
+    stated_scenes = set(engine.detect_scenes("。".join(facts)))
+    # Each of these programmes requires a specific reason to investigate it.
+    # Generic care or hospital spending alone does not establish that reason.
+    required_signals = {
+        "fs_med_005": {"突发生活困难", "家庭经济困难", "收入偏低", "经济压力"},
+        "fs_med_004": {"门诊特定病种", "长期服药"},
+    }
+    for identifier, signals in required_signals.items():
+        if not stated_scenes & signals:
+            pool.pop(identifier, None)
     if mode == "ai":
         progress("judge")
         selected = rank(client_factory(), pool, base, facts, needs)

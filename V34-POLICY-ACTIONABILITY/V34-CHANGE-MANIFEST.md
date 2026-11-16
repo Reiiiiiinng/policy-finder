@@ -2,7 +2,7 @@
 
 - 基线为 `85718fec0b1a55a71b95275435f1d609afba0149`，GitHub 比对确认 `feature/v3.3-latest` 指向同一提交。
 - 本地分支 `feature/v3.4-policy-actionability` 位于 `D:/Codex/policy-finder/v3.4-policy-actionability`。原 V3.3 验收目录没有 Git 元数据，已有未提交文件及历史数据库保留在原目录。
-- [本地人工验收](http://127.0.0.1:28766/) 使用回环地址和合成库。推荐可使用显式标注的模拟 AI，联网搜索走真正的 CleverSee。
+- [本地人工验收](http://127.0.0.1:28768/) 使用回环地址和新建隔离库，接入真实 DeepSeek 与 CleverSee。请使用合成描述。另可访问[模拟 AI 预览](http://127.0.0.1:28766/)。
 - 没有推送、部署、编辑凭据或迁移历史库。仅将软件和报告纳入本地 Git 提交。截图、运行证据和数据库留在本地。
 
 ## 代码与测试文件

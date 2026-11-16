@@ -2,6 +2,6 @@
 
 - 应用保留 `POST /api/search/web` 和 CleverSee 适配器。进程级设置 `CLEVERSEE_ENABLED=1`，使用现有 CleverSee 密钥。在隔离预览中启用真实模式。本轮未编辑凭据文件。
 - 公开检索词基于城市和固定主题词。用户可修改并自行提交。应用不传原始家庭叙述或成员信息到搜索供应商。
-- 最终实例 HTTP 200，`mode=live`。公开关键词「佛山市 临时救助 官方 办理」返回五条，包含一条已核验目录原文、一条官方线索、三条第三方参考。见 [HTTP 摘要](evidence/v34-live-search.json)。
+- 最终实例 HTTP 200，`mode=live`。公开关键词「佛山市 临时救助 官方 办理」返回五条，包含一条已核验目录原文、一条官方线索、三条第三方参考。见 [HTTP 摘要](evidence/v34-live-search.json) 和 [Edge 搜索截图](evidence/edge-v34-live-search-390.png)。
 - 已核验分类只接受当前有效、历史上经人工核验的目录原文链接精确匹配。其他政府网页为官方线索。官方结果为空时返回明确状态；禁用、缺少凭据、失败或 403 均显式报错，浏览器回归中的测试替身单独标注。
-- DeepSeek 独立检查使用原客户端配置，报 `CONFIG_MISSING_KEY`。进程、用户和机器环境无可用值，既有配置解析后也无可用值，未发起模型服务请求。见 [AI 探针摘要](evidence/v34-ai-probe.json)。Edge 流程用明确标记的模拟 AI。
+- DeepSeek 使用原配置文件的绝对路径，现有 `deepseek-flash` 正常返回。经真实预览的分析接口复验四个合成家庭，四例都包含预期事项，保留了未知年龄及待认定条件。养老场景中的商业保险附加推荐仍有待收紧。见 [真实 AI 摘要](evidence/v34-ai-probe.json)。Edge 自动化全链路使用显式标记的模拟 AI。

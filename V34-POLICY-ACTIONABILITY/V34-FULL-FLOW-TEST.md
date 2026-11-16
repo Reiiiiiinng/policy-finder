@@ -3,7 +3,7 @@
 ## 数据库隔离
 
 - 原验收工作区为 `D:/Codex/policy-finder/v3.3-trip-review`。Git 开发目录从干净 V3.3 提交独立克隆。
-- 人工预览数据库实际路径为 `D:/Codex/policy-finder/v3.4-policy-actionability/data/private-migration/v33-v34-manual-final/acceptance.db`。
+- 真实人工预览数据库为 `D:/Codex/policy-finder/v3.4-policy-actionability/data/private-migration/v33-v34-real-final/acceptance.db`。模拟 AI 人工预览使用同目录下独立实例 `v33-v34-manual-final/acceptance.db`。
 - Edge 最终合成数据库实际路径为 `D:/Codex/policy-finder/v3.4-policy-actionability/data/private-migration/v33-v34-edge-final/acceptance.db`。写入前已验证解析路径、预览目录边界及路径此前不存在；数据库完整性和外键检查通过（schema v6）。
 - Python 测试使用新临时库，测试临时目录重定向到独立检出内部。重启恢复复用的是本轮新建的 Edge 测试库。旧库未用于测试写入。
 
@@ -19,12 +19,12 @@
 | F 失效或替代 | 合成失效和被替代快照均被当前推荐排除，已有计划保留历史可追溯性。 |
 | G 具体渠道未核实 | 用无直接地址、电话及具体办理入口的事项验证；渠道保持可追溯来源，并可继续进入计划咨询。 |
 
-A–G 中的事实提取与研判使用合成模型或规则，场景覆盖见 `tests/test_v32.py`。A–G 的组合边界自动化与 Edge 全链路回归是两套测试。
+A–G 的组合边界使用合成模型或规则，详见 `tests/test_v32.py`。A–D 另用真实 DeepSeek 通过应用分析接口执行，四例均返回目标权益，未知年龄保持未知。养老场景仍出现一项商业保险附加推荐。
 
 ## 测试结果
 
 - 49 项业务、搜索适配器及迁移回归通过。DeepSeek 客户端离线 7 项、草稿隔离回归 1 项通过。
 - Microsoft Edge 157.0.4341.46 的回归 62 项通过。覆盖推荐卡、集中核对、完成（进入计划）、多事项条件复用、材料、官方咨询及回填、用户记录提交/补件/办结/退回、从「我的」继续。四个视口分别为 320×844、375×812、390×844、1366×900。
 - 独立 Edge 进程和预览服务重启后，比较恢复的计划投影与重启前一致，草稿恢复通过，恢复脚本共 3 项。两轮前端脚本异常均为 0。
-- 真实搜索通过。真实 DeepSeek 因配置缺少密钥未运行；未向实际主管部门咨询、提交或验证办结。本轮回归通过应用记录模拟的办理进度。
-- [Edge 检查摘要](evidence/v34-edge-summary.json) · [真实搜索摘录](evidence/v34-live-search.json) · [AI 预检](evidence/v34-ai-probe.json)
+- 真实 DeepSeek 研判与真实 CleverSee 搜索分别验证通过。本轮通过应用记录模拟的办理进度，实际向主管部门咨询、提交及办结待人工现场验收。
+- [Edge 检查摘要](evidence/v34-edge-summary.json) · [真实搜索摘录](evidence/v34-live-search.json) · [真实 AI 调用摘要](evidence/v34-ai-probe.json)
