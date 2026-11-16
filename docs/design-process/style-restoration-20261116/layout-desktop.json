@@ -1,0 +1,50 @@
+[
+  {
+    "page": "results",
+    "bodyWidth": 600,
+    "contentWidth": 600,
+    "headerGradient": "linear-gradient(125deg, rgb(41, 115, 79), rgb(7, 91, 56))",
+    "scroll": 1280,
+    "viewport": 1280
+  },
+  {
+    "page": "mine",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "headerGradient": "linear-gradient(rgb(255, 255, 255) 0%, rgb(248, 251, 249) 55%, rgb(242, 248, 245) 100%)",
+    "scroll": 1280,
+    "viewport": 1280
+  },
+  {
+    "page": "choose",
+    "bodyWidth": 760,
+    "contentWidth": 720,
+    "headerGradient": null,
+    "scroll": 1280,
+    "viewport": 1280
+  },
+  {
+    "page": "input",
+    "bodyWidth": 600,
+    "contentWidth": 600,
+    "headerGradient": "linear-gradient(125deg, rgb(41, 115, 79), rgb(7, 91, 56))",
+    "scroll": 1280,
+    "viewport": 1280
+  },
+  {
+    "page": "detail",
+    "bodyWidth": 600,
+    "contentWidth": 600,
+    "headerGradient": "linear-gradient(125deg, rgb(41, 115, 79), rgb(7, 91, 56))",
+    "scroll": 1280,
+    "viewport": 1280
+  },
+  {
+    "page": "history",
+    "bodyWidth": 1280,
+    "contentWidth": 480,
+    "headerGradient": null,
+    "scroll": 1280,
+    "viewport": 1280
+  }
+]

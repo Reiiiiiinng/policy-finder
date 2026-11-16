@@ -1,33 +1,32 @@
 /* Family and follow-up screens share the home's visual language. */
-.business-mine, .business-mine .app { background: #fdfaf5; }
 #businessMine { gap: 20px; padding-top: 4px; }
 #businessMine h1, #businessMine h2, .mine-greeting strong, .mine-title span { font-family: inherit; }
 .mine-title { min-height: 62px; }
 .mine-title h1 { font-size: 23px; }
 .mine-title a { font-size: 14px; gap: 7px; color: #245f3d; }
 .mine-title img { flex: none; }
-.mine-greeting { margin-top: 0; padding: 15px; border: 1px solid #e4e9dc; border-radius: 22px; background: #eff4e7; box-shadow: none; }
+.mine-greeting { margin-top: 0; padding: 15px; border: 1px solid #fffdf8; border-radius: 22px; }
 .mine-greeting strong { font-size: 21px; line-height: 1.5; }
 .mine-greeting small { margin-top: 2px; color: #64715f; font-size: 12px; }
 .mine-greeting .mine-avatar { width: 52px; height: 52px; }
-.mine-section-heading h2 { border: 0; padding: 0; font-size: 18px; font-weight: 700; }
+.mine-section-heading h2 { font-size: 18px; font-weight: 700; }
 .mine-people { gap: 9px; }
-.mine-person { min-height: 114px; gap: 6px; border: 1px solid #e5eadf; border-radius: 19px; padding: 12px 5px; background: #fffefa; box-shadow: none; }
+.mine-person { min-height: 114px; gap: 6px; border: 1px solid #fffdf8; border-radius: 19px; padding: 12px 5px; }
 .mine-person .mine-avatar { width: 44px; height: 44px; }
-.mine-person[aria-current] { border-color: #83a77c; background: #eaf2e1; }
+.mine-person[aria-current] { border-color: #53865e; background: #ebf0de; }
 .mine-person strong { font-weight: 650; }
-.mine-plan { padding: 16px; background: #286640; border-radius: 23px; box-shadow: none; }
+.mine-plan { padding: 16px; border-radius: 23px; }
 .mine-plan h2 { padding: 0 0 12px; font-size: 20px; font-weight: 700; }
-.mine-plan-inset { padding: 15px; border-radius: 17px; background: #fffefa; }
+.mine-plan-inset { padding: 15px; border-radius: 17px; }
 #mineNext { margin: 10px 0 4px; font-size: 13px; line-height: 1.75; }
-#businessMine .mine-primary { padding: 0 16px; background: #286640; font-size: 14px; }
+#businessMine .mine-primary { padding: 0 16px; font-size: 14px; }
 .mine-services { gap: 10px; }
-.mine-service { min-height: 92px; padding: 12px 10px; border-color: #e5eadf; border-radius: 18px; box-shadow: none; gap: 8px; }
-.mine-service-icon { width: 32px; height: 36px; border-radius: 11px; background: #edf3e4; }
+.mine-service { min-height: 92px; padding: 12px 10px; border-color: #fffdf8; border-radius: 18px; gap: 8px; }
+.mine-service-icon { width: 32px; height: 36px; border-radius: 11px; }
 .mine-service strong { font-weight: 650; font-size: 13px; line-height: 1.6; }
 .mine-service small { font-size: 11px; line-height: 1.55; color: #64715f; }
 .mine-quick { margin-top: 8px; }
-.mine-help { border: 1px solid #e5eadf; border-radius: 19px; box-shadow: none; background: #fffefa; }
+.mine-help { border: 1px solid #fffdf8; border-radius: 19px; }
 .followup:not(:has(.plan-overview)) { max-width: 480px; padding: 0 16px calc(var(--pf-nav-height) + 28px); background: #fdfaf5; box-shadow: none; }
 .followup:not(:has(.plan-overview)) .fu-header { padding: 6px 0 16px; margin: 0; }
 .followup:not(:has(.plan-overview)) .fu-header .fu-button { font-size: 13px; min-height: 48px; padding-inline: 0; border: 0; background: transparent; border-radius: 0; }

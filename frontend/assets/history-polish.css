@@ -3,7 +3,6 @@
 .history-app.q-app { padding: 0 18px calc(85px + env(safe-area-inset-bottom)); background: #fdfaf5; color: #25472f; }
 .history-top.q-head { min-height: calc(57px + env(safe-area-inset-top)); margin: 0 -18px; padding: calc(4px + env(safe-area-inset-top)) 19px 4px; gap: 12px; border-bottom: 1px solid #e8ebdf; font-weight: 400; }
 .history-top .q-back { display: inline-flex; align-items: center; width: auto; min-width: 72px; height: 44px; padding: 0; color: #446548; font-size: 14px; font-weight: 550; line-height: 1.5; text-decoration: none; }
-.history-top > span { margin-left: auto; color: #828776; font-size: 11px; white-space: nowrap; }
 .history-intro { margin: 0 -18px 22px; padding: 24px 22px 22px; background: #f0f3e4; }
 .history-eyebrow { margin: 0 0 8px; color: #6c785f; font-size: 12px; line-height: 1.7; }
 .history-app .history-intro h1 { margin: 0; color: #214e32; font-size: 28px; font-weight: 750; line-height: 1.45; letter-spacing: -.025em; }

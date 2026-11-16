@@ -1,0 +1,56 @@
+[
+  {
+    "page": "results",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": "block",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "mine",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": null,
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "choose",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": null,
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "input",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": null,
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "detail",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": "block",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "history",
+    "extraLabel": false,
+    "imageErrors": 0,
+    "pageWidth": 390,
+    "pattern": null,
+    "scroll": 390,
+    "width": 390
+  }
+]

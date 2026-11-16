@@ -1,0 +1,38 @@
+[
+  {
+    "page": "results",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "page": "mine",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "page": "choose",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "page": "input",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "page": "detail",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  },
+  {
+    "page": "history",
+    "extraLabel": false,
+    "scroll": 320,
+    "width": 320
+  }
+]

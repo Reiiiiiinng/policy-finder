@@ -79,10 +79,10 @@
       back.textContent = '返回上页';
       row.append(back);
     }
-    const brand = document.createElement('span');
-    brand.className = 'detail-topbar-brand';
-    brand.textContent = '政策找人 · 政策依据';
-    row.append(brand);
+    const title = document.createElement('span');
+    title.className = 'detail-topbar-title';
+    title.textContent = '政策依据';
+    row.append(title);
     topbar.replaceChildren(row);
   }
 
@@ -103,7 +103,7 @@
   }
 
   function policyHero({name, region, category, sourceLabel, pending, validity, saveId}) {
-    return `<section class="card policy-overview detail-hero">
+    return `<section class="card policy-overview detail-hero${analysisDetail ? ' flow-hero with-art' : ''}">
       <p class="detail-eyebrow">政策解读</p>
       <h1>${escapeHtml(name)}</h1>
       <p class="detail-region">${escapeHtml([region,category].filter(Boolean).join(' · ') || '地区暂缺')}</p>

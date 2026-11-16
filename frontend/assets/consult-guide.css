@@ -1,8 +1,7 @@
 /* Consultation guide: a compact preparation step, followed by real official sources. */
 .consult-page { background: #fdfaf5; }
 .consult-app { background: #fdfaf5; color: #214630; }
-.consult-page .topbar { display: flex; align-items: center; gap: 10px; padding: calc(7px + env(safe-area-inset-top)) 18px 7px; background: #fdfaf5; border-bottom: 1px solid #e6e9dd; }
-.consult-page .topbar::after { display: none; }
+.consult-page .topbar { display: flex; align-items: center; gap: 10px; padding: calc(7px + env(safe-area-inset-top)) 18px 7px; border-bottom: 1px solid #e6e9dd; }
 .consult-page .topbar .brand-row { flex: 1; min-width: 0; align-items: center; gap: 10px; flex-wrap: nowrap; }
 .consult-page .topbar > .brand-row + div { flex: none; order: -1; margin-top: 0 !important; }
 .consult-page .topbar .brand-heading { flex: 1; min-width: 0; }

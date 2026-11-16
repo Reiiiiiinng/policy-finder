@@ -43,18 +43,15 @@ body.policy-detail {
   padding: calc(6px + env(safe-area-inset-top)) 20px 6px;
   border: 0;
   border-bottom: 1px solid #e9ecdf;
-  background: #fdfaf5;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 55%, #f2f8f5 100%);
 }
-.policy-detail .topbar::after { display: none; }
 .policy-detail .topbar .detail-topbar-row {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 70px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
-.policy-detail .topbar .brand-heading { flex: 1; text-align: right; }
-.policy-detail .detail-topbar-brand { margin-left: auto; color: #6d786c; font-size: 11px; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
+.policy-detail .detail-topbar-title { color: #245f3d; font-size: 16px; font-weight: 700; text-align: center; }
 .policy-detail .topbar .back-link {
   display: inline-flex;
   flex: none;
@@ -79,12 +76,11 @@ body.policy-detail {
 }
 .policy-detail .loading { padding: 28px 10px; color: var(--muted); font-size: 14px; }
 .policy-detail .detail-hero.card {
-  margin: 0 -16px 20px;
+  margin: 0 0 20px;
   padding: 21px 22px 18px;
-  border: 0;
-  border-bottom: 1px solid #e2e8d9;
-  border-radius: 0;
-  background: #f0f4e4;
+  border: 1px solid #fff;
+  border-radius: 19px;
+  background: radial-gradient(ellipse at 100% 0%,#dbeacd 0%,transparent 66%),linear-gradient(130deg,#fffcf5,#f1f2e4);
   box-shadow: none;
 }
 .policy-detail .detail-hero .detail-eyebrow {
@@ -144,7 +140,7 @@ body.policy-detail {
   padding: 7px 15px;
   border: 1px solid #a6b99a;
   border-radius: 24px;
-  background: #fffefa;
+  background: var(--paper);
   color: #315f3d;
   font-family: inherit;
   font-size: 13px;
@@ -313,10 +309,9 @@ body.policy-detail {
 
 @media (max-width: 350px) {
   .policy-detail .topbar { padding-inline: 16px; }
-  .policy-detail .detail-topbar-brand { font-size: 10px; }
   .policy-detail #content,
   .policy-detail #v32-detail { padding-inline: 12px; }
-  .policy-detail .detail-hero.card { margin-inline: -12px; padding-inline: 18px; }
+  .policy-detail .detail-hero.card { padding-inline: 18px; }
   .policy-detail .detail-hero h1 { font-size: 22px; }
   .policy-detail .detail-block,
   .policy-detail .trust-card,
@@ -327,7 +322,36 @@ body.policy-detail {
   .policy-detail .tc-row .k { width: 58px; }
 }
 
-@media (min-width: 768px) {
-  body.policy-detail { background: #f1f1e8; }
-  .policy-detail .app { margin-top: 12px; border-radius: 20px 20px 0 0; overflow: clip; }
+/* Analysis details retain the original full-width green header and leaf motif. */
+.policy-detail.v32-flow {
+  --green: #075b38;
+  --ink: #153629;
+  --text: #153629;
+  --muted: #4c5d54;
+  --paper: #fffcf6;
+  --surface: #faf5eb;
+  --soft: #ebf2df;
+  --line: #e0e5d8;
+  --width: 600px;
+  max-width: var(--width);
+  margin: 0 auto;
+  background: var(--surface);
 }
+.policy-detail.v32-flow .app { max-width: none; margin: 0; border-radius: 0; overflow: visible; }
+.policy-detail.v32-flow .pf-global-nav { width: min(100%, var(--width)); }
+.policy-detail.v32-flow .topbar {
+  min-height: 72px;
+  padding: 6px 12px 18px;
+  border: 0;
+  background: linear-gradient(125deg,#29734f,#075b38);
+}
+.policy-detail.v32-flow .topbar .back-link,
+.policy-detail.v32-flow .detail-topbar-title { color: white; }
+.policy-detail.v32-flow #v32-detail { margin-top: -14px; padding-top: 18px; border-radius: 22px 22px 0 0; background: var(--surface); }
+.policy-detail.v32-flow .detail-hero.card { padding: 19px 16px; }
+.policy-detail.v32-flow .detail-hero h1 { color: #06492f; }
+.policy-detail.v32-flow .detail-block,
+.policy-detail.v32-flow .trust-card { border-color: white; background: var(--paper); box-shadow: 0 4px 14px #7555250a; }
+.policy-detail.v32-flow .detail-block > h2 { color: #06492f; }
+.policy-detail.v32-flow .detail-save-control.is-on,
+.policy-detail.v32-flow .detail-next-panel .detail-return { border-color: #075b38; background: linear-gradient(130deg,#287d50,#075b38); }

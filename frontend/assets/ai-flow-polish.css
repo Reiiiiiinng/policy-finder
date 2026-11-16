@@ -1,53 +1,32 @@
-/* Shared visual language for AI discovery, using the existing home and plan UI. */
+/* Keep the original discovery palette and decoration; refine layout and controls. */
 body.v32-flow {
-  --green: #315f3d;
-  --text: #243d2d;
-  --muted: #687364;
-  --line: #e1e5d9;
-  --paper: #fffefa;
-  --surface: #faf9f3;
-  --soft: #edf3e5;
-  --width: 480px;
   background: var(--surface);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   line-height: 1.6;
 }
-.v32-flow h1, .v32-flow h2, .v32-flow h3 { color: #244b30; letter-spacing: 0; overflow-wrap: anywhere; }
+.v32-flow h1, .v32-flow h2, .v32-flow h3 { color: #06492f; letter-spacing: 0; overflow-wrap: anywhere; }
 .v32-flow h1 { font-size: clamp(24px, 6.15vw, 29px); line-height: 1.4; font-weight: 750; }
 .v32-flow h2 { font-size: 20px; line-height: 1.5; }
 .v32-flow h3 { font-size: 17px; line-height: 1.55; }
-.v32-flow .top {
-  min-height: 56px;
-  padding: 4px 16px;
-  background: var(--surface);
-  color: var(--green);
-  border-bottom: 1px solid var(--line);
-}
-.v32-flow .top a { color: var(--green); font-size: 28px; }
-.v32-flow .top span { color: var(--green); font-size: 16px; font-weight: 650; }
-.v32-flow #app { margin-top: 0; border-radius: 0; padding: 18px 16px 16px; }
+.v32-flow #app { padding: 18px 16px 16px; }
 .v32-flow .flow-hero {
   padding: 18px;
   margin-bottom: 16px;
-  border: 1px solid #e7eadf;
-  border-radius: 21px;
-  background: linear-gradient(120deg, #f7f8ef, #edf2e3);
+  border-radius: 19px;
 }
 .v32-flow .flow-hero p { font-size: 14px; line-height: 1.7; margin-top: 8px; }
-.v32-flow .flow-hero.with-art::after { display: none; }
 .v32-flow .panel, .v32-flow .card {
-  border: 1px solid var(--line);
+  border: 1px solid #fff;
   border-radius: 22px;
-  box-shadow: 0 5px 18px #34442d06;
+  box-shadow: 0 4px 14px #7555250a;
   background: var(--paper);
 }
 .v32-flow button, .v32-flow .button { min-height: 46px; border-color: #c5d0be; font-weight: 650; line-height: 1.5; }
 .v32-flow .primary {
   min-height: 50px;
-  border: 1px solid #38633e;
+  border-color: var(--green);
   border-radius: 999px;
-  background: #38633e;
   color: #fffef8;
   font-weight: 700;
   box-shadow: 0 4px 12px #315b3710;
@@ -90,33 +69,33 @@ body.v32-flow {
 .v32-flow .result-scroll > .meta { margin: 0 2px 14px; font-size: 13px; }
 .v32-flow #recommendations, .v32-flow .recommendation-list { gap: 14px; }
 .v32-flow :is(#recommendations, .recommendation-list) .policy-card {
-  border: 1px solid #dfe4d7;
+  border: 2px solid #42a35a;
   border-radius: 22px;
   padding: 19px;
-  background: var(--paper);
-  box-shadow: 0 5px 18px #34442d06;
-  color: var(--text);
+  background: #fffefb;
+  box-shadow: 0 4px 16px #1c3e2d0b, 0 1px 3px #1c3e2d06;
+  color: #173d30;
 }
 .v32-flow :is(#recommendations, .recommendation-list) .policy-card.is-selected {
-  border-color: #a6bda0;
-  box-shadow: inset 3px 0 #55794c, 0 5px 18px #34442d06;
+  border-color: #287d50;
+  box-shadow: inset 3px 0 #287d50, 0 4px 16px #1c3e2d0b;
 }
 .v32-flow .recommendation-heading { grid-template-columns: 38px minmax(0, 1fr); align-items: start; gap: 5px 10px; margin-bottom: 14px; }
-.v32-flow .recommendation-icon { width: 38px; height: 38px; border-radius: 12px; color: #3c6743; background: var(--soft); }
+.v32-flow .recommendation-icon { width: 38px; height: 38px; border-radius: 12px; color: #086a38; background: #e4f5df; }
 .v32-flow .policy-card .recommendation-icon svg { width: 24px; height: 24px; }
 .v32-flow .policy-card h3 { font-size: 18px; line-height: 1.5; font-weight: 750; margin: 0 0 3px; }
 .v32-flow .policy-card .policy-meta { font-size: 13px; color: var(--muted); }
 .v32-flow .recommendation-heading > .tag { grid-column: 2; }
-.v32-flow .policy-card .tag { background: #f5edda; color: #80632f; padding: 3px 9px; font-size: 12px; }
-.v32-flow .policy-card .policy-reason { grid-template-columns: 96px minmax(0, 1fr); gap: 8px; margin-top: 10px; font-size: 14px; line-height: 1.7; }
-.v32-flow .policy-card .policy-reason strong { align-self: start; padding: 1px 0; background: none; color: #577052; font-size: 13px; line-height: 1.7; }
+.v32-flow .policy-card .tag { background: #fbeed1; color: #6e4b12; padding: 3px 9px; font-size: 12px; }
+.v32-flow .policy-card .policy-reason { grid-template-columns: 102px minmax(0, 1fr); gap: 8px; margin-top: 10px; font-size: 14px; line-height: 1.7; }
+.v32-flow .policy-card .policy-reason strong { align-self: start; padding: 6px 7px; background: #f1f7eb; color: #075b38; font-size: 13px; line-height: 1.7; }
 .v32-flow .policy-card .policy-reason > span { align-self: start; }
 .v32-flow .policy-card .optional { margin-top: 14px; }
 .v32-flow .policy-card .optional > summary { font-size: 14px; color: #4f6549; }
 .v32-flow .policy-card .card-links { gap: 5px 13px; padding-top: 9px; border-color: var(--line); }
 .v32-flow .policy-card .card-links > a { font-size: 14px; min-height: 40px; }
-.v32-flow .policy-card .save-policy { margin-left: auto; background: var(--paper); border-color: #bdcbb5; border-radius: 999px; min-height: 44px; font-size: 14px; padding-inline: 14px; }
-.v32-flow .policy-card .save-policy[aria-pressed=true] { border-color: #a6bda0; background: #eaf2e2; color: #315c38; }
+.v32-flow .policy-card .save-policy { margin-left: auto; background: #f3f8ee; border-color: #7ab28a; border-radius: 999px; min-height: 44px; font-size: 14px; padding-inline: 14px; }
+.v32-flow .policy-card .save-policy[aria-pressed=true] { border-color: #6ba77b; background: #dff2db; color: var(--green); }
 .v32-flow .policy-card .favorite-status { font-size: 12px; color: var(--muted); }
 .v32-flow .result-scroll > .actions { gap: 4px 18px; margin: 18px 2px 12px; }
 .v32-flow .result-scroll > .actions a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; text-underline-offset: 3px; }
@@ -140,24 +119,25 @@ body.v32-flow {
 .v32-flow .center-action a { font-size: 14px; text-underline-offset: 3px; }
 .v32-flow .analysis-progress { border-color: var(--line); background: var(--paper); box-shadow: 0 5px 18px #34442d06; }
 .v32-flow .analysis-steps [aria-current] { background: var(--soft); }
+.v32-flow .pf-global-nav { width: min(100%, var(--width)); }
 .discovery-entry .entry-header { min-height: 56px; padding: 10px 20px; border-color: var(--line); }
 .discovery-entry .entry-header a { font-size: 16px; font-weight: 700; }
 .discovery-entry main { padding: 20px 16px; }
-.discovery-entry .entry-hero { border-color: var(--line); border-radius: 24px; background: linear-gradient(120deg, #f7f8ef, #edf2e3); padding: 22px 20px; }
+.discovery-entry .entry-hero { border-color: #dce5d3; border-radius: 24px; padding: 22px 20px; }
 .discovery-entry .entry-hero h1 { font-size: 26px; line-height: 1.45; }
 .discovery-entry .entry-hero p { line-height: 1.75; margin: 13px 0 20px; }
 .discovery-entry .entry-hero .primary { width: 100%; border-radius: 999px; gap: 14px; }
 .discovery-entry .entry-links { margin-top: 14px; gap: 12px; }
 .discovery-entry .entry-links a { min-height: 58px; padding: 9px 13px; border-radius: 18px; background: var(--paper); border-color: var(--line); font-weight: 650; }
 .discovery-entry .entry-back { margin: -6px 0 8px; text-underline-offset: 3px; }
-.discovery-entry .entry-member { padding: 22px 18px; border-radius: 24px; border-color: var(--line); background: var(--paper); box-shadow: 0 5px 18px #34442d06; }
+.discovery-entry .entry-member { padding: 22px 18px; border-radius: 24px; border-color: #dce5d3; box-shadow: 0 5px 18px #34442d06; }
 .discovery-entry .entry-step { margin: 0 0 7px; font-size: 12px; font-weight: 650; color: #6b7e60; }
 .discovery-entry .entry-member h1 { font-size: 26px; line-height: 1.4; }
 .discovery-entry .entry-member > p:not(.entry-step) { margin: 8px 0 20px; font-size: 14px; }
 .discovery-entry .entry-member fieldset { gap: 10px; margin: 0 0 20px; min-inline-size: 0; }
-.discovery-entry .entry-member label { min-height: 76px; gap: 12px; border-radius: 17px; padding: 12px; background: #fafbf5; border-color: #e2e7d8; }
-.discovery-entry .entry-member label:has(:checked) { border-color: #91ae83; background: #edf4e6; box-shadow: inset 0 0 0 1px #b4c9a6; }
-.discovery-entry .entry-member input { order: 1; margin-left: auto; width: 20px; height: 20px; flex: none; accent-color: #38633e; }
+.discovery-entry .entry-member label { min-height: 76px; gap: 12px; border-radius: 17px; padding: 12px; background: #fffdf6; border-color: var(--line); }
+.discovery-entry .entry-member label:has(:checked) { border-color: #659079; background: #e9f0df; box-shadow: inset 0 0 0 1px #b4c9a6; }
+.discovery-entry .entry-member input { order: 1; margin-left: auto; width: 20px; height: 20px; flex: none; accent-color: var(--green); }
 .discovery-entry .entry-avatar { width: 48px; height: 48px; display: block; flex: none; border-radius: 50%; overflow: hidden; background: #e8efdf; }
 .discovery-entry .entry-avatar :is(picture, img) { display: block; width: 100%; height: 100%; object-fit: cover; }
 .discovery-entry .entry-member-copy { min-width: 0; }
@@ -173,7 +153,8 @@ body.v32-flow {
   .v32-flow .result-scroll, .v32-flow .result-scroll:has(#recommendations .policy-card, .policy-card[data-excluded]) { padding-inline: 12px; }
   .v32-flow :is(#recommendations, .recommendation-list) .policy-card { padding: 16px; }
   .v32-flow .policy-card .policy-reason { display: block; }
-  .v32-flow .policy-card .policy-reason strong { display: flex; margin: 0 0 3px; }
+  .v32-flow .policy-card .policy-reason strong { display: inline-flex; margin: 0 0 4px; }
+  .v32-flow .policy-card .policy-reason > span { display: block; }
   .v32-flow .selection-bar { gap: 5px; padding-inline: 8px; }
   .v32-flow .selection-bar button { font-size: 12px; padding-inline: 8px; }
   .discovery-entry .entry-member { padding-inline: 15px; }
