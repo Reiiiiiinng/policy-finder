@@ -2,7 +2,7 @@
 window.PFNavigation=(()=>{
  'use strict';
  const destinations={home:'index.html',search:'search.html',discover:'find.html',consult:'consult.html',mine:'services.html'};
- const allowed=new Set([...Object.values(destinations),'analysis.html','discovery-c.html','family.html','self.html','discover.html','records.html','verify-list.html','plan.html','follow-up.html','original-home.html','query-history.html']);
+ const allowed=new Set([...Object.values(destinations),'analysis.html','policy.html','discovery-c.html','family.html','self.html','discover.html','records.html','verify-list.html','plan.html','follow-up.html','original-home.html','query-history.html']);
  const params=new Set(['id','region','category','q','results','structured','edit','focus','back','entry','task','from','batch','batchReceipt','view','plan','pid','plan_id','member','query','attempt','consultation','analysis','version','semantic','svc','choose']);
  function route(value=location.href){
   const u=new URL(value,location.href), name=u.pathname==='/'?'index.html':u.pathname.split('/').pop();

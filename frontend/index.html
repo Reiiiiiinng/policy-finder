@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="assets/tcb.css">
 <link rel="stylesheet" href="assets/pf-services-tcb.css">
 <script src="assets/pf-service-v3-activation.js"></script>
-<link rel="stylesheet" href="assets/home-hifi.css"><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
+<link rel="stylesheet" href="assets/home-hifi.css"><link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script><link rel="stylesheet" href="assets/ui-foundation.css"></head>
 <body>
 <div class="app">
 
@@ -201,12 +201,11 @@
   }
 
   /* ---------- 入口分流（沿用旧契约：data-target + session.target） ---------- */
-  // 家庭入口：target 沿用上次（parents/family），首次默认 parents；
-  // 「我的长辈」语义由 family.html 的「其他关系」折叠区完整承接，跳转契约不变。
+  // 家庭入口保留原 target 约定，直接进入成员选择。
   function goFamilyEntry() {
     const prev = store.read().target;
     store.write({ target: (prev === 'family' ? 'family' : 'parents'), demo: false, demoBanner: false });
-    location.href = 'find.html';
+    location.href = 'find.html?choose=1';
   }
 
   document.getElementById('hpEnter').addEventListener('click', goFamilyEntry);

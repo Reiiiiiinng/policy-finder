@@ -143,7 +143,68 @@ try {
   await navigate('/find.html');
   await wait('location.pathname==="/find.html" && document.readyState==="complete"');
   await js(`fetch('/api/followup/members').then(r=>{if(r.headers.get('x-pf-preview-run')!==${JSON.stringify(seed.run)})throw Error('Edge instance mismatch')})`);
-  if(run==='restore' || run.endsWith('-restore')){
+  if (run.endsWith('-layout')) {
+    const before = JSON.parse(readFileSync(join(evidence, process.env.PF_AUDIT_PRIOR), 'utf8'));
+    const member = encodeURIComponent(before.member.id);
+    const go = async (url, selector) => {
+      await navigate(url);
+      const pathname = JSON.stringify(new URL(url, seed.origin).pathname);
+      await wait(`location.pathname === ${pathname} && document.readyState === "complete" && ${found(selector)}`);
+    };
+    await go(before.analysis.url, '#recommendations .policy-card');
+    const detail = await href('#recommendations .policy-card a[href*="policy.html"]');
+    const pages = [
+      ['home', '/', '#homeHighFidelity h1'],
+      ['discover', '/find.html', '#startDiscovery'],
+      ['intake', '/analysis.html?member='+member+'&new=1', '#intake'],
+      ['recommendations', before.analysis.url, '#recommendations .policy-card'],
+      ['policy-detail', detail, '#policySource'],
+      ['consult', '/consult.html', '#consultDepts h3'],
+      ['mine', '/services.html?member='+member, '#minePlanLink[href]'],
+      ['members', '/follow-up.html?view=members&member='+member, '.fu-add-member summary'],
+      ['history', '/query-history.html?member='+member, '#historyContent:not([hidden])'],
+      ['search', '/search.html', '#local-query'],
+    ];
+    for (const [name, url, selector] of pages) {
+      await go(url, selector);
+      for (const width of widths) {
+        await size(width);
+        await sleep(80);
+        check(name + ' ' + width + 'px 页面、导航和资源', await js(`(() => {
+          const card = document.querySelector('#recommendations .policy-card');
+          const bar = document.querySelector('.selection-bar')?.getBoundingClientRect();
+          const nav = document.querySelector('.pf-global-nav');
+          const navBox = nav?.getBoundingClientRect();
+          return innerWidth === ${width} && document.documentElement.scrollWidth <= innerWidth &&
+            nav?.querySelectorAll('a').length === 5 &&
+            (!bar || bar.bottom <= navBox.top + 1 || navBox.bottom <= bar.top + 1) &&
+            (!card || getComputedStyle(card).borderTopWidth === '2px') &&
+            [...document.images].every(image => !image.complete || image.naturalWidth > 0);
+        })()`));
+        await screenshot(name + '-' + width);
+      }
+    }
+    await size(390);
+    await go('/follow-up.html?view=members&member='+member, '.fu-add-member summary');
+    await click('.fu-add-member summary');
+    await wait(found('.fu-add-member[open]'));
+    await click('.fu-add-member summary');
+    check('添加成员的展开表单可收起', !await js(found('.fu-add-member[open]')));
+    await go('/', '#demoEntry');
+    const demoSummary = 'details:not([open]):has(#demoEntry) > summary';
+    if (await js(found(demoSummary))) await click(demoSummary);
+    await click('#demoEntry');
+    await wait(found('#demoOverlay'));
+    await click('#demoCancelBtn');
+    await wait('!document.querySelector("#demoOverlay")');
+    check('首页演示弹窗可取消关闭', true);
+    const review = new URL(before.planUrl);
+    review.searchParams.set('view', 'review');
+    review.searchParams.set('pid', before.model?.policyIds[0] || 'fs_med_002');
+    await go(review.href, '#official-channels');
+    await js('document.querySelector("#official-channels").scrollIntoView({block:"start",behavior:"instant"})');
+    await screenshot('official-channels-390');
+  } else if(run==='restore' || run.endsWith('-restore')){
     const before=JSON.parse(readFileSync(join(evidence,process.env.PF_AUDIT_PRIOR || 'edge-remediation.json'),'utf8'));
     const p=new URL(before.planUrl);
     const id=p.searchParams.get('plan'), member=before.member.id;
@@ -167,6 +228,10 @@ try {
   if (!people) {
     await navigate('/follow-up.html?view=members&member='+seed.member);
     await wait(found('#fuAddMember'));
+    if (await js(found('.fu-add-member:not([open]) > summary'))) {
+      await click('.fu-add-member > summary');
+      await wait(found('.fu-add-member[open] #fuAddMember'));
+    }
     await field('#fuAddMember [name=name]', '全链路合成父亲');
     await field('#fuAddMember [name=relation]', '父亲','change');
     await click('#fuAddMember button');
@@ -181,6 +246,7 @@ try {
     await click('.pf-global-nav [data-tab=discover]');
     await wait('location.pathname === "/find.html"');
     await wait(found('#startDiscovery'));
+    await screenshot('discover');
     await click('#startDiscovery');
   } else await navigate('/analysis.html');
   const fatherRadio='input[name=member][value="'+seed.member+'"]';
@@ -218,6 +284,15 @@ try {
       .conditions.some(condition=>condition.action_status==='official_required'));
     report.model = {mode: state.result.mode, policyIds: ids};
     await screenshot('recommendations');
+    await click('[data-action=open-chat]');
+    for (const question of ['需要向哪个部门咨询养老服务消费补贴？', '能力评估还没做，第一次咨询要准备问什么？']) {
+      const count = await js('document.querySelectorAll("#chat-log article").length');
+      await field('#chat-question', question);
+      await click('#chat button');
+      await wait('document.querySelectorAll("#chat-log article").length > ' + count);
+    }
+    check('真实 DeepSeek 返回两轮追问', await js('document.querySelectorAll("#chat-log article").length >= 2'));
+    await screenshot('chat');
     const favorite = '[data-favorite="fs_care_001"]';
     await wait(found(favorite+':not(:disabled)'));
     if (await js(element(favorite)+'.getAttribute("aria-pressed") !== "true"')) await click(favorite);
@@ -257,6 +332,13 @@ try {
     check('我的恢复同一事项，刷新仍在',
       new URL(await js('location.href')).searchParams.get('plan')===planId && (await task()).policyId==='fs_care_001');
     await screenshot('mine-restored');
+    await navigate('/search.html?web=' + encodeURIComponent('佛山市 养老服务消费补贴 民政'));
+    await wait(found('#web-form:not([hidden]) button[type=submit]'));
+    await click('#web-form button[type=submit]');
+    await wait('document.querySelector("#web-form button[type=submit]")?.textContent.trim() === "搜索"');
+    report.liveSearch = await js('document.querySelector("#web-status").innerText');
+    check('真实 CleverSee 返回联网结果', /真实联网搜索.*[1-9]\d* 条/.test(report.liveSearch));
+    await screenshot('search');
   } else {
   await wait(found('#recommendations'));
   await screenshot('recommendations');
@@ -472,6 +554,8 @@ try {
     check('成员串用链接不显示原计划内容', !(await js(found('[data-plan-policy]'))));
     await navigate(planUrl); await heading('家庭少跑腿计划');
     await wait(found('#planPauseForm'));
+    const pauseSummary = 'details:not([open]):has(#planPauseForm) > summary';
+    if (await js(found(pauseSummary))) await click(pauseSummary);
     await field('#planPauseForm [name=reason]', '合成暂停');
     await click('#planPauseForm button');
     await wait(contains('#followupStatus','计划已暂停'));

@@ -1,6 +1,5 @@
 window.PFMine = (() => {
   const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
-  const leaf = '<svg viewBox="0 0 28 28" aria-hidden="true"><path fill="#5b8058" stroke="none" d="M3 24C7 8 16 5 26 3c0 14-8 22-23 21Z"/><path stroke="#fffdf6" d="M4 24 20 10M10 19l1-7"/></svg>';
   const drawings = {
     star:'<path d="m12 2 3 6 7 .9-5 5 1.2 7-6.2-3.4L5.8 21 7 13.9l-5-5L9 8Z"/>',
     records:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8m-8 4h8m-8 4h4"/>',
@@ -23,7 +22,7 @@ window.PFMine = (() => {
     page = document.createElement('main');
     page.id = 'businessMine';
     page.innerHTML = `
-      <header class="mine-title"><a href="index.html">${leaf}<span>政策找人</span></a><h1>我的</h1></header>
+      <header class="mine-title"><a href="index.html"><img src="assets/brand-mark.svg" alt="" width="26" height="26"><span>政策找人</span></a><h1>我的</h1></header>
       <a class="mine-greeting" data-mine-route="members"><span class="mine-avatar">${avatarSvg('self')}</span>
         <span><strong>你好，欢迎回来</strong><small>管理你的家庭权益记录</small></span>${chevron}</a>
       <section aria-labelledby="mineFamilyTitle">
@@ -51,9 +50,10 @@ window.PFMine = (() => {
           ${service('mineLogs', '咨询与办理记录', '咨询和办理进度', draw('records'))}
           ${service('mineHistory', '查询历史', '找回之前的查询', icon('clock'))}
           ${service('mineMembers', '家庭成员管理', '添加或编辑成员', draw('family'))}
+          ${service('minePending', '待核实清单', '需要继续确认的事项', icon('check-circle'))}
         </div>
         <details class="mine-disclosure" id="mineFavorites"><summary>权益清单 ${chevron}</summary></details>
-        <div class="mine-quick"><a data-mine-route="saved">先记下来的政策</a><a data-mine-route="list">待核实清单</a></div>
+        <div class="mine-quick"><a data-mine-route="saved">先记下来的政策</a></div>
       </section>
       <section aria-labelledby="mineHelpTitle">
         <div class="mine-section-heading"><h2 id="mineHelpTitle">帮助与说明</h2></div>
@@ -102,11 +102,14 @@ window.PFMine = (() => {
     for (const entry of page.querySelectorAll('[data-mine-route]')) entry.href = follow(entry.dataset.mineRoute);
     find('#mineLogs').href = follow('logs');
     find('#mineMembers').href = follow('members');
+    find('#minePending').href = follow('list');
     const history = find('#mineHistory');
     const aiHistory = history.cloneNode(true);
     aiHistory.id = 'mineAiHistory';
     aiHistory.href = PFNavigation.withParams(scoped('analysis.html'), {view:'history'});
-    aiHistory.textContent = '家庭权益分析记录';
+    aiHistory.querySelector('strong').textContent = 'AI 发现记录';
+    aiHistory.querySelector('small').textContent = '查看家庭分析与追问';
+    aiHistory.querySelector('.mine-service-icon').innerHTML = icon('compass');
     if (!find('#mineAiHistory')) history.after(aiHistory);
     else find('#mineAiHistory').href = aiHistory.href;
     history.href = scoped('query-history.html');

@@ -1,0 +1,82 @@
+/* Family and follow-up screens share the home's visual language. */
+#businessMine { gap: 20px; padding-top: 4px; }
+#businessMine h1, #businessMine h2, .mine-greeting strong, .mine-title span { font-family: inherit; }
+.mine-title { min-height: 62px; }
+.mine-title h1 { font-size: 23px; }
+.mine-title a { font-size: 14px; gap: 7px; color: #245f3d; }
+.mine-title img { flex: none; }
+.mine-greeting { margin-top: 0; padding: 15px; border: 1px solid #fffdf8; border-radius: 22px; }
+.mine-greeting strong { font-size: 21px; line-height: 1.5; }
+.mine-greeting small { margin-top: 2px; color: #64715f; font-size: 12px; }
+.mine-greeting .mine-avatar { width: 52px; height: 52px; }
+.mine-section-heading h2 { font-size: 18px; font-weight: 700; }
+.mine-people { gap: 9px; }
+.mine-person { min-height: 114px; gap: 6px; border: 1px solid #fffdf8; border-radius: 19px; padding: 12px 5px; }
+.mine-person .mine-avatar { width: 44px; height: 44px; }
+.mine-person[aria-current] { border-color: #53865e; background: #ebf0de; }
+.mine-person strong { font-weight: 650; }
+.mine-plan { padding: 16px; border-radius: 23px; }
+.mine-plan h2 { padding: 0 0 12px; font-size: 20px; font-weight: 700; }
+.mine-plan-inset { padding: 15px; border-radius: 17px; }
+#mineNext { margin: 10px 0 4px; font-size: 13px; line-height: 1.75; }
+#businessMine .mine-primary { padding: 0 16px; font-size: 14px; }
+.mine-services { gap: 10px; }
+.mine-service { min-height: 92px; padding: 12px 10px; border-color: #fffdf8; border-radius: 18px; gap: 8px; }
+.mine-service-icon { width: 32px; height: 36px; border-radius: 11px; }
+.mine-service strong { font-weight: 650; font-size: 13px; line-height: 1.6; }
+.mine-service small { font-size: 11px; line-height: 1.55; color: #64715f; }
+.mine-quick { margin-top: 8px; }
+.mine-help { border: 1px solid #fffdf8; border-radius: 19px; }
+.followup:not(:has(.plan-overview)) { max-width: 480px; padding: 0 16px calc(var(--pf-nav-height) + 28px); background: #fdfaf5; box-shadow: none; }
+.followup:not(:has(.plan-overview)) .fu-header { padding: 6px 0 16px; margin: 0; }
+.followup:not(:has(.plan-overview)) .fu-header .fu-button { font-size: 13px; min-height: 48px; padding-inline: 0; border: 0; background: transparent; border-radius: 0; }
+.followup:not(:has(.plan-overview)) .fu-header h1 { font-size: 25px; line-height: 1.5; margin: 7px 0 4px; color: #193f2b; }
+.followup:not(:has(.plan-overview)) .fu-header p { margin: 3px 0 0; font-size: 13px; color: #64715f; }
+.followup:not(:has(.plan-overview)) .fu-panel { border-radius: 21px; border-color: #e3e8dc; background: #fffefa; padding: 18px; box-shadow: none; }
+.followup:not(:has(.plan-overview)) .fu-panel h2 { font-size: 18px; line-height: 1.6; }
+.followup:not(:has(.plan-overview)) p, .followup:not(:has(.plan-overview)) li { font-size: 14px; line-height: 1.85; }
+.followup:not(:has(.plan-overview)) label { font-size: 14px; font-weight: 600; line-height: 1.65; }
+.followup:not(:has(.plan-overview)) :is(input,select,textarea) { font-size: 16px; border-color: #c8d4c2; border-radius: 13px; background: #fffefa; padding: 10px 12px; }
+.followup:not(:has(.plan-overview)) .fu-button { font-size: 14px; border-radius: 24px; border-color: #cbd9c3; }
+.followup:not(:has(.plan-overview)) .fu-primary { border-color: #286640; background: #286640; font-weight: 650; }
+.followup:not(:has(.plan-overview)) .fu-badge { font-size: 12px; padding: 4px 9px; }
+.followup:not(:has(.plan-overview)) .fu-subject { margin-top: 14px; background: #eff4e7; }
+.followup:not(:has(.plan-overview)) .fu-subject h2 { font-size: 16px; }
+.followup:not(:has(.plan-overview)) .fu-steps { gap: 5px; }
+.followup:not(:has(.plan-overview)) .fu-steps a { border: 0; border-radius: 12px; background: #f0f3e9; font-size: 12px; min-height: 48px; }
+.followup:not(:has(.plan-overview)) .fu-steps [aria-current] { background: #deecd4; }
+.followup .fu-page-intro { margin: 0 0 20px; color: #64715f; }
+.followup:not(:has(.plan-overview)) .fu-member-card { margin: 10px 0; padding: 0 16px; }
+.fu-member-card > summary { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 12px; align-items: center; min-height: 96px; padding: 13px 0; list-style: none; }
+.fu-member-card > summary::-webkit-details-marker { display: none; }
+.fu-member-avatar, .fu-member-avatar img { display: block; width: 52px; height: 52px; border-radius: 50%; }
+.fu-member-caption strong { display: block; font-size: 17px; font-weight: 650; color: #245032; }
+.fu-member-caption small { display: block; font-size: 12px; font-weight: 400; color: #64715f; margin-top: 4px; }
+.fu-member-edit { font-size: 12px; font-weight: 500; color: #4d724b; }
+.fu-member-edit .when-open { display: none; }
+.fu-member-card[open] .when-open { display: inline; }
+.fu-member-card[open] .when-closed { display: none; }
+.fu-member-card .fu-member { border-top: 1px solid #e5e9df; padding: 5px 0 18px; }
+.fu-member-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.followup:not(:has(.plan-overview)) .fu-add-member { margin: 18px 0 0; padding: 3px 18px; background: #eff4e7; }
+.fu-add-member > summary { position: relative; padding: 14px 42px 14px 0; list-style: none; }
+.fu-add-member > summary::-webkit-details-marker { display: none; }
+.fu-add-member > summary::after { content: "展开"; position: absolute; right: 0; top: 27px; color: #4d724b; font-size: 12px; font-weight: 500; }
+.fu-add-member[open] > summary::after { content: "收起"; }
+.fu-add-member > summary strong { display: block; font-size: 16px; }
+.fu-add-member > summary small { display: block; font-size: 12px; font-weight: 400; color: #64715f; margin-top: 3px; }
+.fu-add-member form { padding-bottom: 18px; }
+@media (max-width: 350px) {
+  #businessMine { padding-inline: 12px; }
+  .mine-title a { font-size: 12px; gap: 4px; }
+  .mine-title img { width: 22px; height: 22px; }
+  .mine-title h1 { font-size: 22px; }
+  .mine-greeting { gap: 10px; }
+  .mine-greeting strong { font-size: 19px; }
+  .mine-services { gap: 8px; }
+  .mine-service { grid-template-columns: minmax(0,1fr); gap: 7px; }
+  .mine-service small { font-size: 11px; }
+  .followup:not(:has(.plan-overview)) { padding-inline: 12px; }
+  .fu-member-card > summary { grid-template-columns: 44px minmax(0,1fr) auto; gap: 9px; }
+  .fu-member-avatar, .fu-member-avatar img { width: 44px; height: 44px; }
+}

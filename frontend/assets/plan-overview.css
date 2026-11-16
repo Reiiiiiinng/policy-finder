@@ -1,0 +1,135 @@
+/* Plan overview: reuse the home illustration and its forest / cream palette.
+   All rules are scoped to the overview; task forms keep their existing styles. */
+.followup:has(.plan-overview) {
+  --fu-green: #245f3d;
+  --fu-ink: #193f2b;
+  --fu-paper: #fffefa;
+  --fu-border: #e7eade;
+  max-width: 480px;
+  padding: 0;
+  background: #fdfaf5;
+  box-shadow: none;
+}
+.plan-overview { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+.plan-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 20px;
+  background: #fdfaf5;
+}
+.plan-topline .fu-button { padding: 0; border: 0; background: transparent; font-size: 14px; }
+.plan-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 222px;
+  padding: 18px 22px 64px;
+  background: #f0f4e4;
+}
+.followup .plan-eyebrow { position: relative; z-index: 1; margin: 0 0 9px; font-size: 12px; color: #5b7359; letter-spacing: .06em; }
+.followup .plan-hero h1 { position: relative; z-index: 1; margin: 0; color: #174c31; font-size: 26px; line-height: 1.4; font-weight: 750; letter-spacing: -.04em; }
+.followup .plan-hero-copy { position: relative; z-index: 1; max-width: 172px; margin: 13px 0 0; color: #4f654e; font-size: 14px; line-height: 1.85; }
+.plan-family-art {
+  position: absolute;
+  right: -5px;
+  bottom: 39px;
+  width: 180px;
+  height: auto;
+}
+.plan-family-line {
+  position: absolute;
+  inset: auto 16px 12px;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #e4e9da;
+  border-radius: 12px;
+  background: #fffefa;
+  color: #48624b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.plan-family-line strong { font-weight: 700; color: #1d4f33; }
+.plan-region { white-space: nowrap; color: #64735d; }
+.plan-body { padding: 0 16px 20px; }
+.plan-progress { padding: 17px 3px 8px; }
+.plan-progress > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; color: #62725e; }
+.plan-progress strong { font-size: 17px; font-weight: 700; color: #275d39; }
+.followup .plan-progress progress { display: block; height: 5px; margin: 7px 0; border: 0; border-radius: 6px; overflow: hidden; background: #e8eddf; }
+.plan-progress progress::-webkit-progress-bar { background: #e8eddf; border-radius: 6px; }
+.plan-progress progress::-webkit-progress-value { background: #3d8056; border-radius: 6px; }
+.plan-progress progress::-moz-progress-bar { background: #3d8056; }
+.followup .plan-progress p { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; margin: 0; color: #4e6f51; font-size: 11px; }
+.plan-progress p span { color: #68756c; }
+.plan-overview .plan-next {
+  margin: 9px 0 0;
+  padding: 20px;
+  border: 1px solid #dfe8d9;
+  border-radius: 24px;
+  background: #fffefa;
+  box-shadow: 0 7px 22px #254b2e08;
+}
+.plan-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.followup .plan-section-heading h2 { margin: 0; font-size: 14px; font-weight: 700; color: #406b49; }
+.plan-section-heading > span:not(.fu-badge) { color: #64715c; font-size: 11px; white-space: nowrap; }
+.plan-overview .fu-badge { padding: 3px 8px; font-size: 11px; line-height: 1.6; }
+.followup .plan-next h3 { margin: 12px 0 8px; color: #193f2b; font-size: 21px; line-height: 1.55; font-weight: 750; }
+.followup .plan-next-reason { margin: 0; font-size: 14px; line-height: 1.8; color: #63715e; }
+.plan-next > p:not(.plan-next-reason) { font-size: 12px; color: #63715e; }
+.plan-next-actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+.plan-next-actions .fu-primary { flex: 1; min-width: 0; min-height: 50px; border: 0; border-radius: 28px; background: #286640; font-size: 16px; font-weight: 700; box-shadow: 0 4px 9px #245f3d15; }
+.plan-channel-link { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; max-width: 7em; color: #4b6a4d; font-size: 13px; text-decoration: none; text-underline-offset: 4px; }
+.plan-channel-link:hover { text-decoration: underline; }
+.plan-route { padding: 22px 3px 16px; }
+.plan-route-steps { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; margin-top: 13px; }
+.plan-route-steps a { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 10px 2px; border: 1px solid transparent; border-radius: 13px; color: #697760; text-decoration: none; text-align: center; }
+.plan-step-number { display: grid; place-items: center; min-height: 30px; margin-bottom: 3px; font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; color: #8d9a82; }
+.plan-route-steps strong { font-size: 12px; font-weight: 650; line-height: 1.6; white-space: nowrap; }
+.plan-route-steps small { margin-top: 3px; font-size: 11px; line-height: 1.5; color: #65715d; }
+.plan-route-steps [aria-current] { border-color: #d3e3ca; background: #eaf2e1; color: #245f3d; }
+.plan-route-steps [aria-current] .plan-step-number { color: #286640; }
+.plan-route-steps [aria-current] small { color: #406b49; }
+.followup .plan-green-note { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #e7ebdf; font-size: 12px; line-height: 1.75; color: #64805b; }
+.plan-rights { padding: 8px 3px 0; }
+.plan-rights-list { margin-top: 8px; }
+.plan-rights .fu-entry { grid-template-columns: 24px minmax(0,1fr) auto; gap: 8px; min-height: 86px; padding: 14px 0; border-color: #e5eadd; }
+.plan-rights .fu-entry[aria-current=true] { background: transparent; border-radius: 0; }
+.plan-right-number { align-self: start; padding-top: 3px; color: #91a084; font-size: 12px; font-weight: 650; }
+.plan-right-name { color: #254a32; font-size: 14px; font-weight: 650; line-height: 1.7; }
+.plan-right-name small { display: block; margin-top: 3px; color: #68756c; font-size: 11px; font-weight: 400; }
+.plan-overview > .plan-body > .fu-disclosure { margin: 12px 0 0; padding: 2px 16px; border-radius: 17px; background: #f6f7ee; border-color: #e5e9dc; }
+.plan-overview > .plan-body > .fu-disclosure > summary { display: list-item; padding: 13px 0; color: #4e6f4a; font-size: 13px; font-weight: 600; }
+.plan-overview .fu-disclosure .fu-row { gap: 7px; }
+.plan-overview .fu-disclosure .fu-button { border-radius: 12px; min-height: 44px; font-size: 13px; }
+.plan-overview .fu-disclosure p, .plan-overview .fu-disclosure li { font-size: 13px; }
+.plan-pause-controls { padding-top: 12px; border-top: 1px solid #e2e7da; margin: 16px 0; }
+.followup .plan-pause-controls h3 { font-size: 14px; }
+.followup .plan-pause-controls p, .followup .plan-pause-controls label { font-size: 12px; color: #6b7862; }
+.plan-overview .plan-state-note { margin: 12px 0; padding: 16px; border: 1px solid #e8ddbd; border-radius: 16px; background: #fbf3df; font-size: 13px; }
+.plan-state-note .fu-button { min-height: 44px; }
+.followup .plan-state-note h2 { font-size: 16px; }
+.followup .plan-footnote { margin: 22px 8px 5px; color: #68756c; font-size: 11px; text-align: center; line-height: 1.85; }
+@media (max-width: 350px) {
+  .plan-topline { padding-inline: 16px; }
+  .plan-hero { padding-inline: 18px; min-height: 218px; }
+  .followup .plan-hero h1 { font-size: 23px; }
+  .followup .plan-hero-copy { max-width: 155px; font-size: 13px; }
+  .plan-family-art { width: 149px; right: -5px; }
+  .plan-body { padding-inline: 12px; }
+  .plan-overview .plan-next { padding: 17px; border-radius: 21px; }
+  .followup .plan-next h3 { font-size: 19px; }
+  .plan-next-actions { gap: 10px; }
+  .plan-channel-link { font-size: 12px; }
+  .plan-route-steps { gap: 2px; }
+  .plan-route-steps strong { font-size: 11px; }
+}
+@media (min-width: 768px) {
+  .followup:has(.plan-overview) { margin-top: 12px; border-radius: 20px 20px 0 0; overflow: clip; }
+}
