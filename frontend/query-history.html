@@ -4,25 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>政策找人 · 查询历史</title>
+  <meta name="theme-color" content="#fdfaf5">
   <link rel="stylesheet" href="assets/tcb.css">
   <link rel="stylesheet" href="assets/query-flow.css">
   <link rel="stylesheet" href="assets/navigation.css">
+  <link rel="stylesheet" href="assets/ui-foundation.css">
+  <link rel="stylesheet" href="assets/history-polish.css">
   <script src="assets/navigation-policy.js"></script>
 </head>
-<body>
-<main class="app q-app">
-  <header class="q-head"><a class="q-back" href="services.html" aria-label="返回我的">←</a>查询历史</header>
-  <h1>查询历史</h1>
-  <p id="historyStatus" role="status"></p>
+<body class="history-page">
+<main class="app q-app history-app">
+  <header class="q-head history-top"><a class="q-back" href="services.html">返回我的</a><span>政策找人 · 家庭服务</span></header>
+  <div class="history-intro">
+    <p class="history-eyebrow">每一次查询，都可以回看</p>
+    <h1>查询历史</h1>
+    <p class="q-sub">按成员查看历次查询，接着处理关心的政策。</p>
+  </div>
+  <p id="historyStatus" class="history-status" role="status" aria-live="polite"></p>
   <form id="historyUnlock" class="q-section" hidden>
     <label class="q-label" for="historyToken">本机预览访问凭证</label>
     <input id="historyToken" type="password" autocomplete="off" required>
     <div class="q-actions"><button class="q-primary">解锁</button></div>
   </form>
   <section id="historyContent" hidden>
-    <label class="q-label" for="historyMember">查看哪位成员的查询？</label>
-    <select id="historyMember"></select>
-    <div id="historyList"></div>
+    <div class="history-filter">
+      <label class="q-label" for="historyMember">查看哪位成员的查询？</label>
+      <select id="historyMember" aria-describedby="historyMemberHelp"></select>
+      <p id="historyMemberHelp">只展示所选成员的查询记录。</p>
+    </div>
+    <div class="history-results-heading"><h2>历史记录</h2><span id="historyCount"></span></div>
+    <div id="historyList" aria-live="polite"></div>
+    <p class="history-retention">从历史中删除查询，已保存的咨询、计划和处理记录仍会保留。</p>
   </section>
 </main>
 <script src="assets/app.js"></script>

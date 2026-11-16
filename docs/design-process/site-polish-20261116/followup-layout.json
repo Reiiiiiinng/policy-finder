@@ -1,0 +1,44 @@
+[
+  {
+    "view": "conditions",
+    "scroll": 320,
+    "title": "补充必要条件",
+    "width": 320
+  },
+  {
+    "view": "prepare",
+    "scroll": 320,
+    "title": "材料准备清单",
+    "width": 320
+  },
+  {
+    "view": "material",
+    "scroll": 320,
+    "title": "材料暂不可用",
+    "width": 320
+  },
+  {
+    "view": "review",
+    "scroll": 320,
+    "title": "提交前核对与办理渠道",
+    "width": 320
+  },
+  {
+    "view": "task",
+    "scroll": 320,
+    "title": "办理进度与结果记录",
+    "width": 320
+  },
+  {
+    "view": "logs",
+    "scroll": 320,
+    "title": "核实与咨询记录",
+    "width": 320
+  },
+  {
+    "view": "list",
+    "scroll": 320,
+    "title": "待核实清单",
+    "width": 320
+  }
+]

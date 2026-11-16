@@ -124,19 +124,29 @@
   }
 
   function renderMembers() {
-    return header('家庭成员','services.html') + memberRows.map(row=>panel(esc(row.name),`
+    const avatar = row => {
+      const role=({'本人':'self','父亲':'elder-male','爷爷':'elder-male','外公':'elder-male',
+        '母亲':'elder-female','奶奶':'elder-female','外婆':'elder-female','配偶':'couple'})[row.relation] || 'neutral';
+      return `<img src="assets/avatars/${role}.webp" alt="" width="52" height="52" decoding="async">`;
+    };
+    return header('家庭成员','services.html') + '<p class="fu-page-intro">每位家人的权益和办理记录，分别整理。</p>' +
+      `<div class="fu-member-list">${memberRows.map(row=>`<details class="fu-panel fu-member-card">
+      <summary><span class="fu-member-avatar">${avatar(row)}</span><span class="fu-member-caption"><strong>${esc(row.name)}</strong>
+        ${row.name!==row.relation?`<small>${esc(row.relation)}</small>`:''}${row.archivedAt?'<small>已归档</small>':''}</span>
+        <span class="fu-member-edit"><span class="when-closed">编辑资料</span><span class="when-open">收起</span></span></summary>
       <form class="fu-member" data-member-id="${esc(row.id)}">
         <label>称呼或名字<input name="name" value="${esc(row.name)}" required maxlength="80"></label>
         <label>关系<select name="relation">${(row.relation==='本人'?['本人']:['父亲','母亲','爷爷','奶奶','外公','外婆','配偶','子女','其他']).map(relation=>
           `<option ${relation===row.relation?'selected':''}>${relation}</option>`).join('')}</select></label>
-        <button class="fu-button" type="submit">保存成员资料</button>
+        <div class="fu-member-actions"><button class="fu-button fu-primary" type="submit">保存成员资料</button>
         ${row.relation==='本人'?'':`<button class="fu-button" type="button" data-archive-member="${esc(row.id)}">${row.archivedAt?'恢复成员':'归档成员'}</button>`}
-      </form>`)).join('')+panel('添加家庭成员',`<form id="fuAddMember">
+        </div></form></details>`).join('')}</div>
+      <details class="fu-panel fu-add-member"><summary><strong>添加家庭成员</strong><small>为家人建立一份权益记录</small></summary><form id="fuAddMember">
       <label>称呼或名字<input name="name" required maxlength="80" autocomplete="off"></label>
       <label>关系<select name="relation" required><option value="">请选择</option>${['父亲','母亲','爷爷','奶奶','外公','外婆','配偶','子女','其他'].map(relation=>
         `<option>${relation}</option>`).join('')}</select></label>
       <button class="fu-button fu-primary" type="submit">添加成员</button>
-    </form>`);
+    </form></details>`;
   }
 
   function renderAdvice(plan) {

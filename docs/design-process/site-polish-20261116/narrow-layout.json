@@ -1,0 +1,58 @@
+[
+  {
+    "page": "members",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "家庭成员",
+    "width": 320
+  },
+  {
+    "page": "mine",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "我的",
+    "width": 320
+  },
+  {
+    "page": "consult",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "咨询与办理指引",
+    "width": 320
+  },
+  {
+    "page": "history",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "查询历史",
+    "width": 320
+  },
+  {
+    "page": "detail",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "老年人照护需求综合评估",
+    "width": 320
+  },
+  {
+    "page": "find",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "从家里的变化，发现用得上的权益",
+    "width": 320
+  },
+  {
+    "page": "input",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "家里最近有什么变化？",
+    "width": 320
+  },
+  {
+    "page": "plan",
+    "failedImages": 0,
+    "scroll": 320,
+    "title": "家庭少跑腿计划",
+    "width": 320
+  }
+]

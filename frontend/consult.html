@@ -9,44 +9,61 @@
   <link rel="stylesheet" href="assets/tcb.css">
 <link rel="stylesheet" href="assets/pf-services-tcb.css">
 <script src="assets/pf-service-v3-activation.js"></script>
-<link rel="stylesheet" href="assets/navigation.css"><script src="assets/navigation-policy.js"></script></head>
-<body>
-<div class="app">
+<link rel="stylesheet" href="assets/navigation.css">
+<link rel="stylesheet" href="assets/ui-foundation.css">
+<link rel="stylesheet" href="assets/consult-guide.css">
+<script src="assets/navigation-policy.js"></script></head>
+<body class="consult-page">
+<div class="app consult-app">
   <div class="topbar"></div>
 
-  <section class="section">
-    <div class="card consult-intro">
-      <h2 class="consult-title">咨询与办理指引</h2>
-      <p class="consult-sub">把「去哪问、问什么」整理好，具体答复由主管部门给出。</p>
-      <p><a href="follow-up.html?view=logs&amp;from=consult.html">查看已记录的咨询</a></p>
-      <ul class="consult-rules">
-        <li>本页<b>不提供在线咨询、不代办、不代填</b>；部门、政策名称与官方链接读取自正式政策库，不补造信息。</li>
-      </ul>
+  <section class="consult-hero" aria-labelledby="consultPreparationTitle">
+    <p class="consult-eyebrow">咨询准备</p>
+    <h2 id="consultPreparationTitle">先问清，再准备</h2>
+    <p class="consult-hero-copy">找到主管部门，带着问题去核实。</p>
+    <div class="consult-hero-actions">
+      <a class="consult-primary" href="#consultSources">找官方依据</a>
+      <a class="consult-record-link" href="follow-up.html?view=logs&amp;from=consult.html">已有咨询记录</a>
     </div>
+    <p class="consult-boundary">本页不提供在线咨询、不代办、不代填。</p>
   </section>
 
-  <section class="section">
-    <h2 class="section-title">咨询时建议问清这四件事</h2>
-    <div class="card">
+  <section class="section consult-preparation">
+    <details class="consult-questions">
+      <summary>
+        <span><strong>咨询前，准备好这四个问题</strong><small>覆盖范围 · 申请入口 · 材料 · 标准</small></span>
+        <span class="consult-expand">展开</span>
+      </summary>
       <div class="where-list">
-        <div class="where-row"><span class="wr-k">① 覆盖范围</span><span class="wr-v">本人是否在服务覆盖范围内；街道、镇与社区可能有差异。</span></div>
-        <div class="where-row"><span class="wr-k">② 申请入口</span><span class="wr-v">线上申请入口在哪里，或应去哪个线下窗口。</span></div>
-        <div class="where-row"><span class="wr-k">③ 所需材料</span><span class="wr-v">需要哪些证件与凭证，是否要先完成评估。</span></div>
-        <div class="where-row"><span class="wr-k">④ 适用标准</span><span class="wr-v">本人适用的具体标准与发放方式是什么。</span></div>
+        <div class="where-row"><span class="wr-k">01 覆盖范围</span><span class="wr-v">本人是否在服务覆盖范围内？街道、镇与社区可能有差异。</span></div>
+        <div class="where-row"><span class="wr-k">02 申请入口</span><span class="wr-v">线上申请入口在哪里，或应去哪个线下窗口？</span></div>
+        <div class="where-row"><span class="wr-k">03 所需材料</span><span class="wr-v">需要哪些证件与凭证，是否要先完成评估？</span></div>
+        <div class="where-row"><span class="wr-k">04 适用标准</span><span class="wr-v">本人适用的具体标准与发放方式是什么？</span></div>
       </div>
-    </div>
+    </details>
   </section>
 
-  <section class="section">
-    <h2 class="section-title">按主管部门查看</h2>
+  <section class="section consult-sources" id="consultSources" aria-labelledby="consultSourcesTitle">
+    <div class="consult-section-heading">
+      <p class="consult-eyebrow">去哪里问</p>
+      <h2 id="consultSourcesTitle">按主管部门找官方依据</h2>
+      <p>先确认责任部门与政策原文，具体咨询或办理入口请再向该部门核实。</p>
+    </div>
     <div id="consultDepts" aria-live="polite">
       <div class="notice" role="status">正在读取正式政策库…</div>
     </div>
   </section>
 
+  <section class="section consult-records" id="consultRecords" aria-labelledby="consultRecordsTitle">
+    <a class="consult-record-card" href="follow-up.html?view=logs&amp;from=consult.html">
+      <span><span class="consult-eyebrow">已有记录</span><strong id="consultRecordsTitle">回看已记录的咨询</strong><small>把问到的答复和后续安排接着往下做。</small></span>
+      <span class="consult-record-cta">查看记录</span>
+    </a>
+  </section>
+
   <div class="footnote">
     <span id="footScope">数据范围：正式政策库</span><br>
-    <span>本页仅为核实指引，不构成政策解释或资格认定；最终以主管部门答复为准。</span>
+    <span>部门、政策名称与链接均读取自正式政策库。来源链接不代表在线办理入口；本页不构成政策解释或资格认定，最终以主管部门答复为准。</span>
   </div>
 </div>
 
@@ -57,6 +74,13 @@
 <script>
   renderTopbar('咨询与办理指引', 'index.html', '官方渠道');
   mountBottomNav();
+
+  const consultQuestions = document.querySelector('.consult-questions');
+  const updateConsultQuestionsLabel = () => {
+    consultQuestions.querySelector('.consult-expand').textContent = consultQuestions.open ? '收起' : '展开';
+  };
+  consultQuestions.addEventListener('toggle', updateConsultQuestionsLabel);
+  updateConsultQuestionsLabel();
 
   (async function loadConsultDirectory() {
     const box = document.getElementById('consultDepts');

@@ -1,0 +1,122 @@
+[
+  {
+    "page": "home",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "今天，想为谁找政策？"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "search",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "查政策"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "mine",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "我的"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "members",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "家庭成员"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "consult",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "咨询与办理指引"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "history",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "查询历史"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "detail",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "老年人照护需求综合评估"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "find",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "为谁查找权益？"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "input",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "家里最近有什么变化？"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "results",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "AI 政策推荐"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "ai-detail",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "佛山市医疗救助实施办法"
+    ],
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "page": "plan",
+    "duplicateIds": [],
+    "failedImages": 0,
+    "headings": [
+      "家庭少跑腿计划"
+    ],
+    "scroll": 390,
+    "width": 390
+  }
+]
